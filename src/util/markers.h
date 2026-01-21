@@ -1,6 +1,8 @@
 #ifndef UTIL_MARKERS_H
 #define UTIL_MARKERS_H
+#include <nvtx3/nvToolsExt.h>
 // #include <nvToolsExt.h>
+
 
 namespace rayjoin {
 

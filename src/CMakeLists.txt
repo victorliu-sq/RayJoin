@@ -43,7 +43,7 @@ add_executable(polyover_exec
 target_link_libraries(polyover_exec PUBLIC
         ${CUDA_LIBRARIES}
         ${CUDA_CUDA_LIBRARY}
-        ${CUDA_nvToolsExt_LIBRARY}
+#        ${CUDA_nvToolsExt_LIBRARY}
         ${GFLAGS_LIBRARIES}
         ${GLOG_LIBRARIES}
 #        cuda
@@ -66,7 +66,7 @@ add_executable(query_exec
 target_link_libraries(query_exec PUBLIC
         ${CUDA_LIBRARIES}
         ${CUDA_CUDA_LIBRARY}
-        ${CUDA_nvToolsExt_LIBRARY}
+#        ${CUDA_nvToolsExt_LIBRARY}
         ${GFLAGS_LIBRARIES}
         ${GLOG_LIBRARIES}
 #        cuda

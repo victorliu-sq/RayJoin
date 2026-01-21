@@ -20,9 +20,7 @@ endif (POLICY CMP0048)
 
 cmake_minimum_required(VERSION 3.10)
 
-project(rayjoin
-        LANGUAGES CUDA C CXX
-        VERSION 1.0.1)
+project(rayjoin LANGUAGES CUDA C CXX VERSION 1.0.1)
 
 if (NOT WIN32)
     # visual studio doesn't like these (not need them):
@@ -70,21 +68,13 @@ macro(TARGET_INCLUDE_SYMBOL target symbol)
     endif ()
 endmacro()
 
-# ----------------------------------------------------------------------
-list(APPEND CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/deps")
-set(INSTALL_PREFIX_LIBRARY "${CMAKE_SOURCE_DIR}/deps/lib")
-
-set(OPTIX_ROOT "${PROJECT_SOURCE_DIR}/deps/optix")
-# ----------------------------------------------------------------------
-
 include(cmake/configure_build_type.cmake)
 include(cmake/FindOptiX.cmake)
 include(cmake/nvcuda_compile_module.cmake)
 include_directories(${PROJECT_SOURCE_DIR})
 
 #find_package(CUDA 11.8 REQUIRED)
-#find_package(CUDA REQUIRED)
-find_package(CUDAToolkit REQUIRED)
+find_package(CUDAToolkit 11.8 REQUIRED)
 
 include("cmake/FindGFlags.cmake")
 if (NOT GFLAGS_FOUND)
@@ -100,13 +90,6 @@ else ()
     include_directories(SYSTEM ${GLOG_INCLUDE_DIRS})
 endif ()
 
-#find_package(gflags 2.2.2 REQUIRED)
-#find_package(glog 0.6.0 REQUIRED)
-
-#set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--disable-new-dtags")  # this line of code allows cmake to search library path
-#set(CMAKE_BUILD_RPATH ${INSTALL_PREFIX_LIBRARY})
-#set(CMAKE_INSTALL_RPATH ${INSTALL_PREFIX_LIBRARY})
-#set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 # ------------------------------------------------------------------
