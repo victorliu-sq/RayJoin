@@ -18,9 +18,12 @@ if (POLICY CMP0048)
     cmake_policy(SET CMP0048 NEW)
 endif (POLICY CMP0048)
 
-project(rayjoin LANGUAGES CUDA C CXX VERSION 1.0.1)
-
 cmake_minimum_required(VERSION 3.10)
+
+project(rayjoin
+        LANGUAGES CUDA C CXX
+        VERSION 1.0.1)
+
 if (NOT WIN32)
     # visual studio doesn't like these (not need them):
     set(CMAKE_CXX_FLAGS "--std=c++14")
@@ -78,7 +81,10 @@ include(cmake/FindOptiX.cmake)
 include(cmake/nvcuda_compile_module.cmake)
 include_directories(${PROJECT_SOURCE_DIR})
 
-find_package(CUDA 11.8 REQUIRED)
+#find_package(CUDA 11.8 REQUIRED)
+#find_package(CUDA REQUIRED)
+#find_package(CUDAToolkit REQUIRED)
+
 
 include("cmake/FindGFlags.cmake")
 if (NOT GFLAGS_FOUND)
