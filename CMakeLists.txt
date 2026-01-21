@@ -67,6 +67,12 @@ macro(TARGET_INCLUDE_SYMBOL target symbol)
     endif ()
 endmacro()
 
+# ----------------------------------------------------------------------
+list(APPEND CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/deps")
+
+set(OPTIX_ROOT "${PROJECT_SOURCE_DIR}/deps/optix")
+# ----------------------------------------------------------------------
+
 include(cmake/configure_build_type.cmake)
 include(cmake/FindOptiX.cmake)
 include(cmake/nvcuda_compile_module.cmake)

@@ -50,7 +50,9 @@ if (WIN32)
 	mark_as_advanced(searched_OptiX_INSTALL_DIR)
   set(OptiX_INSTALL_DIR ${searched_OptiX_INSTALL_DIR} CACHE PATH "Path to OptiX installed location.")
 else()
-  set(OptiX_INSTALL_DIR $ENV{OptiX_INSTALL_DIR} CACHE PATH "Path to OptiX installed location.")
+#  set(OptiX_INSTALL_DIR $ENV{OptiX_INSTALL_DIR} CACHE PATH "Path to OptiX installed location.")
+  set(OptiX_INSTALL_DIR "${CMAKE_SOURCE_DIR}/deps/optix")
+#  message("OptiX_INSTALL_DIR is set to ${OptiX_INSTALL_DIR}")
 endif()
 # The distribution contains both 32 and 64 bit libraries.  Adjust the library
 # search path based on the bit-ness of the build.  (i.e. 64: bin64, lib64; 32:
@@ -93,6 +95,7 @@ find_path(OptiX_INCLUDE
   PATHS "${OptiX_INSTALL_DIR}/include"
   NO_DEFAULT_PATH
   )
+
 find_path(OptiX_INCLUDE
   NAMES optix.h
   )
