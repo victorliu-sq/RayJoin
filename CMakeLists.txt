@@ -72,6 +72,7 @@ endmacro()
 
 # ----------------------------------------------------------------------
 list(APPEND CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/deps")
+set(INSTALL_PREFIX_LIBRARY "${CMAKE_SOURCE_DIR}/deps/lib")
 
 set(OPTIX_ROOT "${PROJECT_SOURCE_DIR}/deps/optix")
 # ----------------------------------------------------------------------
@@ -85,21 +86,27 @@ include_directories(${PROJECT_SOURCE_DIR})
 #find_package(CUDA REQUIRED)
 #find_package(CUDAToolkit REQUIRED)
 
+#include("cmake/FindGFlags.cmake")
+#if (NOT GFLAGS_FOUND)
+#    message(STATUS "gflags not found, build without gflags")
+#else ()
+#    include_directories(SYSTEM ${GFLAGS_INCLUDE_DIRS})
+#endif ()
+#
+#include("cmake/FindGlog.cmake")
+#if (NOT GLOG_FOUND)
+#    message(FATAL_ERROR "glog not found, please install the glog library")
+#else ()
+#    include_directories(SYSTEM ${GLOG_INCLUDE_DIRS})
+#endif ()
 
-include("cmake/FindGFlags.cmake")
-if (NOT GFLAGS_FOUND)
-    message(STATUS "gflags not found, build without gflags")
-else ()
-    include_directories(SYSTEM ${GFLAGS_INCLUDE_DIRS})
-endif ()
+find_package(gflags 2.2.2 REQUIRED)
+find_package(glog 0.6.0 REQUIRED)
 
-include("cmake/FindGlog.cmake")
-if (NOT GLOG_FOUND)
-    message(FATAL_ERROR "glog not found, please install the glog library")
-else ()
-    include_directories(SYSTEM ${GLOG_INCLUDE_DIRS})
-endif ()
-
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--disable-new-dtags")  # this line of code allows cmake to search library path
+set(CMAKE_BUILD_RPATH ${INSTALL_PREFIX_LIBRARY})
+set(CMAKE_INSTALL_RPATH ${INSTALL_PREFIX_LIBRARY})
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 # ------------------------------------------------------------------
