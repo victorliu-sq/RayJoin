@@ -2125,6 +2125,8 @@ DEV_HOST_INLINE void setByIndex(longlong3& v, int i, int x)
 /* longlong4 functions */
 /******************************************************************************/
 
+using ll4 = longlong4_16a;
+
 /** additional constructors
 * @{
 */

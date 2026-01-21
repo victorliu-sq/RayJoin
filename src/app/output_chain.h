@@ -13,8 +13,10 @@
 #include "glog/logging.h"
 #include "map/scaling.h"
 #include "util/type_traits.h"
+#include "util/util.h"
 
 namespace rayjoin {
+
 template <typename COORD_T>
 struct OutputChain {
   int64_t id;

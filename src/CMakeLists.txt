@@ -44,6 +44,7 @@ target_link_libraries(polyover_exec PUBLIC
 #        ${CUDA_nvToolsExt_LIBRARY}
 #        ${GFLAGS_LIBRARIES}
 #        ${GLOG_LIBRARIES}
+        cuda
         glog::glog
         )
 target_compile_options(polyover_exec PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--expt-extended-lambda --expt-relaxed-constexpr --prec-div=true>)
@@ -63,6 +64,7 @@ target_link_libraries(query_exec PUBLIC
 #        ${CUDA_nvToolsExt_LIBRARY}
 #        ${GFLAGS_LIBRARIES}
 #        ${GLOG_LIBRARIES}
+        cuda
         glog::glog
         )
 target_compile_options(query_exec PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--expt-extended-lambda --expt-relaxed-constexpr>)

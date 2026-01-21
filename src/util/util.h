@@ -64,4 +64,32 @@ template <typename T>
 using pinned_vector =
     thrust::host_vector<T,
                         thrust::mr::stateless_resource_allocator<T, mr_pinned>>;
+
+#define SQ(x) ((x) * (x))
+#define SIZEOF_ELEM(vec) \
+  (sizeof(typename std::remove_reference<decltype(vec)>::type::value_type))
+#define COUNT_CONTAINER_BYTES(vec) (vec.size() * SIZEOF_ELEM(vec))
+
+namespace std {
+
+template <>
+struct hash<double2> {
+  size_t operator()(const double2& p) const noexcept {
+    return *reinterpret_cast<const int64_t*>(&p.x) ^
+           *reinterpret_cast<const int64_t*>(&p.y);
+  }
+};
+
+// move == outside of namespace std will fix the lack of == for double2 problem
+// inline bool operator==(const double2& p1, const double2& p2) {
+//   return p1.x == p2.x && p1.y == p2.y;
+// }
+
+}  // namespace std
+
+inline bool operator==(const double2& p1, const double2& p2) {
+  return p1.x == p2.x && p1.y == p2.y;
+}
+
+
 #endif  // RAYJOIN_UTIL_H
