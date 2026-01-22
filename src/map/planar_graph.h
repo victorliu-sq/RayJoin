@@ -1,7 +1,6 @@
 #ifndef RAYJOIN_MAP_PLANAR_GRAPH_H
 #define RAYJOIN_MAP_PLANAR_GRAPH_H
 #include <dirent.h>
-#include <glog/logging.h>
 #include <sys/stat.h>
 
 #include <algorithm>
@@ -9,6 +8,37 @@
 #include <random>
 #include <map>
 #include <vector>
+
+// #if !defined(RAYJOIN_RT)
+// #include <glog/logging.h>
+// #endif
+
+#if defined(RAYJOIN_RT)
+
+// ---------------- RT / OptiX PTX ----------------
+// Logging is forbidden → compile out safely
+
+#define LOG(level) if (true) {} else (void)0
+#define VLOG(level) if (true) {} else (void)0
+
+#define CHECK(cond) ((void)0)
+#define CHECK_EQ(a,b) ((void)0)
+#define CHECK_NE(a,b) ((void)0)
+#define CHECK_LT(a,b) ((void)0)
+#define CHECK_GT(a,b) ((void)0)
+#define CHECK_LE(a,b) ((void)0)
+#define CHECK_GE(a,b) ((void)0)
+
+// Optional but useful
+#define DCHECK(cond) ((void)0)
+#define DCHECK_EQ(a,b) ((void)0)
+
+#else
+
+// ---------------- Host / normal CUDA ----------------
+#include <glog/logging.h>
+
+#endif
 
 #include "config.h"
 #include "map/bounding_box.h"

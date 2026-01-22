@@ -76,20 +76,33 @@ include_directories(${PROJECT_SOURCE_DIR})
 #find_package(CUDA 11.8 REQUIRED)
 find_package(CUDAToolkit 11.8 REQUIRED)
 
-include("cmake/FindGFlags.cmake")
-if (NOT GFLAGS_FOUND)
+
+list(APPEND CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/deps")
+
+#include("cmake/FindGFlags.cmake")
+find_package(gflags 2.2.2 REQUIRED)
+if (NOT gflags_FOUND)
     message(STATUS "gflags not found, build without gflags")
 else ()
-    include_directories(SYSTEM ${GFLAGS_INCLUDE_DIRS})
+    message("gflag is found")
+#    include_directories(SYSTEM ${GFLAGS_INCLUDE_DIRS})
 endif ()
 
-include("cmake/FindGlog.cmake")
-if (NOT GLOG_FOUND)
+
+#include("cmake/FindGlog.cmake")
+find_package(glog 0.6.0 REQUIRED)
+set(GLOG_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/deps/include")
+if (NOT glog_FOUND)
     message(FATAL_ERROR "glog not found, please install the glog library")
 else ()
-    include_directories(SYSTEM ${GLOG_INCLUDE_DIRS})
+    message("glog is found, with include directory as ${GLOG_INCLUDE_DIRS}")
+#    include_directories(SYSTEM ${})
 endif ()
 
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--disable-new-dtags")  # this line of code allows cmake to search library path
+set(CMAKE_BUILD_RPATH ${INSTALL_PREFIX_LIBRARY})
+set(CMAKE_INSTALL_RPATH ${INSTALL_PREFIX_LIBRARY})
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 # ------------------------------------------------------------------

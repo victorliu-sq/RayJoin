@@ -3,14 +3,16 @@ include_directories(${PROJECT_SOURCE_DIR}/deps/Declib)
 include_directories(${PROJECT_SOURCE_DIR}/deps/lbvh)
 include_directories(${PROJECT_SOURCE_DIR}/src)
 
+#set(GLOG_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/deps/include")
+
 set(OPTIX_MODULE_EXTENSION ".ptx")
 set(OPTIX_PROGRAM_TARGET "--ptx")
 set(ENABLED_ARCHS "86")
 
 set(SHADERS
-        algo/rt_lsi_custom.cu
-        algo/rt_pip_custom.cu
-        )
+    algo/rt_lsi_custom.cu
+    algo/rt_pip_custom.cu
+    )
 
 NVCUDA_COMPILE_MODULE(
         SOURCES ${SHADERS}
@@ -26,6 +28,7 @@ NVCUDA_COMPILE_MODULE(
         "--prec-div=true"
         "-I${OptiX_INCLUDE}"
         "-I${CMAKE_CURRENT_SOURCE_DIR}"
+        "-DRAYJOIN_RT"
 #        "-I${GLOG_INCLUDE_DIRS}"
 #        "-I${GFLAGS_INCLUDE_DIRS}"
 )
@@ -33,47 +36,45 @@ NVCUDA_COMPILE_MODULE(
 message("PROGRAM_MODULES: ${PROGRAM_MODULES}")
 
 add_executable(polyover_exec
-        overlay.cc
         run_overlay.cu
+        overlay.cc
         rt/rt_engine.cu
         ${PROGRAM_MODULES}
         flags.cc
         )
 
 target_link_libraries(polyover_exec PUBLIC
-        ${CUDA_LIBRARIES}
-        ${CUDA_CUDA_LIBRARY}
+#        ${CUDA_LIBRARIES}
+#        ${CUDA_CUDA_LIBRARY}
 #        ${CUDA_nvToolsExt_LIBRARY}
-        ${GFLAGS_LIBRARIES}
-        ${GLOG_LIBRARIES}
+#        ${GFLAGS_LIBRARIES}
+#        ${GLOG_LIBRARIES}
 #        cuda
-#        glog::glog
+        CUDA::cudart
+        CUDA::cuda_driver
+        glog::glog
         )
 target_compile_options(polyover_exec PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--expt-extended-lambda --expt-relaxed-constexpr --prec-div=true>)
 set_target_properties(polyover_exec PROPERTIES CUDA_ARCHITECTURES "${ENABLED_ARCHS}" CUDA_SEPARABLE_COMPILATION ON) # 70;
-target_include_directories(polyover_exec PUBLIC
-        ${GLOG_INCLUDE_DIRS}
-)
 
 add_executable(query_exec
-        query.cc
         run_query.cu
+        query.cc
         rt/rt_engine.cu
         ${PROGRAM_MODULES}
         flags.cc
         )
 
 target_link_libraries(query_exec PUBLIC
-        ${CUDA_LIBRARIES}
-        ${CUDA_CUDA_LIBRARY}
+#        ${CUDA_LIBRARIES}
+#        ${CUDA_CUDA_LIBRARY}
 #        ${CUDA_nvToolsExt_LIBRARY}
-        ${GFLAGS_LIBRARIES}
-        ${GLOG_LIBRARIES}
+#        ${GFLAGS_LIBRARIES}
+#        ${GLOG_LIBRARIES}
 #        cuda
-#        glog::glog
+        CUDA::cudart
+        CUDA::cuda_driver
+        glog::glog
         )
 target_compile_options(query_exec PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--expt-extended-lambda --expt-relaxed-constexpr>)
 set_target_properties(query_exec PROPERTIES CUDA_ARCHITECTURES "${ENABLED_ARCHS}" CUDA_SEPARABLE_COMPILATION ON) # 70;
-target_include_directories(query_exec PUBLIC
-        ${GLOG_INCLUDE_DIRS}
-)
