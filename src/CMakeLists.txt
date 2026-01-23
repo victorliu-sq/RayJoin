@@ -7,6 +7,7 @@ include_directories(${PROJECT_SOURCE_DIR}/src)
 
 set(OPTIX_MODULE_EXTENSION ".ptx")
 set(OPTIX_PROGRAM_TARGET "--ptx")
+
 set(ENABLED_ARCHS "86")
 
 set(SHADERS
@@ -29,52 +30,64 @@ NVCUDA_COMPILE_MODULE(
         "-I${OptiX_INCLUDE}"
         "-I${CMAKE_CURRENT_SOURCE_DIR}"
         "-DRAYJOIN_RT"
-#        "-I${GLOG_INCLUDE_DIRS}"
-#        "-I${GFLAGS_INCLUDE_DIRS}"
 )
 
 message("PROGRAM_MODULES: ${PROGRAM_MODULES}")
 
-add_executable(polyover_exec
-        run_overlay.cu
-        overlay.cc
-        rt/rt_engine.cu
-        ${PROGRAM_MODULES}
-        flags.cc
-        )
+add_custom_target(optix_ptx ALL
+    DEPENDS ${PROGRAM_MODULES}
+)
 
-target_link_libraries(polyover_exec PUBLIC
-#        ${CUDA_LIBRARIES}
-#        ${CUDA_CUDA_LIBRARY}
-#        ${CUDA_nvToolsExt_LIBRARY}
-#        ${GFLAGS_LIBRARIES}
-#        ${GLOG_LIBRARIES}
-#        cuda
+add_library(polyover_lib SHARED
+        run_overlay.cu
+        rt/rt_engine.cu
+        flags.cu
+        ${PROGRAM_MODULES}
+)
+
+target_link_libraries(polyover_lib PUBLIC
+        glog::glog
         CUDA::cudart
         CUDA::cuda_driver
-        glog::glog
+)
+#add_dependencies(polyover_lib optix_ptx)
+
+target_compile_options(polyover_lib PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--expt-extended-lambda --expt-relaxed-constexpr --prec-div=true>)
+set_target_properties(polyover_lib PROPERTIES CUDA_ARCHITECTURES "${ENABLED_ARCHS}" CUDA_SEPARABLE_COMPILATION ON) # 70;
+
+add_executable(polyover_exec
+        overlay.cu
+        )
+
+target_link_libraries(polyover_exec PRIVATE
+        polyover_lib
         )
 target_compile_options(polyover_exec PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--expt-extended-lambda --expt-relaxed-constexpr --prec-div=true>)
 set_target_properties(polyover_exec PROPERTIES CUDA_ARCHITECTURES "${ENABLED_ARCHS}" CUDA_SEPARABLE_COMPILATION ON) # 70;
+add_dependencies(polyover_exec optix_ptx)
 
-add_executable(query_exec
+add_library(query_lib
         run_query.cu
-        query.cc
         rt/rt_engine.cu
-        ${PROGRAM_MODULES}
-        flags.cc
-        )
+        flags.cu
+)
 
-target_link_libraries(query_exec PUBLIC
-#        ${CUDA_LIBRARIES}
-#        ${CUDA_CUDA_LIBRARY}
-#        ${CUDA_nvToolsExt_LIBRARY}
-#        ${GFLAGS_LIBRARIES}
-#        ${GLOG_LIBRARIES}
-#        cuda
+
+target_link_libraries(query_lib PUBLIC
         CUDA::cudart
         CUDA::cuda_driver
         glog::glog
-        )
+)
+target_compile_options(query_lib PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--expt-extended-lambda --expt-relaxed-constexpr --prec-div=true>)
+set_target_properties(query_lib PROPERTIES CUDA_ARCHITECTURES "${ENABLED_ARCHS}" CUDA_SEPARABLE_COMPILATION ON) # 70;
+
+add_executable(query_exec
+        query.cu
+)
+
+target_link_libraries(query_exec PRIVATE
+        query_lib
+)
 target_compile_options(query_exec PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:--expt-extended-lambda --expt-relaxed-constexpr>)
 set_target_properties(query_exec PROPERTIES CUDA_ARCHITECTURES "${ENABLED_ARCHS}" CUDA_SEPARABLE_COMPILATION ON) # 70;
+add_dependencies(query_exec optix_ptx)

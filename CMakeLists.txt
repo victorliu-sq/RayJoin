@@ -76,7 +76,6 @@ include_directories(${PROJECT_SOURCE_DIR})
 #find_package(CUDA 11.8 REQUIRED)
 find_package(CUDAToolkit 11.8 REQUIRED)
 
-
 list(APPEND CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/deps")
 
 #include("cmake/FindGFlags.cmake")

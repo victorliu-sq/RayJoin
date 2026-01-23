@@ -1,4 +1,5 @@
 #include <glog/logging.h>
+
 #include <algorithm>
 
 #include "flags.h"
