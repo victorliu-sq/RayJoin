@@ -1,9 +1,9 @@
 
 #ifndef RAYJOIN_APP_MAP_OVERLAY_H
 #define RAYJOIN_APP_MAP_OVERLAY_H
-#include "algo/lsi.h"
 #include "app/lsi.h"
 #include "app/pip.h"
+#include "shader/lsi.h"
 
 namespace rayjoin {
 template <typename CONTEXT_T>

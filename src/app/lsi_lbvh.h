@@ -3,10 +3,10 @@
 
 #include <memory>
 
-#include "algo/lsi.h"
 #include "app/lsi.h"
 #include "app/query_config.h"
 #include "lbvh.cuh"
+#include "shader/lsi.h"
 #include "tree/primtive.h"
 #include "util/helpers.h"
 

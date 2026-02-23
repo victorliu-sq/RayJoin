@@ -6,10 +6,10 @@
 
 #include <utility>
 
-#include "algo/lsi.h"
 #include "app/lsi.h"
 #include "app/query_config.h"
 #include "rt/rt_engine.h"
+#include "shader/lsi.h"
 #include "util/helpers.h"
 
 namespace rayjoin {

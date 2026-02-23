@@ -1,9 +1,9 @@
 
 #ifndef APP_PIP_GRID_H
 #define APP_PIP_GRID_H
-#include "algo/pip.h"
 #include "app/pip.h"
 #include "grid/uniform_grid.h"
+#include "shader/pip.h"
 
 namespace rayjoin {
 template <typename CONTEXT_T>

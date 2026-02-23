@@ -2,7 +2,6 @@
 #define APP_LSI_GRID_H
 #include <utility>
 
-#include "algo/lsi.h"
 #include "app/lsi.h"
 #include "config.h"
 #include "grid/cell.h"
@@ -10,6 +9,7 @@
 #include "map/map.h"
 #include "map/scaling.h"
 #include "query_config.h"
+#include "shader/lsi.h"
 #include "util/queue.h"
 
 namespace rayjoin {

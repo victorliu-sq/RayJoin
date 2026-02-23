@@ -4,10 +4,10 @@
 
 #include <cstdint>
 
-#include "algo/lsi.h"
 #include "config.h"
 #include "map/map.h"
 #include "map/scaling.h"
+#include "shader/lsi.h"
 #include "util/array_view.h"
 #include "util/bitset.h"
 #include "util/queue.h"
@@ -20,7 +20,7 @@ struct LaunchParamsLSI {
   using map_t = dev::Map<internal_coord_t, coefficient_t>;
   using edge_t = typename map_t::edge_t;
   using point_t = typename map_t::point_t;
-  using xsect_t = dev::Intersection<internal_coord_t>;
+using xsect_t = dev::Intersection<internal_coord_t>;
 
   edge_t* base_edges;
   point_t* base_points;

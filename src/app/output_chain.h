@@ -8,10 +8,10 @@
 #include <unordered_map>
 #include <vector>
 
-#include "algo/lsi.h"
 #include "config.h"
 #include "glog/logging.h"
 #include "map/scaling.h"
+#include "shader/lsi.h"
 #include "util/type_traits.h"
 #include "util/util.h"
 

@@ -3,8 +3,8 @@
 #include <optix.h>
 #include <optix_device.h>
 
-#include "algo/launch_parameters.h"
 #include "config.h"
+#include "shader/launch_parameters.h"
 #include "util/helpers.h"
 #include "util/int128_intrinsics.h"
 #include "util/rational.h"

@@ -4,10 +4,10 @@
 #include <memory>
 #include <utility>
 
-#include "algo/pip.h"
 #include "app/pip.h"
 #include "config.h"
 #include "lbvh.cuh"
+#include "shader/pip.h"
 #include "tree/primtive.h"
 
 namespace rayjoin {

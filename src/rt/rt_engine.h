@@ -10,9 +10,9 @@
 #include <utility>
 #include <vector>
 
-#include "algo/launch_parameters.h"
 #include "glog/logging.h"
 #include "rt/sbt_record.h"
+#include "shader/launch_parameters.h"
 #include "util/queue.h"
 #include "util/shared_array.h"
 #include "util/shared_value.h"
