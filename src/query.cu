@@ -1,7 +1,5 @@
 #include <glog/logging.h>
-
 #include <algorithm>
-
 #include "flags.h"
 #include "run_query.cuh"
 

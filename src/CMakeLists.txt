@@ -46,9 +46,9 @@ add_library(polyover_lib SHARED
 )
 
 target_link_libraries(polyover_lib PUBLIC
-        glog::glog
         CUDA::cudart
         CUDA::cuda_driver
+        glog::glog
 )
 #add_dependencies(polyover_lib optix_ptx)
 
@@ -71,7 +71,6 @@ add_library(query_lib
         rt/rt_engine.cu
         flags.cu
 )
-
 
 target_link_libraries(query_lib PUBLIC
         CUDA::cudart

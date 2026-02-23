@@ -19,12 +19,15 @@ extern "C" __global__ void __intersection__lsi_custom() {
   using xsect_t = typename rayjoin::LaunchParamsLSI::xsect_t;
   using edge_t = typename rayjoin::LaunchParamsLSI::edge_t;
   using point_t = typename rayjoin::LaunchParamsLSI::point_t;
+
   auto prim_idx = optixGetPrimitiveIndex();
   auto query_eid = optixGetPayload_0();
   auto query_map_id = params.query_map_id;
+
   const auto& query_e = params.query_edges[query_eid];
   const auto& query_e_p1 = params.query_points[query_e.p1_idx];
   const auto& query_e_p2 = params.query_points[query_e.p2_idx];
+
   auto begin_eid = params.eid_range[prim_idx].first;
   auto end_eid = params.eid_range[prim_idx].second;
 
