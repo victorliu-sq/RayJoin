@@ -4,7 +4,7 @@
 
 #include <cstdint>
 
-#include "../util/config.h"
+#include "config.h"
 #include "map/map.h"
 #include "map/scaling.h"
 #include "shader/lsi.h"

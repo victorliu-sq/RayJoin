@@ -1,6 +1,6 @@
 #ifndef ALGO_LSI_H
 #define ALGO_LSI_H
-#include "../util/config.h"
+#include "config.h"
 #include "util/rational.h"
 #include "util/util.h"
 

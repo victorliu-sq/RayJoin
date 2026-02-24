@@ -4,7 +4,7 @@
 #include <memory>
 #include <utility>
 
-#include "../util/config.h"
+#include "../shader/config.h"
 #include "core/pip.h"
 #include "lbvh.cuh"
 #include "shader/pip.h"

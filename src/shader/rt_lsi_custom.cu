@@ -3,7 +3,7 @@
 #include <optix.h>
 #include <optix_device.h>
 
-#include "config.h"
+#include "shader/config.h"
 #include "shader/launch_parameters.h"
 #include "shader/lsi.h"
 #include "util/helpers.h"

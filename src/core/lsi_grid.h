@@ -2,7 +2,7 @@
 #define APP_LSI_GRID_H
 #include <utility>
 
-#include "../util/config.h"
+#include "../shader/config.h"
 #include "core/lsi.h"
 #include "grid/cell.h"
 #include "grid/uniform_grid.h"

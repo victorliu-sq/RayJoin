@@ -4,7 +4,7 @@
 
 #include <cub/cub.cuh>  // or equivalently <cub/block/block_radix_sort.cuh>
 
-#include "../util/config.h"
+#include "../shader/config.h"
 #include "util/array_view.h"
 #include "util/helpers.h"
 #include "util/queue.h"

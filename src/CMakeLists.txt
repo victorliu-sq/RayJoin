@@ -61,62 +61,7 @@ set_target_properties(rayjoin_lib PROPERTIES
 
 add_dependencies(rayjoin_lib optix_ptx)
 
-# =========================== LSI Executable =======================================
-add_executable(polyover_exec
-        app/01_overlay/main.cc
-)
-
-target_link_libraries(polyover_exec PRIVATE
-        rayjoin_lib
-)
-
-target_compile_options(polyover_exec PRIVATE
-        $<$<COMPILE_LANGUAGE:CUDA>:--expt-extended-lambda --expt-relaxed-constexpr --prec-div=true>
-)
-
-set_target_properties(polyover_exec PROPERTIES
-        CUDA_ARCHITECTURES "${ENABLED_ARCHS}"
-        CUDA_SEPARABLE_COMPILATION ON
-)
-
-add_dependencies(polyover_exec optix_ptx)
-
-# =========================== PIP Executable =========================================
-add_executable(query_exec
-        app/02_query/main.cc
-)
-
-target_link_libraries(query_exec PRIVATE
-        rayjoin_lib
-)
-
-target_compile_options(query_exec PRIVATE
-        $<$<COMPILE_LANGUAGE:CUDA>:--expt-extended-lambda --expt-relaxed-constexpr>
-)
-
-set_target_properties(query_exec PROPERTIES
-        CUDA_ARCHITECTURES "${ENABLED_ARCHS}"
-        CUDA_SEPARABLE_COMPILATION ON
-)
-
-add_dependencies(query_exec optix_ptx)
-
-# =========================== LSI_VK Executable =======================================
-add_executable(polyover_vk_exec
-        app/03_overlay_vk/main.cc
-)
-
-target_link_libraries(polyover_vk_exec PRIVATE
-        rayjoin_lib
-)
-
-target_compile_options(polyover_vk_exec PRIVATE
-        $<$<COMPILE_LANGUAGE:CUDA>:--expt-extended-lambda --expt-relaxed-constexpr --prec-div=true>
-)
-
-set_target_properties(polyover_vk_exec PROPERTIES
-        CUDA_ARCHITECTURES "${ENABLED_ARCHS}"
-        CUDA_SEPARABLE_COMPILATION ON
-)
-
-add_dependencies(polyover_vk_exec optix_ptx)
+# =========================== Executables ===================================
+add_subdirectory(app/01_overlay)
+add_subdirectory(app/02_query)
+add_subdirectory(app/03_overlay_vk)
