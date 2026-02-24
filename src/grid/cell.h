@@ -1,6 +1,6 @@
 #ifndef RAYJOIN_GRID_CELL_H
 #define RAYJOIN_GRID_CELL_H
-#include "config.h"
+#include "../util/config.h"
 #include "util/util.h"
 namespace rayjoin {
 namespace dev {

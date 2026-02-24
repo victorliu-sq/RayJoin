@@ -6,7 +6,7 @@
 #include <fstream>
 #include <utility>
 
-#include "app/query_config.h"
+#include "core/query_config.h"
 #include "map/map.h"
 #include "rt/rt_engine.h"
 #include "util/queue.h"

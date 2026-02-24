@@ -7,9 +7,9 @@
 
 #include <memory>
 
-#include "map/map.h"
-#include "map/planar_graph.h"
-#include "map/scaling.h"
+#include "map.h"
+#include "planar_graph.h"
+#include "scaling.h"
 
 namespace rayjoin {
 

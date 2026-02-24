@@ -3,8 +3,8 @@
 
 #include <memory>
 
-#include "app/lsi.h"
-#include "app/query_config.h"
+#include "core/lsi.h"
+#include "core/query_config.h"
 #include "lbvh.cuh"
 #include "shader/lsi.h"
 #include "tree/primtive.h"

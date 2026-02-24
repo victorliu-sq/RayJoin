@@ -2,19 +2,19 @@
 #include <memory>
 #include <random>
 
-#include "app/lsi_grid.h"
-#include "app/lsi_lbvh.h"
-#include "app/lsi_rt.h"
-#include "app/pip_grid.h"
-#include "app/pip_lbvh.h"
-#include "app/pip_rt.h"
 #include "map/planar_graph.h"
 #include "rt/primitive.h"
-#include "run_query.cuh"
 #include "tree/primtive.h"
 #include "util/array_view.h"
 #include "util/helpers.h"
 #include "util/timer.h"
+#include "lsi_grid.h"
+#include "lsi_lbvh.h"
+#include "lsi_rt.h"
+#include "pip_grid.h"
+#include "pip_lbvh.h"
+#include "pip_rt.h"
+#include "run_query.h"
 
 namespace rayjoin {
 

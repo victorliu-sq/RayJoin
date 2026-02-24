@@ -1,7 +1,7 @@
 
 #ifndef APP_PIP_GRID_H
 #define APP_PIP_GRID_H
-#include "app/pip.h"
+#include "core/pip.h"
 #include "grid/uniform_grid.h"
 #include "shader/pip.h"
 

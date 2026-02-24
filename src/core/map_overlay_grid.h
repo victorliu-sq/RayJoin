@@ -1,10 +1,10 @@
 #ifndef APP_MAP_OVERLAY_GRID_H
 #define APP_MAP_OVERLAY_GRID_H
-#include "app/lsi_grid.h"
-#include "app/map_overlay.h"
-#include "app/output_chain.h"
-#include "app/pip_grid.h"
-#include "app/query_config.h"
+#include "core/lsi_grid.h"
+#include "core/map_overlay.h"
+#include "core/output_chain.h"
+#include "core/pip_grid.h"
+#include "core/query_config.h"
 #include "grid/uniform_grid.h"
 
 namespace rayjoin {

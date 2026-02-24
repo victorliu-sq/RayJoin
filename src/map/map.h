@@ -2,7 +2,7 @@
 #define RAYJOIN_MAP_MAP_H
 #include <thrust/device_vector.h>
 
-#include "config.h"
+#include "../util/config.h"
 #include "map/bounding_box.h"
 #include "map/planar_graph.h"
 #include "map/scaling.h"

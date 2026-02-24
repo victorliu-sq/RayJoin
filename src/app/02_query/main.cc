@@ -1,7 +1,9 @@
 #include <glog/logging.h>
+
 #include <algorithm>
-#include "flags.h"
-#include "run_query.cuh"
+
+#include "core/run_query.h"
+#include "flag/flags.h"
 
 int main(int argc, char* argv[]) {
   FLAGS_stderrthreshold = 0;

@@ -4,8 +4,8 @@
 #include <memory>
 #include <utility>
 
-#include "app/pip.h"
-#include "config.h"
+#include "../util/config.h"
+#include "core/pip.h"
 #include "lbvh.cuh"
 #include "shader/pip.h"
 #include "tree/primtive.h"

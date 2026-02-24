@@ -1,9 +1,9 @@
 #ifndef APP_MAP_OVERLAY_LBVH_H
 #define APP_MAP_OVERLAY_LBVH_H
-#include "app/lsi_lbvh.h"
-#include "app/map_overlay.h"
-#include "app/output_chain.h"
-#include "app/pip_lbvh.h"
+#include "core/lsi_lbvh.h"
+#include "core/map_overlay.h"
+#include "core/output_chain.h"
+#include "core/pip_lbvh.h"
 
 namespace rayjoin {
 

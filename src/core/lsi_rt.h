@@ -6,8 +6,8 @@
 
 #include <utility>
 
-#include "app/lsi.h"
-#include "app/query_config.h"
+#include "core/lsi.h"
+#include "core/query_config.h"
 #include "rt/rt_engine.h"
 #include "shader/lsi.h"
 #include "util/helpers.h"

@@ -3,11 +3,11 @@
 #include <iomanip>
 #include <random>
 
-#include "app/lsi_rt.h"
-#include "app/map_overlay.h"
-#include "app/output_chain.h"
-#include "app/overlay_config.h"
-#include "app/pip_rt.h"
+#include "core/lsi_rt.h"
+#include "core/map_overlay.h"
+#include "core/output_chain.h"
+#include "core/overlay_config.h"
+#include "core/pip_rt.h"
 #include "rt/primitive.h"
 #include "rt/rt_engine.h"
 #include "util/helpers.h"

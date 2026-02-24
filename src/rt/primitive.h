@@ -4,11 +4,12 @@
 
 #include <cub/cub.cuh>  // or equivalently <cub/block/block_radix_sort.cuh>
 
-#include "config.h"
+#include "../util/config.h"
 #include "util/array_view.h"
 #include "util/helpers.h"
 #include "util/queue.h"
 #include "util/shared_value.h"
+#include "util/stopwatch.h"
 #include "util/stream.h"
 #include "util/util.h"
 

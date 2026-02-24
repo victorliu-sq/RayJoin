@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "config.h"
+#include "../util/config.h"
 #include "glog/logging.h"
 #include "map/scaling.h"
 #include "shader/lsi.h"

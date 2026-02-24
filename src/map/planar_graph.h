@@ -40,7 +40,7 @@
 
 #endif
 
-#include "config.h"
+#include "../util/config.h"
 #include "map/bounding_box.h"
 #include "util/type_traits.h"
 #include "util/util.h"

@@ -10,7 +10,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#include "context.h"
+#include "../map/context.h"
 #include "grid/cell.h"
 #include "util/queue.h"
 #include "util/rational.h"
