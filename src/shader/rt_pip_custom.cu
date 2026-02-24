@@ -4,7 +4,7 @@
 #include <optix_device.h>
 
 #include "config.h"
-#include "shader/launch_parameters.h"
+#include "launch_parameters.h"
 #include "util/helpers.h"
 #include "util/int128_intrinsics.h"
 #include "util/rational.h"

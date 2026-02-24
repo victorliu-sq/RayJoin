@@ -1,6 +1,4 @@
-include_directories(${OptiX_INCLUDE})
-include_directories(${PROJECT_SOURCE_DIR}/deps/Declib)
-include_directories(${PROJECT_SOURCE_DIR}/deps/lbvh)
+# add include directories for ptx shaders
 include_directories(${PROJECT_SOURCE_DIR}/src)
 
 set(OPTIX_MODULE_EXTENSION ".ptx")
@@ -48,6 +46,14 @@ target_link_libraries(rayjoin_lib PUBLIC
         CUDA::cudart
         CUDA::cuda_driver
         glog::glog
+)
+
+target_include_directories(rayjoin_lib PUBLIC
+#       dependencies
+        ${OptiX_INCLUDE}
+        ${PROJECT_SOURCE_DIR}/deps/Declib
+        ${PROJECT_SOURCE_DIR}/deps/lbvh
+        ${PROJECT_SOURCE_DIR}/src
 )
 
 target_compile_options(rayjoin_lib PRIVATE
