@@ -76,6 +76,7 @@ include_directories(${PROJECT_SOURCE_DIR})
 #find_package(CUDA 11.8 REQUIRED)
 find_package(CUDAToolkit 11.8 REQUIRED)
 
+list(APPEND CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/deps")
 list(APPEND CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/deps/vulkansdk/x86_64")
 
 #include("cmake/FindGFlags.cmake")
@@ -85,7 +86,6 @@ if (NOT gflags_FOUND)
 else ()
     message("gflag is found")
 endif ()
-
 
 #include("cmake/FindGlog.cmake")
 find_package(glog 0.6.0 REQUIRED)

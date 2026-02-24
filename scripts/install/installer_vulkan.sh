@@ -15,7 +15,6 @@ if [[ ! -f "${VULKAN_STAMP}" ]]; then
 
   tar -xJf "${TARBALL}" -C "${DEPS_TMP_DIR}"
 
-  rm -rf "${DEPS_DIR}/vulkansdk"
   cp -a "${DEPS_TMP_DIR}/${VULKAN_VER}" "${DEPS_DIR}/vulkansdk"
 
   touch "${VULKAN_STAMP}"

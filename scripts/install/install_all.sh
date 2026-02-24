@@ -24,8 +24,11 @@ bash "${INSTALLER_DIR}/installer_glog.sh"
 # --- Install slang ----------------------------------------------------
 bash "${INSTALLER_DIR}/installer_slang.sh"
 
-# --- Install vulkan ----------------------------------------------------
+# --- Install Vulkan ----------------------------------------------------
 bash "${INSTALLER_DIR}/installer_vulkan.sh"
+
+# --- Install LBVH
+bash "${INSTALLER_DIR}/installer_lbvh.sh"
 
 # --- Install gtest  ----------------------------------------------------
 #bash "${INSTALLER_DIR}/installer_gtest.sh"
