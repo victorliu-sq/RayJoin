@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-
 GTEST_VER="1.17.0"
 GTEST_STAMP="${DEPS_DIR}/.stamp-googletest"
 

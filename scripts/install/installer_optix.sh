@@ -5,6 +5,8 @@ OPTIX_DIR="${DEPS_DIR}/optix"
 OPTIX_STAMP="${DEPS_DIR}/.stamp-optix"
 OPTIX_INSTALLER="${INSTALLER_DIR}/NVIDIA-OptiX-SDK-8.0.0-linux64-x86_64.sh"
 
+mkdir -p ${OPTIX_DIR}
+
 if [[ ! -f "${OPTIX_STAMP}" ]]; then
   echo "[optix] Installing OptiX to ${OPTIX_DIR} ..."
 

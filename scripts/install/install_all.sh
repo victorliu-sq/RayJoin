@@ -21,6 +21,12 @@ bash "${INSTALLER_DIR}/installer_gflags.sh"
 # --- Install glog  ----------------------------------------------------
 bash "${INSTALLER_DIR}/installer_glog.sh"
 
+# --- Install slang ----------------------------------------------------
+bash "${INSTALLER_DIR}/installer_slang.sh"
+
+# --- Install vulkan ----------------------------------------------------
+bash "${INSTALLER_DIR}/installer_vulkan.sh"
+
 # --- Install gtest  ----------------------------------------------------
 #bash "${INSTALLER_DIR}/installer_gtest.sh"
 

@@ -76,7 +76,7 @@ include_directories(${PROJECT_SOURCE_DIR})
 #find_package(CUDA 11.8 REQUIRED)
 find_package(CUDAToolkit 11.8 REQUIRED)
 
-list(APPEND CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/deps")
+list(APPEND CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/deps/vulkansdk/x86_64")
 
 #include("cmake/FindGFlags.cmake")
 find_package(gflags 2.2.2 REQUIRED)
@@ -84,18 +84,37 @@ if (NOT gflags_FOUND)
     message(STATUS "gflags not found, build without gflags")
 else ()
     message("gflag is found")
-#    include_directories(SYSTEM ${GFLAGS_INCLUDE_DIRS})
 endif ()
 
 
 #include("cmake/FindGlog.cmake")
 find_package(glog 0.6.0 REQUIRED)
-set(GLOG_INCLUDE_DIRS "${CMAKE_SOURCE_DIR}/deps/include")
 if (NOT glog_FOUND)
     message(FATAL_ERROR "glog not found, please install the glog library")
 else ()
-    message("glog is found, with include directory as ${GLOG_INCLUDE_DIRS}")
-#    include_directories(SYSTEM ${})
+    message("glog is found, with include directory as ${CMAKE_SOURCE_DIR}/deps/include")
+endif ()
+
+find_package(glog 0.6.0 REQUIRED)
+if (NOT glog_FOUND)
+    message(FATAL_ERROR "glog not found, please install the glog library")
+else ()
+    message("glog is found, with include directory as ${CMAKE_SOURCE_DIR}/deps/include")
+endif ()
+
+find_package(glog 0.6.0 REQUIRED)
+if (NOT glog_FOUND)
+    message(FATAL_ERROR "glog not found, please install the glog library")
+else ()
+    message("glog is found, with include directory as ${CMAKE_SOURCE_DIR}/deps/include")
+endif ()
+
+# Vulkan
+find_package(Vulkan REQUIRED)
+if (NOT Vulkan_FOUND)
+    message(FATAL_ERROR "Vulkan not found, please install the Vulkan library")
+else ()
+    message("Vulkan is found. with include directory as ${Vulkan_INCLUDE_DIRS}")
 endif ()
 
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--disable-new-dtags")  # this line of code allows cmake to search library path
