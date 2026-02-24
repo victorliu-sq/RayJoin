@@ -1,6 +1,5 @@
 # =========================== LSI_VK Executable =======================================
-add_executable(polyover_vk_exec main.cc
-)
+add_executable(polyover_vk_exec main.cc)
 
 target_link_libraries(polyover_vk_exec PRIVATE
         rayjoin_lib
