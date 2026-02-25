@@ -42,7 +42,7 @@ add_library(rayjoin_lib SHARED
         flag/flags.cc
         ${PROGRAM_MODULES}
 #       VK
-        core/run_overlay_vk.cc
+        vk/core/run_overlay_vk.cc
 )
 
 target_link_libraries(rayjoin_lib PUBLIC

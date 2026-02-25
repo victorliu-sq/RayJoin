@@ -5,8 +5,4 @@
 .png
 /build
 /cmake-build-debug
-deps/bin
-deps/include
-deps/lib
-deps/optix
-deps/.stamp-*
+deps
