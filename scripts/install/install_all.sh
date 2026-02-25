@@ -30,6 +30,9 @@ bash "${INSTALLER_DIR}/installer_vulkan.sh"
 # --- Install LBVH
 bash "${INSTALLER_DIR}/installer_lbvh.sh"
 
+# --- Install VMA
+bash "${INSTALLER_DIR}/installer_vma.sh"
+
 # --- Install gtest  ----------------------------------------------------
 #bash "${INSTALLER_DIR}/installer_gtest.sh"
 

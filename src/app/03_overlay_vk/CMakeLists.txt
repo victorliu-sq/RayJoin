@@ -3,6 +3,7 @@ add_executable(polyover_vk_exec main.cc)
 
 target_link_libraries(polyover_vk_exec PRIVATE
         rayjoin_lib
+        GPUOpen::VulkanMemoryAllocator
 )
 
 target_compile_options(polyover_vk_exec PRIVATE

@@ -117,6 +117,14 @@ else ()
     message("Vulkan is found. with include directory as ${Vulkan_INCLUDE_DIRS}")
 endif ()
 
+# VMA
+find_package(VulkanMemoryAllocator CONFIG REQUIRED)
+if (NOT VulkanMemoryAllocator_FOUND)
+    message(FATAL_ERROR "VMA not found, please install the VMA library")
+else ()
+    message("VMA is found. with include directory as ${VulkanMemoryAllocator_INCLUDE_DIRS}")
+endif ()
+
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--disable-new-dtags")  # this line of code allows cmake to search library path
 set(CMAKE_BUILD_RPATH ${INSTALL_PREFIX_LIBRARY})
 set(CMAKE_INSTALL_RPATH ${INSTALL_PREFIX_LIBRARY})
