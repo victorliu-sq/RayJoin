@@ -11,7 +11,7 @@
 // #include "util/rational.h"
 
 #include "core/overlay_config.h"
-// #include "vk/map/planar_graph.h"
+#include "vk/map/planar_graph.h"
 #include "shader/config.h"
 #include "util/stopwatch.h"
 #include "util/timer.h"
@@ -155,11 +155,11 @@ void RunOverlay(const rayjoin::OverlayConfig& config) {
 
   timer_next("Read map 0");
   LOG(INFO) << "Reading map 0 from " << config.map1_path;
-  // auto g1 = PlanarGraph<coord_t>::load_from(config.map1_path, config.serialize_prefix);
+  auto g1 = PlanarGraph<coord_t>::load_from(config.map1_path, config.serialize_prefix);
 
   timer_next("Read map 1");
   LOG(INFO) << "Reading map 1 from " << config.map2_path;
-  // auto g2 = load_from<coord_t>(config.map2_path, config.serialize_prefix);
+  auto g2 = PlanarGraph<coord_t>::load_from(config.map2_path, config.serialize_prefix);
 
   timer_next("Create App");
   // context_t ctx({g1, g2});

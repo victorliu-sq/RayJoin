@@ -7,9 +7,12 @@
 #include <algorithm>
 #include <fstream>
 #include <map>
+#include <memory>
 #include <random>
 #include <vector>
 
+#include "glog/logging.h"
+#include "shader/config.h"
 #include "vk/map/bounding_box.h"
 #include "vk/util/type_traits.h"
 
@@ -28,9 +31,9 @@ template <typename COORD_T>
 struct PlanarGraph {
  public:
   using point_t = Vec2<COORD_T>;
-  // pinned_vector<Chain> chains;
-  // pinned_vector<index_t> row_index;  // organized in chains
-  // pinned_vector<point_t> points;
+  std::vector<Chain> chains;
+  std::vector<index_t> row_index;  // organized in chains
+  std::vector<point_t> points;
   BoundingBox<COORD_T> bb;
 
   static std::shared_ptr<PlanarGraph<COORD_T>> load_from(
