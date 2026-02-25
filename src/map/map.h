@@ -2,7 +2,6 @@
 #define RAYJOIN_MAP_MAP_H
 #include <thrust/device_vector.h>
 
-#include "../shader/config.h"
 #include "map/bounding_box.h"
 #include "map/planar_graph.h"
 #include "map/scaling.h"
@@ -18,7 +17,7 @@ namespace dev {
 
 template <typename COEFFICIENT_T>
 struct EdgeEquation {
-  coefficient_t a, b, c;  // ax + by + c=0; b >= 0
+  COEFFICIENT_T a, b, c;  // ax + by + c=0; b >= 0
 
   EdgeEquation() = default;
 
