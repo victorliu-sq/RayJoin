@@ -1,6 +1,8 @@
 #ifndef RAYJOIN_MAP_BOUNDING_BOX_H
 #define RAYJOIN_MAP_BOUNDING_BOX_H
-#include "util/util.h"
+// #include "util/util.h"
+#include <limits>
+
 namespace rayjoin {
 namespace vk {
 template <typename COORD_T>

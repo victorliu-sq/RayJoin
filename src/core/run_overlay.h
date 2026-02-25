@@ -2,7 +2,6 @@
 #define RAYJOIN_RUN_OVERLAY_CUH
 #include "overlay_config.h"
 namespace rayjoin {
-
 void RunOverlay(const OverlayConfig& config);
 }  // namespace rayjoin
 

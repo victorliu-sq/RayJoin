@@ -1,8 +1,7 @@
 # Project exclude paths
-/cmake-build-debug-remote-host/
 .DS_Store
 .idea
 .png
 /build
-/cmake-build-debug
+/cmake-build-*
 deps

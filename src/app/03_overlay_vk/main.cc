@@ -1,9 +1,7 @@
 #include <glog/logging.h>
 
-#include <algorithm>
-
-#include "core/run_overlay.h"
 #include "flag/flags.h"
+#include "vk/core/run_overlay.h"
 
 int main(int argc, char* argv[]) {
   FLAGS_stderrthreshold = 0;
@@ -38,7 +36,6 @@ int main(int argc, char* argv[]) {
   config.ag_iter = FLAGS_ag_iter;
   config.enlarge = FLAGS_enlarge;
 
-  rayjoin::RunOverlay(config);
-
+  rayjoin::vk::RunOverlay(config);
   google::ShutdownGoogleLogging();
 }

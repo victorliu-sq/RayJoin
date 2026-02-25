@@ -1,7 +1,7 @@
 #include <array>
 #include <memory>
 
-#include "../map/context.h"
+#include "map/context.h"
 #include "core/run_overlay.h"
 #include "glog/logging.h"
 #include "map/planar_graph.h"
