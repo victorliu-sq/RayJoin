@@ -24,7 +24,7 @@ project(rayjoin LANGUAGES CUDA C CXX VERSION 1.0.1)
 
 if (NOT WIN32)
     # visual studio doesn't like these (not need them):
-    set(CMAKE_CXX_FLAGS "--std=c++14")
+    set(CMAKE_CXX_FLAGS "--std=c++20")
     set(CUDA_PROPAGATE_HOST_FLAGS ON CACHE STRING "Propagate C/CXX_FLAGS and friends to the host compiler via -Xcompile")
 endif ()
 
