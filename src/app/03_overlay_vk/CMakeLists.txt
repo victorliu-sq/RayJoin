@@ -14,6 +14,17 @@ slang_compile_spirv(
         main compute scale_points_d2_i64.spv
 )
 
+# Compile compute shader: edge_init_i64.slang -> edge_init_i64.spv
+slang_compile_spirv(
+        NAME edge_init
+        SLANGC ${CMAKE_SOURCE_DIR}/deps/slang/bin/slangc
+        SOURCE ${CMAKE_SOURCE_DIR}/src/vk/shader/edge_init_i64.slang
+        OUT_DIR ${SPV_OUTPUT_DIR}
+        FLAGS ${SLANG_COMMON_FLAGS}
+        ENTRIES
+        main compute edge_init_i64.spv
+)
+
 # =========================== LSI_VK Executable =======================================
 add_executable(polyover_vk_exec main.cc)
 
@@ -33,3 +44,4 @@ set_target_properties(polyover_vk_exec PROPERTIES
 add_dependencies(polyover_vk_exec optix_ptx)
 # Make executable depend on the shader build
 add_dependencies(polyover_vk_exec ${scale_points_SPV_TARGET})
+add_dependencies(polyover_vk_exec ${edge_init_SPV_TARGET})
