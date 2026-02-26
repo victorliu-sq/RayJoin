@@ -4,8 +4,7 @@
 #include <gflags/gflags.h>
 
 #include <limits>
-
-#include "flags.h"
+// #include "flags.h"
 
 DECLARE_string(poly1);
 DECLARE_string(poly2);

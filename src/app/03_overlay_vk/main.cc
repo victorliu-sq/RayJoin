@@ -1,21 +1,14 @@
 #include <glog/logging.h>
 
 #include "flag/flags.h"
+#include "util/guard_gflag.h"
+#include "util/guard_glog.h"
 #include "vk/core/run_overlay.h"
 
 int main(int argc, char* argv[]) {
   FLAGS_stderrthreshold = 0;
-
-  gflags::SetUsageMessage("Usage: -poly1 -poly2");
-  if (argc == 1) {
-    gflags::ShowUsageWithFlags(argv[0]);
-    exit(1);
-  }
-  gflags::ParseCommandLineFlags(&argc, &argv, true);
-  gflags::ShutDownCommandLineFlags();
-
-  google::InitGoogleLogging(argv[0]);
-  google::InstallFailureSignalHandler();
+  auto flags = CreateGflagsGuard(argc, argv, "Usage: -poly1 -poly2");
+  auto g_glog_guard = CreateGlogGuard("polyover_vk");
 
   rayjoin::OverlayConfig config;
   std::string exec_path = argv[0];
@@ -37,5 +30,4 @@ int main(int argc, char* argv[]) {
   config.enlarge = FLAGS_enlarge;
 
   rayjoin::vk::RunOverlay(config);
-  google::ShutdownGoogleLogging();
 }
