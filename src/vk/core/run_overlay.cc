@@ -3,7 +3,7 @@
 #include <array>
 #include <memory>
 
-#include "glog/logging.h"
+// #include "glog/logging.h"
 // #include "map/planar_graph.h"
 // #include "map_overlay_grid.h"
 // #include "map_overlay_lbvh.h"
@@ -11,12 +11,12 @@
 // #include "util/rational.h"
 
 #include "core/overlay_config.h"
-#include "vk/map/planar_graph.h"
 #include "shader/config.h"
 #include "util/stopwatch.h"
 #include "util/timer.h"
+#include "vk/map/planar_graph.h"
+#include "vk/map/context.h"
 
-// #include "map/context.h"
 
 namespace rayjoin {
 namespace vk {
@@ -150,19 +150,21 @@ namespace vk {
 // }
 
 void RunOverlay(const rayjoin::OverlayConfig& config) {
-  // using context_t = Context<coord_t, coefficient_t>;
+  using context_t = Context<coord_t, coefficient_t>;
   timer_start();
 
   timer_next("Read map 0");
   LOG(INFO) << "Reading map 0 from " << config.map1_path;
-  auto g1 = PlanarGraph<coord_t>::load_from(config.map1_path, config.serialize_prefix);
+  auto g1 = PlanarGraph<coord_t>::load_from(config.map1_path,
+                                            config.serialize_prefix);
 
   timer_next("Read map 1");
   LOG(INFO) << "Reading map 1 from " << config.map2_path;
-  auto g2 = PlanarGraph<coord_t>::load_from(config.map2_path, config.serialize_prefix);
+  auto g2 = PlanarGraph<coord_t>::load_from(config.map2_path,
+                                            config.serialize_prefix);
 
   timer_next("Create App");
-  // context_t ctx({g1, g2});
+  context_t ctx({g1, g2});
   // std::shared_ptr<MapOverlay<context_t>> overlay;
 
   if (config.mode == "rt") {
@@ -203,7 +205,7 @@ void RunOverlay(const rayjoin::OverlayConfig& config) {
   }
 
   timer_next("Load Data");
-  // ctx.LoadToDevice();
+  ctx.LoadToDevice();
 
   timer_next("Init");
   // overlay->Init();

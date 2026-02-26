@@ -91,8 +91,7 @@ class Scaling {
     return internal_y;
   }
 
-  Vec2<internal_coord_t> Scale(
-      const Vec2<coord_t>& p) const {
+  Vec2<internal_coord_t> Scale(const Vec2<coord_t>& p) const {
     return {ScaleX(p.x), ScaleY(p.y)};
   }
 
@@ -104,8 +103,7 @@ class Scaling {
     return internal_y * rry_ + ddeltay_;
   }
 
-  Vec2<coord_t> Unscale(
-      const Vec2<internal_coord_t>& p) const {
+  Vec2<coord_t> Unscale(const Vec2<internal_coord_t>& p) const {
     return {UnscaleX(p.x), UnscaleY(p.y)};
   }
 
@@ -118,6 +116,12 @@ class Scaling {
   bool IsInRange(double v) const {
     return v >= internal_min_ && v <= internal_max_;
   }
+
+  // Getters
+  coord_t rx() const { return rx_; }
+  coord_t ry() const { return ry_; }
+  coord_t deltax() const { return deltax_; }
+  coord_t deltay() const { return deltay_; }
 
  private:
   internal_coord_t internal_max_, internal_min_;

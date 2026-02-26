@@ -1,19 +1,16 @@
 # =========================== Shader
-# Put SPIR-V under: <build>/shaders/<this-app-dir>/
-get_filename_component(APP_DIR_NAME "${CMAKE_CURRENT_SOURCE_DIR}" NAME)
-set(SPV_OUTPUT_DIR "${CMAKE_BINARY_DIR}/shaders/${APP_DIR_NAME}")
 
 # Common flags you already use (keep scalar layout for safer structs)
 set(SLANG_COMMON_FLAGS -profile sm_6_6 -target spirv -fvk-use-scalar-layout)
 
 # Compile compute shader: scale_points_d2_i64.slang -> scale_points_d2_i64.spv
 slang_compile_spirv(
-    NAME scale_points
-    SLANGC ${CMAKE_SOURCE_DIR}/deps/slang/bin/slangc
-    SOURCE ${CMAKE_SOURCE_DIR}/src/vk/shader/scale_points_d2_i64.slang
-    OUT_DIR ${SPV_OUTPUT_DIR}
-    FLAGS ${SLANG_COMMON_FLAGS}
-    ENTRIES
+        NAME scale_points
+        SLANGC ${CMAKE_SOURCE_DIR}/deps/slang/bin/slangc
+        SOURCE ${CMAKE_SOURCE_DIR}/src/vk/shader/scale_points_d2_i64.slang
+        OUT_DIR ${SPV_OUTPUT_DIR}
+        FLAGS ${SLANG_COMMON_FLAGS}
+        ENTRIES
         main compute scale_points_d2_i64.spv
 )
 

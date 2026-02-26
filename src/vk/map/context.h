@@ -1,9 +1,10 @@
 #ifndef RAYJOIN_CONTEXT_H
 #define RAYJOIN_CONTEXT_H
 
+#include "vk/common/vk_context_init.h"
 #include "vk/map/bounding_box.h"
-#include "vk/map/scaling.h"
 #include "vk/map/map.h"
+#include "vk/map/scaling.h"
 
 namespace rayjoin {
 namespace vk {
@@ -21,6 +22,22 @@ class Context {
   using bounding_box_t = BoundingBox<coord_t>;
 
   Context() = delete;
+
+  ~Context() {
+    // 1) Destroy GPU users first (Maps hold VMA allocations)
+    for (auto& m : maps_) {
+      m.reset();
+    }
+
+    // 2) Now it's safe to destroy VMA + device
+    destroyVkComputeContext(vk_);
+
+    // 3) Finally instance
+    if (instance_) {
+      vkDestroyInstance(instance_, nullptr);
+      instance_ = VK_NULL_HANDLE;
+    }
+  }
 
   explicit Context(
       const std::array<std::shared_ptr<planar_graph_t>, 2>& planar_graphs)
@@ -64,6 +81,9 @@ class Context {
     //   path = dirname(result);
     // }
     // exec_root = std::string(path);
+
+    // NEW: init Vulkan compute context
+    instance_ = initVkComputeContext(vk_, VK_NULL_HANDLE);
   }
 
   void LoadToDevice() {
@@ -71,7 +91,7 @@ class Context {
       auto pgraph = planar_graphs_[im];
 
       if (pgraph != nullptr) {
-        auto map = std::make_shared<map_t>(im);
+        auto map = std::make_shared<map_t>(im, vk_);
 
         assert(pgraph != nullptr);
         map->LoadFrom(scaling_, *pgraph);
@@ -86,6 +106,10 @@ class Context {
   bounding_box_t bb_;
   scaling_t scaling_;
   // std::string exec_root;  // folder of binary
+
+  VkInstance instance_ =
+      VK_NULL_HANDLE;  // stored here, not in VkComputeContext
+  VkComputeContext vk_{};
 };
 }  // namespace vk
 }  // namespace rayjoin

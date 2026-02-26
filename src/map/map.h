@@ -15,6 +15,8 @@
 namespace rayjoin {
 namespace dev {
 
+// EdgeEquation stores the coefficients of the supporting line of an edge,
+// independent of the segment endpoints.
 template <typename COEFFICIENT_T>
 struct EdgeEquation {
   COEFFICIENT_T a, b, c;  // ax + by + c=0; b >= 0

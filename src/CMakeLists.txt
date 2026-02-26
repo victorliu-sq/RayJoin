@@ -43,13 +43,25 @@ add_library(rayjoin_lib SHARED
         ${PROGRAM_MODULES}
 #       VK
         vk/core/run_overlay.cc
+        vk/vma_iimpl.cc
 )
 
 target_link_libraries(rayjoin_lib PUBLIC
         CUDA::cudart
         CUDA::cuda_driver
         glog::glog
+#       Vulkan
+        Vulkan::Vulkan
+        GPUOpen::VulkanMemoryAllocator
 )
+
+
+# Put SPIR-V under: <build>/shaders/
+#get_filename_component(APP_DIR_NAME "${CMAKE_CURRENT_SOURCE_DIR}" NAME)
+#set(SPV_OUTPUT_DIR "${CMAKE_BINARY_DIR}/shaders/${APP_DIR_NAME}")
+set(SPV_OUTPUT_DIR "${CMAKE_BINARY_DIR}/shaders")
+target_compile_definitions(rayjoin_lib PRIVATE
+        SHADER_DIR="${SPV_OUTPUT_DIR}")
 
 target_include_directories(rayjoin_lib PUBLIC
 #       dependencies
