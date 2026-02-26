@@ -68,9 +68,14 @@ macro(TARGET_INCLUDE_SYMBOL target symbol)
     endif ()
 endmacro()
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(cmake/configure_build_type.cmake)
 include(cmake/FindOptiX.cmake)
 include(cmake/nvcuda_compile_module.cmake)
+# Slang Compiler Custom Commands
+#include(cmake/CompileSlang.cmake)
+include(CompileSlang)
+
 include_directories(${PROJECT_SOURCE_DIR})
 
 #find_package(CUDA 11.8 REQUIRED)
@@ -124,6 +129,7 @@ if (NOT VulkanMemoryAllocator_FOUND)
 else ()
     message("VMA is found. with include directory as ${VulkanMemoryAllocator_INCLUDE_DIRS}")
 endif ()
+
 
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--disable-new-dtags")  # this line of code allows cmake to search library path
 set(CMAKE_BUILD_RPATH ${INSTALL_PREFIX_LIBRARY})
