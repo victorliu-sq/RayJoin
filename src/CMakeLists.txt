@@ -34,37 +34,30 @@ add_custom_target(optix_ptx ALL
         DEPENDS ${PROGRAM_MODULES}
 )
 
-# =========================== RayJoin Library  ===================================
+# =========================== RayJoin-CUDA Library  ===================================
 add_library(rayjoin_lib SHARED
         core/run_overlay.cu
         core/run_query.cu
         rt/rt_engine.cu
         flag/flags.cc
         ${PROGRAM_MODULES}
-#       VK
-        vk/core/run_overlay.cc
-        vk/vma_iimpl.cc
 )
 
 target_link_libraries(rayjoin_lib PUBLIC
         CUDA::cudart
         CUDA::cuda_driver
         glog::glog
-#       Vulkan
-        Vulkan::Vulkan
-        GPUOpen::VulkanMemoryAllocator
 )
-
 
 # Put SPIR-V under: <build>/shaders/
 #get_filename_component(APP_DIR_NAME "${CMAKE_CURRENT_SOURCE_DIR}" NAME)
 #set(SPV_OUTPUT_DIR "${CMAKE_BINARY_DIR}/shaders/${APP_DIR_NAME}")
-set(SPV_OUTPUT_DIR "${CMAKE_BINARY_DIR}/shaders")
-target_compile_definitions(rayjoin_lib PRIVATE
-        SHADER_DIR="${SPV_OUTPUT_DIR}")
+#set(SPV_OUTPUT_DIR "${CMAKE_BINARY_DIR}/shaders")
+#target_compile_definitions(rayjoin_lib PRIVATE
+#        SHADER_DIR="${SPV_OUTPUT_DIR}")
 
 target_include_directories(rayjoin_lib PUBLIC
-#       dependencies
+        #       dependencies
         ${OptiX_INCLUDE}
         ${PROJECT_SOURCE_DIR}/deps/Declib
         ${PROJECT_SOURCE_DIR}/deps/lbvh
@@ -85,4 +78,67 @@ add_dependencies(rayjoin_lib optix_ptx)
 # =========================== Executables ===================================
 add_subdirectory(app/01_overlay)
 add_subdirectory(app/02_query)
+
+
+
+# =========================== RayJoin-VK ===================================
+# Nvpro_core2
+find_package(NvproCore2 REQUIRED)
+if (NOT NvproCore2_FOUND)
+    message(FATAL_ERROR "NvproCore2 not found, please install the NvproCore2 library")
+else ()
+    message("NvproCore2 is found. with include directory as ${NvproCore2_INCLUDE_DIRS}")
+endif ()
+
+add_library(rayjoin_lib_vk SHARED
+#        core/run_overlay.cu
+#        core/run_query.cu
+#        rt/rt_engine.cu
+        flag/flags.cc
+#        ${PROGRAM_MODULES}
+        #       VK
+        vk/core/run_overlay.cc
+        vk/vma_iimpl.cc
+)
+
+target_link_libraries(rayjoin_lib_vk PUBLIC
+#        CUDA::cudart
+#        CUDA::cuda_driver
+        glog::glog
+        #       Vulkan
+        Vulkan::Vulkan
+        GPUOpen::VulkanMemoryAllocator
+        #       Nvpro2
+#        nvpro2::nvapp
+#        nvpro2::nvutils
+#        nvpro2::nvvk
+)
+
+# Put SPIR-V under: <build>/shaders/
+#get_filename_component(APP_DIR_NAME "${CMAKE_CURRENT_SOURCE_DIR}" NAME)
+#set(SPV_OUTPUT_DIR "${CMAKE_BINARY_DIR}/shaders/${APP_DIR_NAME}")
+set(SPV_OUTPUT_DIR "${CMAKE_BINARY_DIR}/shaders")
+target_compile_definitions(rayjoin_lib_vk PRIVATE
+        SHADER_DIR="${SPV_OUTPUT_DIR}")
+
+target_include_directories(rayjoin_lib_vk PUBLIC
+        #       dependencies
+        ${OptiX_INCLUDE}
+        ${PROJECT_SOURCE_DIR}/deps/Declib
+        ${PROJECT_SOURCE_DIR}/deps/lbvh
+        ${PROJECT_SOURCE_DIR}/src
+)
+
+target_compile_options(rayjoin_lib_vk PRIVATE
+        $<$<COMPILE_LANGUAGE:CUDA>:--expt-extended-lambda --expt-relaxed-constexpr --prec-div=true>
+)
+
+set_target_properties(rayjoin_lib_vk PROPERTIES
+        CUDA_ARCHITECTURES "${ENABLED_ARCHS}"
+        CUDA_SEPARABLE_COMPILATION ON
+)
+
+add_dependencies(rayjoin_lib_vk optix_ptx)
+
+# =========================== Executables ===================================
 add_subdirectory(app/03_overlay_vk)

@@ -1,14 +1,15 @@
+#include "core/run_overlay.h"
+
 #include <array>
 #include <memory>
 
-#include "map/context.h"
-#include "core/run_overlay.h"
 #include "glog/logging.h"
+#include "map/context.h"
 #include "map/planar_graph.h"
 #include "map_overlay_grid.h"
 #include "map_overlay_lbvh.h"
 #include "map_overlay_rt.h"
-#include "util/rational.h"
+// #include "util/rational.h"
 #include "util/stopwatch.h"
 #include "util/timer.h"
 

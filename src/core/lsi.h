@@ -1,9 +1,9 @@
 #ifndef APP_LSI_H
 #define APP_LSI_H
 #include "map/map.h"
+#include "shader/lsi.h"
 #include "util/queue.h"
 #include "util/type_traits.h"
-#include "shader/lsi.h"
 
 namespace rayjoin {
 template <typename CONTEXT_T>

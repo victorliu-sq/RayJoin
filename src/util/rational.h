@@ -269,10 +269,12 @@ using rational_value_t = typename detail::rational_value_type<T>::type;
 
 #ifdef TCB_HAVE_CONCEPTS
 
+// template <typename T>
+// concept bool Rational() {
+//   return is_rational_v<T>;
+// }
 template <typename T>
-concept bool Rational() {
-  return is_rational_v<T>;
-}
+concept Rational = is_rational_v<T>;
 
 #endif
 

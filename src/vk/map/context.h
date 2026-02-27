@@ -100,6 +100,14 @@ class Context {
     }
   }
 
+  // For MapOverlayRT::Init
+  size_t get_edge_num() const {
+    size_t n_edges = 0;
+    FOR2 { n_edges += this->maps_[im]->get_edges_num(); }
+    LOG(INFO) << "Total Number of Edges From Two Maps: " << n_edges << ".";
+    return n_edges;
+  }
+
  private:
   std::array<std::shared_ptr<planar_graph_t>, 2> planar_graphs_;
   std::array<std::shared_ptr<map_t>, 2> maps_;

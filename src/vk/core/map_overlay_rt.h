@@ -1,6 +1,7 @@
 #ifndef RAYJOIN_MAP_OVERLAY_RT_H
 #define RAYJOIN_MAP_OVERLAY_RT_H
 
+#include "vk/core/lsi_rt.h"
 #include "vk/rt/rt_engine.h"
 
 namespace rayjoin {
@@ -11,13 +12,20 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
  public:
   explicit MapOverlayRT(CONTEXT_T& ctx) : MapOverlay<CONTEXT_T>(ctx) {
     rt_engine_ = std::make_shared<RTEngine>();
-    // this->lsi_ = std::make_shared<LSIRT<CONTEXT_T>>(ctx, rt_engine_);
+    this->lsi_ = std::make_shared<LSIRT<CONTEXT_T>>(ctx, rt_engine_);
     // this->pip_ = std::make_shared<PIPRT<CONTEXT_T>>(ctx, rt_engine_);
   }
 
   void set_config(const QueryConfigRT& config) { config_ = config; }
 
-  void Init() override {}
+  void Init() override {
+    auto& ctx = this->ctx_;
+    auto& lsi = this->lsi_;
+    // Initialize RT Engine
+
+    // Initialize LSI
+    lsi->Init(ctx.get_edge_num() * config_.xsect_factor);
+  }
 
   void BuildIndex() override {}
 

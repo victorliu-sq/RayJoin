@@ -1,5 +1,6 @@
 #ifndef RUN_QUERY_CUH
 #define RUN_QUERY_CUH
+#include <string>
 namespace rayjoin {
 struct QueryConfig {
   std::string exec_root;

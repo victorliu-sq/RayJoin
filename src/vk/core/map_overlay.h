@@ -32,11 +32,13 @@ class MapOverlay {
   virtual void WriteResult(const char* path) = 0;
 
  protected:
-  CONTEXT_T& ctx_; // inputs
+  CONTEXT_T& ctx_; // reference to inputs initialized from outside
+
   std::shared_ptr<LSI<CONTEXT_T>> lsi_; // algo1
   // std::shared_ptr<PIP<CONTEXT_T>> pip_; // algo2
-  // thrust::device_vector<polygon_id_t> closest_eids_[2];
-  // thrust::device_vector<polygon_id_t> point_in_polygon_[2];
+
+  // thrust::device_vector<polygon_id_t> closest_eids_[2]; for pip
+  // thrust::device_vector<polygon_id_t> point_in_polygon_[2]; for results
 };
 }  // namespace vk
 }  // namespace rayjoin

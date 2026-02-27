@@ -33,10 +33,13 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
   void set_config(const QueryConfigRT& config) { config_ = config; }
 
   void Init() override {
+    // Initialize RT Engine
     auto& ctx = this->ctx_;
-    auto xsect_factor = config_.xsect_factor;
     auto exec_root = ctx.get_exec_root();
     RTConfig rt_config = get_default_rt_config(exec_root);
+    rt_engine_->Init(rt_config);
+
+    auto xsect_factor = config_.xsect_factor;
     size_t max_n_points = 0;
     size_t max_n_edges = 0;
 
@@ -54,10 +57,10 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
       max_n_edges = std::max(max_n_edges, ne);
     }
     aabbs_.reserve(max_n_edges);
+
     size_t n_edges = 0;
     FOR2 { n_edges += ctx.get_map(im)->get_edges_num(); }
 
-    rt_engine_->Init(rt_config);
     this->lsi_->Init(n_edges * xsect_factor);
     this->pip_->Init(max_n_points);
   }

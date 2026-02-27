@@ -68,6 +68,7 @@ macro(TARGET_INCLUDE_SYMBOL target symbol)
     endif ()
 endmacro()
 
+# third-party
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(cmake/configure_build_type.cmake)
 include(cmake/FindOptiX.cmake)
@@ -79,7 +80,7 @@ include(CompileSlang)
 include_directories(${PROJECT_SOURCE_DIR})
 
 #find_package(CUDA 11.8 REQUIRED)
-find_package(CUDAToolkit 11.8 REQUIRED)
+find_package(CUDAToolkit REQUIRED)
 
 list(APPEND CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/deps")
 list(APPEND CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/deps/vulkansdk/x86_64")
@@ -130,6 +131,13 @@ else ()
     message("VMA is found. with include directory as ${VulkanMemoryAllocator_INCLUDE_DIRS}")
 endif ()
 
+# Nvpro_core2
+#find_package(NvproCore2 REQUIRED)
+#if (NOT NvproCore2_FOUND)
+#    message(FATAL_ERROR "NvproCore2 not found, please install the NvproCore2 library")
+#else ()
+#    message("NvproCore2 is found. with include directory as ${NvproCore2_INCLUDE_DIRS}")
+#endif ()
 
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--disable-new-dtags")  # this line of code allows cmake to search library path
 set(CMAKE_BUILD_RPATH ${INSTALL_PREFIX_LIBRARY})

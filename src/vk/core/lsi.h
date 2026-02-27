@@ -1,5 +1,6 @@
 #ifndef RAYJOIN_LSI_H
 #define RAYJOIN_LSI_H
+#include "glog/logging.h"
 
 namespace rayjoin {
 namespace vk {

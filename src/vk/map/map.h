@@ -21,9 +21,7 @@ class Map {
   using point_t = Vec2<internal_coord_t>;
 
   Map() = delete;
-
   // explicit Map(int id) : id_(id) {}
-
   Map(int id, const VkComputeContext& ctx) : id_(id), vk_(ctx) {}
 
   ~Map() {
@@ -153,6 +151,10 @@ class Map {
               << " edges on GPU";
   }
 
+  size_t get_points_num() const { return point_count_; }
+
+  size_t get_edges_num() const { return edge_count_; }
+
  private:
   int id_;
   VkComputeContext vk_;
@@ -163,6 +165,7 @@ class Map {
   AllocBuf gpu_points_{};
   uint32_t point_count_ = 0;
 
+  // Step2 Pipeline
   bool scale_pass_inited_ = false;
 
   EdgeInitPassI64 edge_pass_;
