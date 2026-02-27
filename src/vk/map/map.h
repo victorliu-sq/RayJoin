@@ -2,6 +2,8 @@
 #define RAYJOIN_MAP_H
 
 #include "edge_init_pass_i64.h"
+#include "glog/logging.h"
+#include "planar_graph.h"
 #include "vk/common/vk_context.h"
 #include "vk/map/gpu_edge_types.h"
 #include "vk/map/scale_points_d2_i64.h"

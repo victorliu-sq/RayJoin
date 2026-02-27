@@ -1,0 +1,48 @@
+#ifndef RAYJOIN_LSI_H
+#define RAYJOIN_LSI_H
+
+namespace rayjoin {
+namespace vk {
+
+template <typename CONTEXT_T>
+class LSI {
+ protected:
+  using coord_t = typename CONTEXT_T::coord_t;
+  using internal_coord_t = typename CONTEXT_T::internal_coord_t;
+  using coefficient_t = typename CONTEXT_T::coefficient_t;
+
+ public:
+  // using xsect_t = dev::Intersection<internal_coord_t>;
+
+  explicit LSI(CONTEXT_T& ctx) : ctx_(ctx) {}
+
+  virtual ~LSI() = default;
+
+  virtual void Init(size_t max_n_xsects) {
+    // LOG(INFO) << "Queue size: " << max_n_xsects * sizeof(xsect_t) / 1024 / 1024
+    //           << " MB";
+    // xsect_queue_.Init(max_n_xsects);
+  }
+
+  virtual void Query(int query_map_id) = 0;
+
+  // CONTEXT_T& get_context() { return ctx_; }
+
+  // const CONTEXT_T& get_context() const { return ctx_; }
+
+  // ArrayView<xsect_t> get_xsects() {
+  //   return ArrayView<xsect_t>(xsect_queue_.data(), xsect_queue_.size());
+  // }
+
+  // void CopyTo(thrust::host_vector<xsect_t>& out) { xsect_queue_.CopyTo(out); }
+
+ protected:
+  CONTEXT_T& ctx_;
+  // Queue<xsect_t> xsect_queue_;
+  // SharedValue<uint64_t> prof_counter_;
+};
+
+}
+}
+
+#endif  // RAYJOIN_LSI_H

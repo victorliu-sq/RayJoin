@@ -3,6 +3,8 @@
 
 #include <cassert>
 
+#include "vk/util/type_traits.h"
+
 namespace rayjoin {
 
 namespace vk {

@@ -14,6 +14,7 @@ class MapOverlay {
   using coefficient_t = typename CONTEXT_T::coefficient_t;
   using xsect_t = dev::Intersection<internal_coord_t>;
 
+  MapOverlay() = delete;
   explicit MapOverlay(CONTEXT_T& ctx) : ctx_(ctx) {}
 
   virtual void Init() = 0;
