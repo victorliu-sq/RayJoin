@@ -9,7 +9,7 @@ struct VkComputeContext {
   VkDevice device = VK_NULL_HANDLE;
 
   VkQueue queue = VK_NULL_HANDLE;
-  uint32_t queueFamily = 0;
+  uint32_t queueFamilyIndex = 0;
 
   VkCommandPool cmdPool = VK_NULL_HANDLE;
 

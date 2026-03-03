@@ -1,37 +1,55 @@
 #ifndef RAYJOIN_EDGE_INIT_PASS_I64_H
 #define RAYJOIN_EDGE_INIT_PASS_I64_H
 
-#include "vk/common/vk_context.h"
+#include <string>
+#include <vector>
+
+#include "vk/common/vk_compute_context.h"
 #include "vk/common/vk_helpers.h"
 #include "vk/map/gpu_edge_types.h"
-#include <vector>
-#include <string>
 
 class EdgeInitPassI64 {
-public:
+ public:
   void init(const VkComputeContext& ctx, const char* spvPath) {
     m_ctx = ctx;
 
     // set layout: points, chains, row_index, edges
     VkDescriptorSetLayoutBinding b[4]{};
 
-    b[0].binding = 0; b[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER; b[0].descriptorCount = 1; b[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    b[1].binding = 1; b[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER; b[1].descriptorCount = 1; b[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    b[2].binding = 2; b[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER; b[2].descriptorCount = 1; b[2].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    b[3].binding = 3; b[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER; b[3].descriptorCount = 1; b[3].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    b[0].binding = 0;
+    b[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    b[0].descriptorCount = 1;
+    b[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    b[1].binding = 1;
+    b[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    b[1].descriptorCount = 1;
+    b[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    b[2].binding = 2;
+    b[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    b[2].descriptorCount = 1;
+    b[2].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    b[3].binding = 3;
+    b[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    b[3].descriptorCount = 1;
+    b[3].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
-    VkDescriptorSetLayoutCreateInfo dsl{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+    VkDescriptorSetLayoutCreateInfo dsl{
+        VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
     dsl.bindingCount = 4;
     dsl.pBindings = b;
-    VK_CHECK(vkCreateDescriptorSetLayout(ctx.device, &dsl, nullptr, &m_setLayout));
+    VK_CHECK(
+        vkCreateDescriptorSetLayout(ctx.device, &dsl, nullptr, &m_setLayout));
 
-    struct Push { uint32_t numPoints, numChains, numEdges, pad; };
+    struct Push {
+      uint32_t numPoints, numChains, numEdges, pad;
+    };
     VkPushConstantRange pcr{};
     pcr.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     pcr.offset = 0;
     pcr.size = sizeof(Push);
 
-    VkPipelineLayoutCreateInfo pl{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+    VkPipelineLayoutCreateInfo pl{
+        VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
     pl.setLayoutCount = 1;
     pl.pSetLayouts = &m_setLayout;
     pl.pushConstantRangeCount = 1;
@@ -44,17 +62,21 @@ public:
     sm.pCode = spirv.data();
     VK_CHECK(vkCreateShaderModule(ctx.device, &sm, nullptr, &m_shader));
 
-    VkPipelineShaderStageCreateInfo stage{VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
+    VkPipelineShaderStageCreateInfo stage{
+        VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
     stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
     stage.module = m_shader;
     stage.pName = "main";
 
-    VkComputePipelineCreateInfo cp{VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
+    VkComputePipelineCreateInfo cp{
+        VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
     cp.stage = stage;
     cp.layout = m_pipeLayout;
-    VK_CHECK(vkCreateComputePipelines(ctx.device, VK_NULL_HANDLE, 1, &cp, nullptr, &m_pipeline));
+    VK_CHECK(vkCreateComputePipelines(ctx.device, VK_NULL_HANDLE, 1, &cp,
+                                      nullptr, &m_pipeline));
 
-    VkDescriptorSetAllocateInfo ai{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+    VkDescriptorSetAllocateInfo ai{
+        VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
     ai.descriptorPool = ctx.descPool;
     ai.descriptorSetCount = 1;
     ai.pSetLayouts = &m_setLayout;
@@ -64,12 +86,17 @@ public:
   }
 
   void destroy() {
-    if (!m_inited) return;
+    if (!m_inited)
+      return;
     cleanupBuffers();
-    if (m_pipeline) vkDestroyPipeline(m_ctx.device, m_pipeline, nullptr);
-    if (m_shader) vkDestroyShaderModule(m_ctx.device, m_shader, nullptr);
-    if (m_pipeLayout) vkDestroyPipelineLayout(m_ctx.device, m_pipeLayout, nullptr);
-    if (m_setLayout) vkDestroyDescriptorSetLayout(m_ctx.device, m_setLayout, nullptr);
+    if (m_pipeline)
+      vkDestroyPipeline(m_ctx.device, m_pipeline, nullptr);
+    if (m_shader)
+      vkDestroyShaderModule(m_ctx.device, m_shader, nullptr);
+    if (m_pipeLayout)
+      vkDestroyPipelineLayout(m_ctx.device, m_pipeLayout, nullptr);
+    if (m_setLayout)
+      vkDestroyDescriptorSetLayout(m_ctx.device, m_setLayout, nullptr);
     *this = {};
   }
 
@@ -78,39 +105,49 @@ public:
 
     m_numChains = numChains;
     m_numPoints = numPoints;
-    m_numEdges  = numPoints - numChains;
+    m_numEdges = numPoints - numChains;
 
     // chains + row_index are uploaded from CPU
     VkDeviceSize chainsSize = sizeof(GpuChain) * numChains;
-    VkDeviceSize rowSize    = sizeof(GpuIndex) * (numChains + 1);
-    VkDeviceSize edgesSize  = sizeof(GpuEdge)  * m_numEdges;
+    VkDeviceSize rowSize = sizeof(GpuIndex) * (numChains + 1);
+    VkDeviceSize edgesSize = sizeof(GpuEdge) * m_numEdges;
 
     m_chainsStaging = vmaCreateBufferSimple(m_ctx.vma, chainsSize,
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+                                            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                            VMA_MEMORY_USAGE_CPU_ONLY);
     m_rowStaging = vmaCreateBufferSimple(m_ctx.vma, rowSize,
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+                                         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                         VMA_MEMORY_USAGE_CPU_ONLY);
 
-    m_chainsDev = vmaCreateBufferSimple(m_ctx.vma, chainsSize,
-        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
-    m_rowDev = vmaCreateBufferSimple(m_ctx.vma, rowSize,
-        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+    m_chainsDev = vmaCreateBufferSimple(
+        m_ctx.vma, chainsSize,
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        VMA_MEMORY_USAGE_GPU_ONLY);
+    m_rowDev = vmaCreateBufferSimple(
+        m_ctx.vma, rowSize,
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        VMA_MEMORY_USAGE_GPU_ONLY);
 
-    m_edgesDev = vmaCreateBufferSimple(m_ctx.vma, edgesSize,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+    m_edgesDev = vmaCreateBufferSimple(
+        m_ctx.vma, edgesSize,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VMA_MEMORY_USAGE_GPU_ONLY);
 
     // NOTE: points buffer comes from scale pass (external), set during run()
 
     m_ready = true;
   }
 
-  // pointsDev must be the scaled points buffer (GpuPointI64) from the previous pass
-  void run(const AllocBuf& pointsDev,
-           const std::vector<GpuChain>& chains,
-           const std::vector<GpuIndex>& rowIndex)
-  {
-    if (!m_inited || !m_ready) throw std::runtime_error("EdgeInitPassI64 not ready");
-    if ((uint32_t)chains.size() != m_numChains) throw std::runtime_error("chains size mismatch");
-    if ((uint32_t)rowIndex.size() != m_numChains + 1) throw std::runtime_error("rowIndex size mismatch");
+  // pointsDev must be the scaled points buffer (GpuPointI64) from the previous
+  // pass
+  void run(const AllocBuf& pointsDev, const std::vector<GpuChain>& chains,
+           const std::vector<GpuIndex>& rowIndex) {
+    if (!m_inited || !m_ready)
+      throw std::runtime_error("EdgeInitPassI64 not ready");
+    if ((uint32_t) chains.size() != m_numChains)
+      throw std::runtime_error("chains size mismatch");
+    if ((uint32_t) rowIndex.size() != m_numChains + 1)
+      throw std::runtime_error("rowIndex size mismatch");
 
     // upload chains
     {
@@ -123,21 +160,58 @@ public:
     {
       void* mapped = nullptr;
       VK_CHECK(vmaMapMemory(m_ctx.vma, m_rowStaging.alloc, &mapped));
-      std::memcpy(mapped, rowIndex.data(), sizeof(GpuIndex) * (m_numChains + 1));
+      std::memcpy(mapped, rowIndex.data(),
+                  sizeof(GpuIndex) * (m_numChains + 1));
       vmaUnmapMemory(m_ctx.vma, m_rowStaging.alloc);
     }
 
     VkCommandBuffer cmd = beginOneTime(m_ctx.device, m_ctx.cmdPool);
 
     // staging -> device copies
-    VkBufferCopy c0{0,0, sizeof(GpuChain) * m_numChains};
+    VkBufferCopy c0{0, 0, sizeof(GpuChain) * m_numChains};
     vkCmdCopyBuffer(cmd, m_chainsStaging.buf, m_chainsDev.buf, 1, &c0);
 
-    VkBufferCopy c1{0,0, sizeof(GpuIndex) * (m_numChains + 1)};
+    VkBufferCopy c1{0, 0, sizeof(GpuIndex) * (m_numChains + 1)};
     vkCmdCopyBuffer(cmd, m_rowStaging.buf, m_rowDev.buf, 1, &c1);
 
     // Barrier: transfer -> compute for chains/row
-    VkBufferMemoryBarrier2 bars[3]{};
+    // VkBufferMemoryBarrier2 bars[3]{};
+    // bars[0].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
+    // bars[0].srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+    // bars[0].srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+    // bars[0].dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+    // bars[0].dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+    // bars[0].buffer = m_chainsDev.buf;
+    // bars[0].size = VK_WHOLE_SIZE;
+    //
+    // bars[1].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
+    // bars[1].srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+    // bars[1].srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+    // bars[1].dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+    // bars[1].dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+    // bars[1].buffer = m_rowDev.buf;
+    // bars[1].size = VK_WHOLE_SIZE;
+    //
+    // bars[2].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
+    // bars[2].srcStageMask = VK_PIPELINE_STAGE_2_NONE;
+    // bars[2].srcAccessMask = 0;
+    // bars[2].dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+    // bars[2].dstAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
+    // bars[2].buffer = m_edgesDev.buf;
+    // bars[2].size = VK_WHOLE_SIZE;
+    //
+    // VkDependencyInfo dep{VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
+    // dep.bufferMemoryBarrierCount = 3;
+    // dep.pBufferMemoryBarriers = bars;
+    // vkCmdPipelineBarrier2(cmd, &dep);
+
+    // VkDependencyInfo dep{VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
+    // dep.bufferMemoryBarrierCount = 3;
+    // dep.pBufferMemoryBarriers = bars;
+    // vkCmdPipelineBarrier2(cmd, &dep);
+
+    // With only 2 barriers
+    VkBufferMemoryBarrier2 bars[2]{};
     bars[0].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
     bars[0].srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
     bars[0].srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
@@ -154,16 +228,8 @@ public:
     bars[1].buffer = m_rowDev.buf;
     bars[1].size = VK_WHOLE_SIZE;
 
-    bars[2].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
-    bars[2].srcStageMask = VK_PIPELINE_STAGE_2_NONE;
-    bars[2].srcAccessMask = 0;
-    bars[2].dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
-    bars[2].dstAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
-    bars[2].buffer = m_edgesDev.buf;
-    bars[2].size = VK_WHOLE_SIZE;
-
     VkDependencyInfo dep{VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
-    dep.bufferMemoryBarrierCount = 3;
+    dep.bufferMemoryBarrierCount = 2;
     dep.pBufferMemoryBarriers = bars;
     vkCmdPipelineBarrier2(cmd, &dep);
 
@@ -174,25 +240,47 @@ public:
     VkDescriptorBufferInfo eInfo{m_edgesDev.buf, 0, VK_WHOLE_SIZE};
 
     VkWriteDescriptorSet wr[4]{};
-    for (int i = 0; i < 4; ++i) wr[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    for (int i = 0; i < 4; ++i) {
+      wr[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    }
 
-    wr[0].dstSet = m_descSet; wr[0].dstBinding = 0; wr[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER; wr[0].descriptorCount = 1; wr[0].pBufferInfo = &pInfo;
-    wr[1].dstSet = m_descSet; wr[1].dstBinding = 1; wr[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER; wr[1].descriptorCount = 1; wr[1].pBufferInfo = &cInfo;
-    wr[2].dstSet = m_descSet; wr[2].dstBinding = 2; wr[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER; wr[2].descriptorCount = 1; wr[2].pBufferInfo = &rInfo;
-    wr[3].dstSet = m_descSet; wr[3].dstBinding = 3; wr[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER; wr[3].descriptorCount = 1; wr[3].pBufferInfo = &eInfo;
+    wr[0].dstSet = m_descSet;
+    wr[0].dstBinding = 0;
+    wr[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    wr[0].descriptorCount = 1;
+    wr[0].pBufferInfo = &pInfo;
+    wr[1].dstSet = m_descSet;
+    wr[1].dstBinding = 1;
+    wr[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    wr[1].descriptorCount = 1;
+    wr[1].pBufferInfo = &cInfo;
+    wr[2].dstSet = m_descSet;
+    wr[2].dstBinding = 2;
+    wr[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    wr[2].descriptorCount = 1;
+    wr[2].pBufferInfo = &rInfo;
+    wr[3].dstSet = m_descSet;
+    wr[3].dstBinding = 3;
+    wr[3].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    wr[3].descriptorCount = 1;
+    wr[3].pBufferInfo = &eInfo;
 
     vkUpdateDescriptorSets(m_ctx.device, 4, wr, 0, nullptr);
 
     // bind + push + dispatch
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeline);
-    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeLayout, 0, 1, &m_descSet, 0, nullptr);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeLayout,
+                            0, 1, &m_descSet, 0, nullptr);
 
-    struct Push { uint32_t numPoints, numChains, numEdges, pad; } pc{};
+    struct Push {
+      uint32_t numPoints, numChains, numEdges, pad;
+    } pc{};
     pc.numPoints = m_numPoints;
     pc.numChains = m_numChains;
-    pc.numEdges  = m_numEdges;
+    pc.numEdges = m_numEdges;
 
-    vkCmdPushConstants(cmd, m_pipeLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(Push), &pc);
+    vkCmdPushConstants(cmd, m_pipeLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0,
+                       sizeof(Push), &pc);
 
     uint32_t groups = (m_numPoints + 256 - 1) / 256;
     vkCmdDispatch(cmd, groups, 1, 1);
@@ -217,7 +305,7 @@ public:
   const AllocBuf& edgesBuffer() const { return m_edgesDev; }
   uint32_t numEdges() const { return m_numEdges; }
 
-private:
+ private:
   void cleanupBuffers() {
     vmaDestroyBufferSafe(m_ctx.vma, m_chainsStaging);
     vmaDestroyBufferSafe(m_ctx.vma, m_rowStaging);
@@ -227,7 +315,7 @@ private:
     m_ready = false;
   }
 
-private:
+ private:
   VkComputeContext m_ctx{};
   bool m_inited = false;
   bool m_ready = false;
@@ -240,7 +328,7 @@ private:
 
   uint32_t m_numPoints = 0;
   uint32_t m_numChains = 0;
-  uint32_t m_numEdges  = 0;
+  uint32_t m_numEdges = 0;
 
   AllocBuf m_chainsStaging{}, m_rowStaging{};
   AllocBuf m_chainsDev{}, m_rowDev{};
