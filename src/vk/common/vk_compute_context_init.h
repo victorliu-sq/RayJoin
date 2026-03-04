@@ -16,6 +16,25 @@
   } while (0)
 #endif
 
+struct VkComputeContext {
+  // Private
+  VkPhysicalDevice phys = VK_NULL_HANDLE;
+  uint32_t queueFamilyIndex = 0;
+
+  // Public
+  VkDevice device = VK_NULL_HANDLE;
+  // Create Command Buffer
+  VkCommandPool cmdPool = VK_NULL_HANDLE;
+  // Submit Command Buffer
+  VkQueue queue = VK_NULL_HANDLE;
+  // Create Staging or Device Buffer
+  VmaAllocator vma = VK_NULL_HANDLE;
+
+  // TODO: Remove this
+  // You can pass an existing pool, or we can create one
+  // VkDescriptorPool descPool = VK_NULL_HANDLE;
+};
+
 static inline void vkCheck(VkResult result) {
   if (result != VK_SUCCESS) {
     std::cerr << "Vulkan call returned an error (" << result << ")\n";
@@ -159,9 +178,6 @@ inline VkInstance initVkComputeContext(VkComputeContext& ctx) {
   vaci.device = ctx.device;
   vaci.vulkanApiVersion = VK_API_VERSION_1_3;
   VK_CHECK(vmaCreateAllocator(&vaci, &ctx.vma));
-
-  ctx.descPool = createDescriptorPoolSimple(ctx.device);
-
   return instance;  // return the instance used (so caller can destroy if they
                     // created it)
 }
@@ -169,8 +185,6 @@ inline VkInstance initVkComputeContext(VkComputeContext& ctx) {
 inline void destroyVkComputeContext(VkComputeContext& ctx) {
   if (ctx.device) {
     vkDeviceWaitIdle(ctx.device);
-    if (ctx.descPool)
-      vkDestroyDescriptorPool(ctx.device, ctx.descPool, nullptr);
     if (ctx.vma)
       vmaDestroyAllocator(ctx.vma);
     if (ctx.cmdPool)

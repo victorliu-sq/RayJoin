@@ -75,9 +75,23 @@ class EdgeInitPassI64 {
     VK_CHECK(vkCreateComputePipelines(ctx.device, VK_NULL_HANDLE, 1, &cp,
                                       nullptr, &m_pipeline));
 
+    // 1 set, 4 storage-buffer descriptors total.
+    VkDescriptorPoolSize sizes[] = {
+        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 4},
+    };
+
+    VkDescriptorPoolCreateInfo ci{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+    ci.maxSets = 1;
+    ci.poolSizeCount = (uint32_t)std::size(sizes);
+    ci.pPoolSizes = sizes;
+    // Optional: if you ever plan to free/re-allocate descriptor sets from this pool:
+    // ci.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    VK_CHECK(vkCreateDescriptorPool(m_ctx.device, &ci, nullptr, &m_descPool));
+
     VkDescriptorSetAllocateInfo ai{
         VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
-    ai.descriptorPool = ctx.descPool;
+    // ai.descriptorPool = ctx.descPool;
+    ai.descriptorPool = m_descPool;
     ai.descriptorSetCount = 1;
     ai.pSetLayouts = &m_setLayout;
     VK_CHECK(vkAllocateDescriptorSets(ctx.device, &ai, &m_descSet));
@@ -97,6 +111,8 @@ class EdgeInitPassI64 {
       vkDestroyPipelineLayout(m_ctx.device, m_pipeLayout, nullptr);
     if (m_setLayout)
       vkDestroyDescriptorSetLayout(m_ctx.device, m_setLayout, nullptr);
+    if (m_descPool)
+      vkDestroyDescriptorPool(m_ctx.device, m_descPool, nullptr);
     *this = {};
   }
 
@@ -239,6 +255,7 @@ class EdgeInitPassI64 {
     VkDescriptorBufferInfo rInfo{m_rowDev.buf, 0, VK_WHOLE_SIZE};
     VkDescriptorBufferInfo eInfo{m_edgesDev.buf, 0, VK_WHOLE_SIZE};
 
+    // update descriptorSet
     VkWriteDescriptorSet wr[4]{};
     for (int i = 0; i < 4; ++i) {
       wr[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -325,6 +342,7 @@ class EdgeInitPassI64 {
   VkShaderModule m_shader = VK_NULL_HANDLE;
   VkPipeline m_pipeline = VK_NULL_HANDLE;
   VkDescriptorSet m_descSet = VK_NULL_HANDLE;
+  VkDescriptorPool m_descPool = VK_NULL_HANDLE;
 
   uint32_t m_numPoints = 0;
   uint32_t m_numChains = 0;

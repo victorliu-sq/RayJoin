@@ -8,6 +8,7 @@ struct Chain {
   int right_polygon_id;
 };
 
+// uint => uint32 => 4 bytes
 struct Edge {
   int64_t a;
   int64_t b;
@@ -20,10 +21,18 @@ struct Edge {
   uint right_polygon_id;
 };
 
-StructuredBuffer<PointI64> gPoints : register(t0);
-StructuredBuffer<Chain> gChains : register(t1);
-StructuredBuffer<uint> gRowIdx : register(t2);
-RWStructuredBuffer<Edge> gEdges : register(u3);
+// Set 0 Binding 0
+[[vk::binding(0, 0)]]
+StructuredBuffer<PointI64> gPoints;
+// Set 0 Binding 1
+[[vk::binding(0, 1)]]
+StructuredBuffer<Chain> gChains;
+// Set 0 Binding 2
+[[vk::binding(0, 2)]]
+StructuredBuffer<uint> gRowIdx;
+// Set 0 Binding 3
+[[vk::binding(0, 3)]]
+RWStructuredBuffer<Edge> gEdges;
 
 struct Push {
   uint numPoints;
@@ -52,20 +61,23 @@ uint findChain(uint pIdx) {
 [numthreads(256, 1, 1)]
 void main(uint3 tid: SV_DispatchThreadID) {
   uint pIdx = tid.x;
-  if (pIdx >= pc.numPoints)
+  if (pIdx >= pc.numPoints) {
     return;
+  }
 
   uint chainId = findChain(pIdx);
 
   uint start = gRowIdx[chainId];
   uint end = gRowIdx[chainId + 1];
 
-  if (pIdx >= end - 1)
+  if (pIdx >= end - 1) {
     return;
+  }
 
   uint eid = pIdx - chainId;
-  if (eid >= pc.numEdges)
+  if (eid >= pc.numEdges) {
     return;
+  }
 
   Chain ch = gChains[chainId];
 
