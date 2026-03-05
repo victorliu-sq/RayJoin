@@ -21,17 +21,17 @@ struct Edge {
   uint right_polygon_id;
 };
 
-// Set 0 Binding 0
+// [[vk::binding(# of binding, # of set)]]
 [[vk::binding(0, 0)]]
 StructuredBuffer<PointI64> gPoints;
-// Set 0 Binding 1
-[[vk::binding(0, 1)]]
+
+[[vk::binding(1, 0)]]
 StructuredBuffer<Chain> gChains;
-// Set 0 Binding 2
-[[vk::binding(0, 2)]]
+
+[[vk::binding(2, 0)]]
 StructuredBuffer<uint> gRowIdx;
-// Set 0 Binding 3
-[[vk::binding(0, 3)]]
+
+[[vk::binding(3, 0)]]
 RWStructuredBuffer<Edge> gEdges;
 
 struct Push {
