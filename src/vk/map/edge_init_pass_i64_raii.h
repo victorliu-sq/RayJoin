@@ -29,10 +29,6 @@ class EdgeInitPassI64RAII : public VkComputeEngine {
         m_numPoints(numPoints),
         m_numChains(numChains) {
     m_numEdges = m_numPoints - m_numChains;
-
-    LOG(INFO) << "[EdgeInitPass] chains=" << m_numChains
-              << " points=" << m_numPoints << " edges=" << m_numEdges;
-
     createPipeline(spvPath);
     allocateDescriptors();
     recordDescriptors();

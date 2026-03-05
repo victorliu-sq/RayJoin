@@ -55,7 +55,8 @@ class Map {
 
     for (uint32_t i = 0; i < point_count; ++i) {
       src[i].x = (double) pgraph.points[i].x;
-      src[i].y = (double) pgraph.points[i].y;
+
+src[i].y = (double) pgraph.points[i].y;
     }
 
     /* allocate GPU buffers */
