@@ -4,29 +4,24 @@
 
 namespace rayjoin {
 namespace vk {
-class ComputePass {
+class VkComputeEngine {
  public:
-  ComputePass(const VkComputeContext& ctx, const char* spvPath) : m_ctx(ctx) {
-    setup(spvPath);
-  }
+  VkComputeEngine(const VkComputeContext& ctx, const char* spvPath)
+      : m_ctx(ctx) {}
 
-  virtual ~ComputePass() {
+  virtual ~VkComputeEngine() {
     if (m_pipeline) {
       vkDestroyPipeline(m_ctx.device, m_pipeline, nullptr);
     }
-
     if (m_shader) {
       vkDestroyShaderModule(m_ctx.device, m_shader, nullptr);
     }
-
     if (m_pipeLayout) {
       vkDestroyPipelineLayout(m_ctx.device, m_pipeLayout, nullptr);
     }
-
     if (m_setLayout) {
       vkDestroyDescriptorSetLayout(m_ctx.device, m_setLayout, nullptr);
     }
-
     if (m_descPool) {
       vkDestroyDescriptorPool(m_ctx.device, m_descPool, nullptr);
     }
@@ -36,6 +31,7 @@ class ComputePass {
     VkCommandBuffer cmd = beginOneTime(m_ctx.device, m_ctx.cmdPool);
 
     recordCopy(cmd);
+
     recordBarrier(cmd);
 
     preDispatch(cmd);
@@ -71,10 +67,6 @@ class ComputePass {
   virtual void preDispatch(VkCommandBuffer cmd) = 0;
   virtual void recordDispatch(VkCommandBuffer cmd) = 0;
   virtual void recordPostBarrier(VkCommandBuffer cmd) = 0;
-
-  /* ---------- cleanup ---------- */
-
-  virtual void cleanupBuffers() = 0;
 
  protected:
   VkComputeContext m_ctx{};

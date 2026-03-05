@@ -1,89 +1,60 @@
 #ifndef RAYJOIN_EDGE_INIT_PASS_I64_RAII_H
 #define RAYJOIN_EDGE_INIT_PASS_I64_RAII_H
 
+#include <glog/logging.h>
+
 #include <stdexcept>
 #include <string>
 #include <vector>
 
-#include <glog/logging.h>
-
 #include "vk/engine/vk_compute_context.h"
+#include "vk/engine/vk_engine_abs.h"
 #include "vk/engine/vk_helpers.h"
 #include "vk/map/gpu_edge_types.h"
 
-class EdgeInitPassI64RAII {
+namespace rayjoin {
+namespace vk {
+
+class EdgeInitPassI64RAII : public VkComputeEngine {
  public:
-  EdgeInitPassI64RAII(const VkComputeContext& ctx,
-                      const char* spvPath,
+  EdgeInitPassI64RAII(const VkComputeContext& ctx, const char* spvPath,
                       const AllocBuf& pointsDev,
                       const std::vector<GpuChain>& chains,
                       const std::vector<GpuIndex>& rowIndex)
-      : m_ctx(ctx), m_pointsDev(pointsDev) {
-
+      : VkComputeEngine(ctx, spvPath),
+        m_pointsDev(pointsDev),
+        m_chainsCPU(chains),
+        m_rowCPU(rowIndex) {
     if (chains.empty())
       throw std::runtime_error("EdgeInitPass: chains empty");
 
     if (rowIndex.size() < 2)
       throw std::runtime_error("EdgeInitPass: rowIndex invalid");
 
-    m_numChains = (uint32_t)chains.size();
-    m_numPoints = (uint32_t)(rowIndex.back());
-    m_numEdges  = m_numPoints - m_numChains;
+    m_numChains = (uint32_t) chains.size();
+    m_numPoints = (uint32_t) rowIndex.back();
+    m_numEdges = m_numPoints - m_numChains;
 
     LOG(INFO) << "[EdgeInitPass] chains=" << m_numChains
-              << " points=" << m_numPoints
-              << " edges=" << m_numEdges;
+              << " points=" << m_numPoints << " edges=" << m_numEdges;
 
     LOG(INFO) << "[EdgeInitPass] sizeof(GpuEdge)=" << sizeof(GpuEdge);
 
-    createPipeline(spvPath);
-    allocateDescriptors();
-    createBuffers();
-    uploadCPUData(chains, rowIndex);
-    // descriptors updated once here
-    recordDescriptors();
+    setup(spvPath);
   }
 
   ~EdgeInitPassI64RAII() {
-    cleanupBuffers();
-
-    if (m_pipeline)
-      vkDestroyPipeline(m_ctx.device, m_pipeline, nullptr);
-
-    if (m_shader)
-      vkDestroyShaderModule(m_ctx.device, m_shader, nullptr);
-
-    if (m_pipeLayout)
-      vkDestroyPipelineLayout(m_ctx.device, m_pipeLayout, nullptr);
-
-    if (m_setLayout)
-      vkDestroyDescriptorSetLayout(m_ctx.device, m_setLayout, nullptr);
-
-    if (m_descPool)
-      vkDestroyDescriptorPool(m_ctx.device, m_descPool, nullptr);
-  }
-
-  void run() {
-
-    VkCommandBuffer cmd = beginOneTime(m_ctx.device, m_ctx.cmdPool);
-
-    recordCopy(cmd);
-    recordBarrier(cmd);
-
-    // Optional: clear edges buffer to known pattern
-    vkCmdFillBuffer(cmd, m_edgesDev.buf, 0, VK_WHOLE_SIZE, 0);
-
-    recordDispatch(cmd);
-
-    recordPostBarrier(cmd);
-
-    endSubmitWait(m_ctx.device, m_ctx.queue, m_ctx.cmdPool, cmd);
+    // cleanupBuffers();
+    vmaDestroyBufferSafe(m_ctx.vma, m_chainsStaging);
+    vmaDestroyBufferSafe(m_ctx.vma, m_rowStaging);
+    vmaDestroyBufferSafe(m_ctx.vma, m_chainsDev);
+    vmaDestroyBufferSafe(m_ctx.vma, m_rowDev);
+    vmaDestroyBufferSafe(m_ctx.vma, m_edgesDev);
   }
 
   const AllocBuf& edgesBuffer() const { return m_edgesDev; }
 
  private:
-
   struct PushConstants {
     uint32_t numPoints;
     uint32_t numChains;
@@ -92,9 +63,7 @@ class EdgeInitPassI64RAII {
   };
 
   /* ---------------- Pipeline ---------------- */
-
-  void createPipeline(const char* spvPath) {
-
+  void createPipeline(const char* spvPath) override {
     LOG(INFO) << "[EdgeInitPass] loading shader: " << spvPath;
 
     auto spirv = readSpvU32(spvPath);
@@ -103,7 +72,6 @@ class EdgeInitPassI64RAII {
               << spirv.size() * sizeof(uint32_t) << " bytes";
 
     VkDescriptorSetLayoutBinding b[4]{};
-
     for (int i = 0; i < 4; ++i) {
       b[i].binding = i;
       b[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -116,8 +84,8 @@ class EdgeInitPassI64RAII {
     dsl.bindingCount = 4;
     dsl.pBindings = b;
 
-    VK_CHECK(vkCreateDescriptorSetLayout(
-        m_ctx.device, &dsl, nullptr, &m_setLayout));
+    VK_CHECK(
+        vkCreateDescriptorSetLayout(m_ctx.device, &dsl, nullptr, &m_setLayout));
 
     VkPushConstantRange pcr{};
     pcr.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
@@ -130,16 +98,13 @@ class EdgeInitPassI64RAII {
     pl.pushConstantRangeCount = 1;
     pl.pPushConstantRanges = &pcr;
 
-    VK_CHECK(vkCreatePipelineLayout(
-        m_ctx.device, &pl, nullptr, &m_pipeLayout));
+    VK_CHECK(vkCreatePipelineLayout(m_ctx.device, &pl, nullptr, &m_pipeLayout));
 
-    VkShaderModuleCreateInfo sm{
-        VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
+    VkShaderModuleCreateInfo sm{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
     sm.codeSize = spirv.size() * sizeof(uint32_t);
     sm.pCode = spirv.data();
 
-    VK_CHECK(vkCreateShaderModule(
-        m_ctx.device, &sm, nullptr, &m_shader));
+    VK_CHECK(vkCreateShaderModule(m_ctx.device, &sm, nullptr, &m_shader));
 
     VkPipelineShaderStageCreateInfo stage{
         VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
@@ -152,17 +117,13 @@ class EdgeInitPassI64RAII {
     cp.stage = stage;
     cp.layout = m_pipeLayout;
 
-    VK_CHECK(vkCreateComputePipelines(
-        m_ctx.device,
-        VK_NULL_HANDLE,
-        1,
-        &cp,
-        nullptr,
-        &m_pipeline));
+    VK_CHECK(vkCreateComputePipelines(m_ctx.device, VK_NULL_HANDLE, 1, &cp,
+                                      nullptr, &m_pipeline));
   }
 
-  void allocateDescriptors() {
+  /* ---------------- Descriptors ---------------- */
 
+  void allocateDescriptors() override {
     VkDescriptorPoolSize sizes[] = {
         {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 4},
     };
@@ -173,8 +134,7 @@ class EdgeInitPassI64RAII {
     ci.poolSizeCount = 1;
     ci.pPoolSizes = sizes;
 
-    VK_CHECK(vkCreateDescriptorPool(
-        m_ctx.device, &ci, nullptr, &m_descPool));
+    VK_CHECK(vkCreateDescriptorPool(m_ctx.device, &ci, nullptr, &m_descPool));
 
     VkDescriptorSetAllocateInfo ai{
         VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
@@ -182,104 +142,75 @@ class EdgeInitPassI64RAII {
     ai.descriptorSetCount = 1;
     ai.pSetLayouts = &m_setLayout;
 
-    VK_CHECK(vkAllocateDescriptorSets(
-        m_ctx.device, &ai, &m_descSet));
+    VK_CHECK(vkAllocateDescriptorSets(m_ctx.device, &ai, &m_descSet));
   }
 
   /* ---------------- Buffers ---------------- */
 
-  void createBuffers() {
-
+  void createBuffers() override {
     VkDeviceSize chainsSize = sizeof(GpuChain) * m_numChains;
-    VkDeviceSize rowSize    = sizeof(GpuIndex) * (m_numChains + 1);
-    VkDeviceSize edgesSize  = sizeof(GpuEdge) * m_numEdges;
+    VkDeviceSize rowSize = sizeof(GpuIndex) * (m_numChains + 1);
+    VkDeviceSize edgesSize = sizeof(GpuEdge) * m_numEdges;
 
-    LOG(INFO) << "[EdgeInitPass] edges buffer size = "
-              << edgesSize << " bytes";
+    LOG(INFO) << "[EdgeInitPass] edges buffer size = " << edgesSize << " bytes";
 
-    m_chainsStaging = vmaCreateBufferSimple(
-        m_ctx.vma,
-        chainsSize,
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VMA_MEMORY_USAGE_CPU_ONLY);
+    m_chainsStaging = vmaCreateBufferSimple(m_ctx.vma, chainsSize,
+                                            VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                            VMA_MEMORY_USAGE_CPU_ONLY);
 
-    m_rowStaging = vmaCreateBufferSimple(
-        m_ctx.vma,
-        rowSize,
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VMA_MEMORY_USAGE_CPU_ONLY);
+    m_rowStaging = vmaCreateBufferSimple(m_ctx.vma, rowSize,
+                                         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                         VMA_MEMORY_USAGE_CPU_ONLY);
 
     m_chainsDev = vmaCreateBufferSimple(
-        m_ctx.vma,
-        chainsSize,
-        VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        m_ctx.vma, chainsSize,
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VMA_MEMORY_USAGE_GPU_ONLY);
 
     m_rowDev = vmaCreateBufferSimple(
-        m_ctx.vma,
-        rowSize,
-        VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        m_ctx.vma, rowSize,
+        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
         VMA_MEMORY_USAGE_GPU_ONLY);
 
-    m_edgesDev = vmaCreateBufferSimple(
-        m_ctx.vma,
-        edgesSize,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
-        VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VMA_MEMORY_USAGE_GPU_ONLY);
+    m_edgesDev = vmaCreateBufferSimple(m_ctx.vma, edgesSize,
+                                       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                                           VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
+                                           VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                       VMA_MEMORY_USAGE_GPU_ONLY);
   }
 
-  void uploadCPUData(const std::vector<GpuChain>& chains,
-                     const std::vector<GpuIndex>& rowIndex) {
+  /* ---------------- Upload CPU Data ---------------- */
 
+  void uploadCPUData() override {
     void* mapped;
 
-    VK_CHECK(vmaMapMemory(m_ctx.vma,
-                          m_chainsStaging.alloc,
-                          &mapped));
-    memcpy(mapped,
-           chains.data(),
-           sizeof(GpuChain) * m_numChains);
+    VK_CHECK(vmaMapMemory(m_ctx.vma, m_chainsStaging.alloc, &mapped));
+
+    memcpy(mapped, m_chainsCPU.data(), sizeof(GpuChain) * m_numChains);
+
     vmaUnmapMemory(m_ctx.vma, m_chainsStaging.alloc);
 
-    VK_CHECK(vmaMapMemory(m_ctx.vma,
-                          m_rowStaging.alloc,
-                          &mapped));
-    memcpy(mapped,
-           rowIndex.data(),
-           sizeof(GpuIndex) * (m_numChains + 1));
+    VK_CHECK(vmaMapMemory(m_ctx.vma, m_rowStaging.alloc, &mapped));
+
+    memcpy(mapped, m_rowCPU.data(), sizeof(GpuIndex) * (m_numChains + 1));
+
     vmaUnmapMemory(m_ctx.vma, m_rowStaging.alloc);
   }
 
-  /* ---------------- Command recording ---------------- */
+  /* ---------------- Copy Commands ---------------- */
 
-  void recordCopy(VkCommandBuffer cmd) {
-
+  void recordCopy(VkCommandBuffer cmd) override {
     VkBufferCopy c0{0, 0, sizeof(GpuChain) * m_numChains};
-    vkCmdCopyBuffer(cmd,
-                    m_chainsStaging.buf,
-                    m_chainsDev.buf,
-                    1,
-                    &c0);
+    vkCmdCopyBuffer(cmd, m_chainsStaging.buf, m_chainsDev.buf, 1, &c0);
 
-    VkBufferCopy c1{0, 0,
-        sizeof(GpuIndex) * (m_numChains + 1)};
-
-    vkCmdCopyBuffer(cmd,
-                    m_rowStaging.buf,
-                    m_rowDev.buf,
-                    1,
-                    &c1);
+    VkBufferCopy c1{0, 0, sizeof(GpuIndex) * (m_numChains + 1)};
+    vkCmdCopyBuffer(cmd, m_rowStaging.buf, m_rowDev.buf, 1, &c1);
   }
 
-  void recordBarrier(VkCommandBuffer cmd) {
-
+  void recordBarrier(VkCommandBuffer cmd) override {
     VkBufferMemoryBarrier2 bars[2]{};
 
-    for (int i = 0; i < 2; ++i) {
+    for (int i = 0; i < 2; i++) {
       bars[i].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
       bars[i].srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
       bars[i].srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
@@ -291,24 +222,28 @@ class EdgeInitPassI64RAII {
     bars[0].buffer = m_chainsDev.buf;
     bars[1].buffer = m_rowDev.buf;
 
-    VkDependencyInfo dep{
-        VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
+    VkDependencyInfo dep{VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
     dep.bufferMemoryBarrierCount = 2;
     dep.pBufferMemoryBarriers = bars;
 
     vkCmdPipelineBarrier2(cmd, &dep);
   }
 
-  void recordDescriptors() {
+  void preDispatch(VkCommandBuffer cmd) override {
+    vkCmdFillBuffer(cmd, m_edgesDev.buf, 0, VK_WHOLE_SIZE, 0);
+  }
 
-    VkDescriptorBufferInfo pInfo{m_pointsDev.buf,0,VK_WHOLE_SIZE};
-    VkDescriptorBufferInfo cInfo{m_chainsDev.buf,0,VK_WHOLE_SIZE};
-    VkDescriptorBufferInfo rInfo{m_rowDev.buf,0,VK_WHOLE_SIZE};
-    VkDescriptorBufferInfo eInfo{m_edgesDev.buf,0,VK_WHOLE_SIZE};
+  /* ---------------- Descriptor Writes ---------------- */
+
+  void recordDescriptors() override {
+    VkDescriptorBufferInfo pInfo{m_pointsDev.buf, 0, VK_WHOLE_SIZE};
+    VkDescriptorBufferInfo cInfo{m_chainsDev.buf, 0, VK_WHOLE_SIZE};
+    VkDescriptorBufferInfo rInfo{m_rowDev.buf, 0, VK_WHOLE_SIZE};
+    VkDescriptorBufferInfo eInfo{m_edgesDev.buf, 0, VK_WHOLE_SIZE};
 
     VkWriteDescriptorSet wr[4]{};
 
-    for (int i = 0; i < 4; ++i)
+    for (int i = 0; i < 4; i++)
       wr[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 
     wr[0].dstSet = m_descSet;
@@ -320,63 +255,38 @@ class EdgeInitPassI64RAII {
     wr[1] = wr[0];
     wr[1].dstBinding = 1;
     wr[1].pBufferInfo = &cInfo;
-
     wr[2] = wr[0];
     wr[2].dstBinding = 2;
     wr[2].pBufferInfo = &rInfo;
-
     wr[3] = wr[0];
     wr[3].dstBinding = 3;
     wr[3].pBufferInfo = &eInfo;
 
-    vkUpdateDescriptorSets(
-        m_ctx.device,
-        4,
-        wr,
-        0,
-        nullptr);
+    vkUpdateDescriptorSets(m_ctx.device, 4, wr, 0, nullptr);
   }
 
-  void recordDispatch(VkCommandBuffer cmd) {
+  /* ---------------- Dispatch ---------------- */
 
-    vkCmdBindPipeline(cmd,
-        VK_PIPELINE_BIND_POINT_COMPUTE,
-        m_pipeline);
+  void recordDispatch(VkCommandBuffer cmd) override {
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeline);
 
-    vkCmdBindDescriptorSets(cmd,
-        VK_PIPELINE_BIND_POINT_COMPUTE,
-        m_pipeLayout,
-        0,
-        1,
-        &m_descSet,
-        0,
-        nullptr);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeLayout,
+                            0, 1, &m_descSet, 0, nullptr);
 
-    PushConstants pc{
-        m_numPoints,
-        m_numChains,
-        m_numEdges,
-        0};
+    PushConstants pc{m_numPoints, m_numChains, m_numEdges, 0};
 
-    vkCmdPushConstants(cmd,
-        m_pipeLayout,
-        VK_SHADER_STAGE_COMPUTE_BIT,
-        0,
-        sizeof(pc),
-        &pc);
+    vkCmdPushConstants(cmd, m_pipeLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0,
+                       sizeof(pc), &pc);
 
     uint32_t groups = (m_numPoints + 255) / 256;
 
-    LOG(INFO) << "[EdgeInitPass] dispatch groups = "
-              << groups;
+    LOG(INFO) << "[EdgeInitPass] dispatch groups = " << groups;
 
     vkCmdDispatch(cmd, groups, 1, 1);
   }
 
-  void recordPostBarrier(VkCommandBuffer cmd) {
-
-    VkBufferMemoryBarrier2 after{
-        VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2};
+  void recordPostBarrier(VkCommandBuffer cmd) override {
+    VkBufferMemoryBarrier2 after{VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2};
 
     after.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
     after.srcAccessMask = VK_ACCESS_2_SHADER_WRITE_BIT;
@@ -385,43 +295,28 @@ class EdgeInitPassI64RAII {
     after.buffer = m_edgesDev.buf;
     after.size = VK_WHOLE_SIZE;
 
-    VkDependencyInfo dep{
-        VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
+    VkDependencyInfo dep{VK_STRUCTURE_TYPE_DEPENDENCY_INFO};
     dep.bufferMemoryBarrierCount = 1;
     dep.pBufferMemoryBarriers = &after;
 
     vkCmdPipelineBarrier2(cmd, &dep);
   }
 
-  void cleanupBuffers() {
-    vmaDestroyBufferSafe(m_ctx.vma, m_chainsStaging);
-    vmaDestroyBufferSafe(m_ctx.vma, m_rowStaging);
-    vmaDestroyBufferSafe(m_ctx.vma, m_chainsDev);
-    vmaDestroyBufferSafe(m_ctx.vma, m_rowDev);
-    vmaDestroyBufferSafe(m_ctx.vma, m_edgesDev);
-  }
-
  private:
-
-  VkComputeContext m_ctx{};
-
-  VkPipelineLayout m_pipeLayout = VK_NULL_HANDLE;
-  VkShaderModule   m_shader = VK_NULL_HANDLE;
-  VkPipeline       m_pipeline = VK_NULL_HANDLE;
-
-  VkDescriptorSetLayout m_setLayout = VK_NULL_HANDLE;
-  VkDescriptorPool      m_descPool = VK_NULL_HANDLE;
-  VkDescriptorSet       m_descSet = VK_NULL_HANDLE;
-
-  uint32_t m_numPoints = 0;
-  uint32_t m_numChains = 0;
-  uint32_t m_numEdges  = 0;
+  uint32_t m_numPoints{};
+  uint32_t m_numChains{};
+  uint32_t m_numEdges{};
 
   AllocBuf m_pointsDev{};
 
+  std::vector<GpuChain> m_chainsCPU;
+  std::vector<GpuIndex> m_rowCPU;
+
   AllocBuf m_chainsStaging{}, m_rowStaging{};
-  AllocBuf m_chainsDev{},     m_rowDev{};
+  AllocBuf m_chainsDev{}, m_rowDev{};
   AllocBuf m_edgesDev{};
 };
 
+}  // namespace vk
+}  // namespace rayjoin
 #endif
