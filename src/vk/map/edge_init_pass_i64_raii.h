@@ -307,6 +307,7 @@ class EdgeInitPassI64RAII : public VkComputeEngine {
   uint32_t m_numChains{};
   uint32_t m_numEdges{};
 
+  // Managed by PassScaling
   AllocBuf m_pointsDev{};
 
   std::vector<GpuChain> m_chainsCPU;
