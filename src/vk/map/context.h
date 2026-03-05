@@ -1,7 +1,7 @@
 #ifndef RAYJOIN_CONTEXT_H
 #define RAYJOIN_CONTEXT_H
 
-#include "vk/common/vk_context_init.h"
+#include "vk/engine/vk_compute_context.h"
 #include "vk/map/bounding_box.h"
 #include "vk/map/map.h"
 #include "vk/map/scaling.h"
@@ -83,7 +83,7 @@ class Context {
     // exec_root = std::string(path);
 
     // NEW: init Vulkan compute context
-    instance_ = initVkComputeContext(vk_, VK_NULL_HANDLE);
+    instance_ = initVkComputeContext(vk_);
   }
 
   void LoadToDevice() {

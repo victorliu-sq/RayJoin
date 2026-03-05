@@ -1,10 +1,11 @@
 #ifndef RAYJOIN_VK_DEBUG_READBACK_H
 #define RAYJOIN_VK_DEBUG_READBACK_H
 
-#include "vk/common/vk_helpers.h"   // your AllocBuf + beginOneTime/endSubmitWait
-#include "vk/common/vk_context.h"
-#include <vector>
 #include <iostream>
+#include <vector>
+
+#include "vk/engine/vk_compute_context.h"
+#include "vk/engine/vk_helpers.h"  // your AllocBuf + beginOneTime/endSubmitWait
 
 template <typename T>
 std::vector<T> readBackBuffer(

@@ -6,8 +6,8 @@
 #include <cstdint>
 #include <stdexcept>
 
-#include "vk/common/vk_context.h"
-#include "vk/common/vk_helpers.h"
+#include "vk/engine/vk_compute_context.h"
+#include "vk/engine/vk_helpers.h"
 #include "vk_mem_alloc.h"
 
 struct alignas(16) SrcPointD {
@@ -89,10 +89,25 @@ class ScalePointsPassD2I64 {
     VK_CHECK(vkCreateComputePipelines(ctx.device, VK_NULL_HANDLE, 1, &cpci,
                                       nullptr, &m_pipeline));
 
+    // Descriptor Pool
+    // 1 set, 2 storage-buffer descriptors total (src + dst)
+    VkDescriptorPoolSize sizes[] = {
+        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2},
+    };
+
+    VkDescriptorPoolCreateInfo ci{
+        VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+    ci.maxSets = 1;
+    ci.poolSizeCount = (uint32_t) std::size(sizes);
+    ci.pPoolSizes = sizes;
+
+    VK_CHECK(vkCreateDescriptorPool(m_ctx.device, &ci, nullptr, &m_descPool));
+
     // descriptor set
     VkDescriptorSetAllocateInfo dsai{
         VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
-    dsai.descriptorPool = ctx.descPool;
+    // dsai.descriptorPool = ctx.descPool;
+    dsai.descriptorPool = m_descPool;
     dsai.descriptorSetCount = 1;
     dsai.pSetLayouts = &m_setLayout;
     VK_CHECK(vkAllocateDescriptorSets(ctx.device, &dsai, &m_descSet));
@@ -112,6 +127,8 @@ class ScalePointsPassD2I64 {
       vkDestroyPipelineLayout(m_ctx.device, m_pipeLayout, nullptr);
     if (m_setLayout)
       vkDestroyDescriptorSetLayout(m_ctx.device, m_setLayout, nullptr);
+    if (m_descPool)
+      vkDestroyDescriptorPool(m_ctx.device, m_descPool, nullptr);
     *this = {};
   }
 
@@ -256,6 +273,7 @@ class ScalePointsPassD2I64 {
   VkPipelineLayout m_pipeLayout = VK_NULL_HANDLE;
   VkShaderModule m_shader = VK_NULL_HANDLE;
   VkPipeline m_pipeline = VK_NULL_HANDLE;
+  VkDescriptorPool m_descPool = VK_NULL_HANDLE;
   VkDescriptorSet m_descSet = VK_NULL_HANDLE;
 
   AllocBuf m_srcStaging{};

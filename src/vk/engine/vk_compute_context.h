@@ -1,20 +1,16 @@
-#ifndef RAYJOIN_VK_CONTEXT_INIT_H
-#define RAYJOIN_VK_CONTEXT_INIT_H
+#ifndef RAYJOIN_VK_CONTEXT_H
+#define RAYJOIN_VK_CONTEXT_H
+
+#include <glog/logging.h>
+#include <vulkan/vulkan.h>
 
 #include <cstring>
 #include <stdexcept>
 #include <vector>
 
 #include "vk_compute_context.h"
-
-#ifndef VK_CHECK
-#define VK_CHECK(x)                             \
-  do {                                          \
-    VkResult err = (x);                         \
-    if (err)                                    \
-      throw std::runtime_error("Vulkan error"); \
-  } while (0)
-#endif
+#include "vk_helpers.h"
+#include "vk_mem_alloc.h"
 
 struct VkComputeContext {
   // Private
@@ -22,6 +18,7 @@ struct VkComputeContext {
   uint32_t queueFamilyIndex = 0;
 
   // Public
+  VkInstance instance = VK_NULL_HANDLE;
   VkDevice device = VK_NULL_HANDLE;
   // Create Command Buffer
   VkCommandPool cmdPool = VK_NULL_HANDLE;
@@ -29,18 +26,7 @@ struct VkComputeContext {
   VkQueue queue = VK_NULL_HANDLE;
   // Create Staging or Device Buffer
   VmaAllocator vma = VK_NULL_HANDLE;
-
-  // TODO: Remove this
-  // You can pass an existing pool, or we can create one
-  // VkDescriptorPool descPool = VK_NULL_HANDLE;
 };
-
-static inline void vkCheck(VkResult result) {
-  if (result != VK_SUCCESS) {
-    std::cerr << "Vulkan call returned an error (" << result << ")\n";
-    exit(result);
-  }
-}
 
 inline uint32_t findComputeQueueFamily(VkPhysicalDevice phys) {
   // Return QueueFamily Count
@@ -59,44 +45,41 @@ inline uint32_t findComputeQueueFamily(VkPhysicalDevice phys) {
 }
 
 inline VkPhysicalDevice findDiscretePhysicalDevice(VkInstance instance) {
-  // Return the device count via instance
-  uint32_t dev_count = 0;
-  vkCheck(vkEnumeratePhysicalDevices(instance, &dev_count, nullptr));
-  if (dev_count == 0) {
-    throw std::runtime_error("No Vulkan physical devices found");
-  }
-  LOG(INFO) << "# of devices: " << dev_count;
+  uint32_t devCount = 0;
+  vkCheck(vkEnumeratePhysicalDevices(instance, &devCount, nullptr));
 
-  // Return a list of device handlers via instance
-  std::vector<VkPhysicalDevice> devs(dev_count);
-  vkCheck(vkEnumeratePhysicalDevices(instance, &dev_count, devs.data()));
+  LOG(INFO) << "# of devices: " << devCount;
 
-  // Find a device is typically a separate processor connected to the host
-  // via an interlink.
-  uint32_t dev_index = dev_count;
+  std::vector<VkPhysicalDevice> devices(devCount);
+  vkCheck(vkEnumeratePhysicalDevices(instance, &devCount, devices.data()));
 
-  uint32_t i = 0;
-  while (i < dev_count && dev_index == dev_count) {
-    // Get Device Properties
-    VkPhysicalDeviceProperties2 dev_prop{
-        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
-    vkGetPhysicalDeviceProperties2(devs[i], &dev_prop);
-    auto& prop = dev_prop.properties;
+  VkPhysicalDevice selected = VK_NULL_HANDLE;
 
-    // Print out information of devices
-    LOG(INFO) << "Selected device: " << prop.deviceName;
-    if (prop.deviceType ==
-        VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {  // the separate device
-      dev_index = i;
+  size_t i = 0;
+  while (i < devices.size() && selected == VK_NULL_HANDLE) {
+    VkPhysicalDevice dev = devices[i];
+
+    VkPhysicalDeviceProperties2 props{
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+
+    vkGetPhysicalDeviceProperties2(dev, &props);
+
+    if (props.properties.deviceType == VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
+      LOG(INFO) << "Selected device: " << props.properties.deviceName;
+      selected = dev;
     }
-    i++;
+
+    ++i;
   }
 
-  if (dev_index == dev_count) {
-    throw std::runtime_error("No Discrete GPU");
+  if (selected == VK_NULL_HANDLE) {
+    if (devCount == 0) {
+      throw std::runtime_error("No Vulkan physical devices found");
+    } else {
+      throw std::runtime_error("No discrete GPU found");
+    }
   }
-
-  return devs[dev_index];
+  return selected;
 }
 
 inline VkInstance createInstanceMinimal() {
@@ -140,9 +123,9 @@ inline VkDescriptorPool createDescriptorPoolSimple(VkDevice device) {
  * call destroyVkComputeContext(ctx, createdInstance) with that instance.
  */
 inline VkInstance initVkComputeContext(VkComputeContext& ctx) {
-  VkInstance instance = createInstanceMinimal();
+  ctx.instance = createInstanceMinimal();
 
-  ctx.phys = findDiscretePhysicalDevice(instance);
+  ctx.phys = findDiscretePhysicalDevice(ctx.instance);
 
   ctx.queueFamilyIndex = findComputeQueueFamily(ctx.phys);
 
@@ -173,13 +156,15 @@ inline VkInstance initVkComputeContext(VkComputeContext& ctx) {
 
   // VMA needs instance to load function pointers
   VmaAllocatorCreateInfo vaci{};
-  vaci.instance = instance;
+  vaci.instance = ctx.instance;
   vaci.physicalDevice = ctx.phys;
   vaci.device = ctx.device;
   vaci.vulkanApiVersion = VK_API_VERSION_1_3;
+  // for VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
+  vaci.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
   VK_CHECK(vmaCreateAllocator(&vaci, &ctx.vma));
-  return instance;  // return the instance used (so caller can destroy if they
-                    // created it)
+  return ctx.instance;  // return the instance used (so caller can destroy if
+                        // they created it)
 }
 
 inline void destroyVkComputeContext(VkComputeContext& ctx) {
@@ -194,4 +179,4 @@ inline void destroyVkComputeContext(VkComputeContext& ctx) {
   ctx = {};
 }
 
-#endif  // RAYJOIN_VK_CONTEXT_INIT_H
+#endif  // RAYJOIN_VK_CONTEXT_H

@@ -183,8 +183,7 @@ class Map {
 
     const AllocBuf& pointsDev = scale_pass_.dstBuffer();
 
-    std::string spvPath =
-        std::string(SHADER_DIR) + "/edge_init_i64_dev_addr.spv";
+    std::string spvPath = std::string(SHADER_DIR) + "/edge_init_i64.spv";
 
     edge_pass_ = std::make_unique<EdgeInitPassI64RAII>(
         vk_, spvPath.c_str(), pointsDev, chainsGpu, rowGpu);
@@ -193,6 +192,43 @@ class Map {
 
     LOG(INFO) << "Map-" << id_ << ": initialized " << edge_count_
               << " edges on GPU";
+
+    {
+      uint32_t checkEdges = std::min<uint32_t>(edge_count_, 10);
+
+      auto gpuEdges =
+          readBackBuffer<GpuEdge>(vk_, edge_pass_->edgesBuffer(), checkEdges);
+
+      auto gpuPts = readBackBuffer<DstPointI64>(vk_, scale_pass_.dstBuffer(),
+                                                point_count_);
+
+      LOG(INFO) << "Map-" << id_ << " GPU edge readback (first " << checkEdges
+                << " edges):";
+
+      for (uint32_t i = 0; i < checkEdges; ++i) {
+        const auto& e = gpuEdges[i];
+
+        auto& p1 = gpuPts[e.p1_idx];
+        auto& p2 = gpuPts[e.p2_idx];
+
+        int64_t a = p1.y - p2.y;
+        int64_t b = p2.x - p1.x;
+        int64_t c = -(p1.x * a) - (p1.y * b);
+
+        if (b < 0) {
+          a = -a;
+          b = -b;
+          c = -c;
+        }
+
+        bool ok = (a == e.a) && (b == e.b) && (c == e.c);
+
+        LOG(INFO) << "eid=" << e.eid << " p1=" << e.p1_idx << " p2=" << e.p2_idx
+                  << " GPU=(" << e.a << "," << e.b << "," << e.c << ")"
+                  << " CPU=(" << a << "," << b << "," << c << ")"
+                  << " match=" << (ok ? "YES" : "NO");
+      }
+    }
   }
 
   size_t get_points_num() const { return point_count_; }
@@ -217,7 +253,7 @@ class Map {
   // bool edge_pass_inited_ = false;
 
   // Step2 pipeline (RAII)
-  std::unique_ptr<EdgeInitPassI64RAII> edge_pass_;
+  std::unique_ptr<EdgeInitPassI64RAII> edge_pass_{};
 
   uint32_t chain_count_ = 0;
   uint32_t edge_count_ = 0;
