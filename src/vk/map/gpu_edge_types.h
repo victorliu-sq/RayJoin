@@ -1,8 +1,6 @@
 #ifndef RAYJOIN_GPU_EDGE_TYPES_H
 #define RAYJOIN_GPU_EDGE_TYPES_H
 
-#include <cstdint>
-
 struct alignas(16) GpuPointI64 {
   int64_t x;
   int64_t y;
@@ -13,6 +11,7 @@ struct alignas(8) GpuChain {
   int32_t left_polygon_id;
   int32_t right_polygon_id;
 };
+
 static_assert(sizeof(GpuChain) == 8);
 
 using GpuIndex = uint32_t;

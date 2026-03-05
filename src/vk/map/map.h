@@ -6,6 +6,7 @@
 #include "edge_init_pass_i64_raii.h"
 #include "glog/logging.h"
 #include "planar_graph.h"
+#include "scale_points_raii.h"
 #include "vk/engine/vk_compute_context.h"
 #include "vk/map/gpu_edge_types.h"
 #include "vk/map/scale_points_d2_i64.h"
@@ -23,92 +24,37 @@ class Map {
   using point_t = Vec2<internal_coord_t>;
 
   Map() = delete;
-  // explicit Map(int id) : id_(id) {}
   Map(int id, const VkComputeContext& ctx) : id_(id), vk_(ctx) {}
-
-  ~Map() {
-    // if (edge_pass_inited_) {
-    //   edge_pass_.destroy();
-    //   edge_pass_inited_ = false;
-    // }
-
-    if (scale_pass_inited_) {
-      scale_pass_.destroy();
-      scale_pass_inited_ = false;
-    }
-  }
 
   template <typename SRC_COORD_T>
   void LoadFrom(const Scaling<SRC_COORD_T, INTERNAL_COORD_T>& scaling,
                 const PlanarGraph<SRC_COORD_T>& pgraph) {
     LOG(INFO) << "Init Map-" << id_ << " From PGraphs";
+
     // Step1 only: scale points on GPU
-    point_count_ = static_cast<uint32_t>(pgraph.points.size());
-    if (point_count_ == 0) {
+    uint32_t point_count = static_cast<uint32_t>(pgraph.points.size());
+    if (point_count == 0) {
       LOG(WARNING) << "Map-" << id_ << ": empty planar graph points";
       return;
     }
 
-    // Init compute pass once
-    if (!scale_pass_inited_) {
-      // SHADER_DIR comes from your CMake: SHADER_DIR="${SPV_OUTPUT_DIR}"
-      std::string spvPath =
-          std::string(SHADER_DIR) + "/scale_points_d2_i64.spv";
-      scale_pass_.init(vk_, spvPath.c_str());
-      scale_pass_inited_ = true;
+    std::vector<SrcPointD> src(point_count);
+
+    for (uint32_t i = 0; i < point_count; ++i) {
+      src[i].x = (double)pgraph.points[i].x;
+      src[i].y = (double)pgraph.points[i].y;
     }
 
-    // Prepare buffers sized for current count
-    scale_pass_.prepareBuffers(point_count_);
+    std::string spvPathScaling =
+        std::string(SHADER_DIR) + "/scale_points_d2_i64.spv";
 
-    // Convert src points to aligned SrcPointD array
-    std::vector<SrcPointD> src(point_count_);
-    for (uint32_t i = 0; i < point_count_; ++i) {
-      src[i].x = static_cast<double>(pgraph.points[i].x);
-      src[i].y = static_cast<double>(pgraph.points[i].y);
-    }
+    scale_pass_ = std::make_unique<ScalePointsPassD2I64RAII>(
+        vk_, spvPathScaling.c_str(), src, scaling.rx(), scaling.ry(),
+        scaling.deltax(), scaling.deltay());
 
-    // Run compute
-    scale_pass_.run(src.data(), point_count_, (double) scaling.rx(),
-                    (double) scaling.ry(), (double) scaling.deltax(),
-                    (double) scaling.deltay());
+    scale_pass_->run();
 
-    // Keep GPU output buffer for next step (edge equation kernel later)
-    gpu_points_ = scale_pass_.dstBuffer();
-
-    LOG(INFO) << "Map-" << id_ << ": scaled " << point_count_
-              << " points on GPU";
-
-    // DEBUG: read back first few points
-    {
-      uint32_t checkCount = std::min<uint32_t>(point_count_, 10);
-
-      auto gpuPts =
-          readBackBuffer<DstPointI64>(vk_, scale_pass_.dstBuffer(), checkCount);
-
-      LOG(INFO) << "Map-" << id_ << " GPU readback (first " << checkCount
-                << " points):";
-
-      for (uint32_t i = 0; i < checkCount; ++i) {
-        auto& srcp = pgraph.points[i];
-
-        int64_t gpu_x = gpuPts[i].x;
-        int64_t gpu_y = gpuPts[i].y;
-
-        // CPU reference
-        int64_t cpu_x = scaling.ScaleX(srcp.x);
-        int64_t cpu_y = scaling.ScaleY(srcp.y);
-
-        // Unscale GPU back to double for sanity
-        double unscaled_x = scaling.UnscaleX(gpu_x);
-        double unscaled_y = scaling.UnscaleY(gpu_y);
-
-        LOG(INFO) << "i=" << i << " src=(" << srcp.x << "," << srcp.y << ")"
-                  << " gpu=(" << gpu_x << "," << gpu_y << ")"
-                  << " cpu=(" << cpu_x << "," << cpu_y << ")"
-                  << " unscaled=(" << unscaled_x << "," << unscaled_y << ")";
-      }
-    }
+    DebugPrintScaledPoints(scaling, pgraph, point_count);
 
     // ----- Step2: initialize edges on GPU -----
     chain_count_ = static_cast<uint32_t>(pgraph.chains.size());
@@ -118,7 +64,7 @@ class Map {
       return;
     }
 
-    edge_count_ = point_count_ - chain_count_;
+    edge_count_ = point_count - chain_count_;
 
     LOG(INFO) << "Map-" << id_ << ": chains=" << chain_count_
               << " edges=" << edge_count_;
@@ -139,7 +85,7 @@ class Map {
       rowGpu[i] = static_cast<GpuIndex>(pgraph.row_index[i]);
     }
 
-    const AllocBuf& pointsDev = scale_pass_.dstBuffer();
+    const AllocBuf& pointsDev = scale_pass_->dstBuffer();
 
     std::string spvPath = std::string(SHADER_DIR) + "/edge_init_i64.spv";
 
@@ -151,45 +97,8 @@ class Map {
     LOG(INFO) << "Map-" << id_ << ": initialized " << edge_count_
               << " edges on GPU";
 
-    {
-      uint32_t checkEdges = std::min<uint32_t>(edge_count_, 10);
-
-      auto gpuEdges =
-          readBackBuffer<GpuEdge>(vk_, edge_pass_->edgesBuffer(), checkEdges);
-
-      auto gpuPts = readBackBuffer<DstPointI64>(vk_, scale_pass_.dstBuffer(),
-                                                point_count_);
-
-      LOG(INFO) << "Map-" << id_ << " GPU edge readback (first " << checkEdges
-                << " edges):";
-
-      for (uint32_t i = 0; i < checkEdges; ++i) {
-        const auto& e = gpuEdges[i];
-
-        auto& p1 = gpuPts[e.p1_idx];
-        auto& p2 = gpuPts[e.p2_idx];
-
-        int64_t a = p1.y - p2.y;
-        int64_t b = p2.x - p1.x;
-        int64_t c = -(p1.x * a) - (p1.y * b);
-
-        if (b < 0) {
-          a = -a;
-          b = -b;
-          c = -c;
-        }
-
-        bool ok = (a == e.a) && (b == e.b) && (c == e.c);
-
-        LOG(INFO) << "eid=" << e.eid << " p1=" << e.p1_idx << " p2=" << e.p2_idx
-                  << " GPU=(" << e.a << "," << e.b << "," << e.c << ")"
-                  << " CPU=(" << a << "," << b << "," << c << ")"
-                  << " match=" << (ok ? "YES" : "NO");
-      }
-    }
+    DebugPrintEdges(point_count);
   }
-
-  size_t get_points_num() const { return point_count_; }
 
   size_t get_edges_num() const { return edge_count_; }
 
@@ -197,24 +106,87 @@ class Map {
   int id_;
   VkComputeContext vk_;
 
-  // Step1 pipeline
-  ScalePointsPassD2I64 scale_pass_;
-  // Output of step1 (device buffer with DstPointI64)
-  AllocBuf gpu_points_{};
-  uint32_t point_count_ = 0;
-
-  // Step2 Pipeline
-  bool scale_pass_inited_ = false;
-
-  // EdgeInitPassI64 edge_pass_;
-  // EdgeInitPassI64DevAddr edge_pass_;
-  // bool edge_pass_inited_ = false;
-
-  // Step2 pipeline (RAII)
+  std::unique_ptr<ScalePointsPassD2I64RAII> scale_pass_;
   std::unique_ptr<EdgeInitPassI64RAII> edge_pass_{};
 
   uint32_t chain_count_ = 0;
   uint32_t edge_count_ = 0;
+
+  // ---------------- Debug helpers ----------------
+
+  template <typename SRC_COORD_T>
+  void DebugPrintScaledPoints(
+      const Scaling<SRC_COORD_T, INTERNAL_COORD_T>& scaling,
+      const PlanarGraph<SRC_COORD_T>& pgraph,
+      uint32_t point_count) const {
+
+    uint32_t checkCount = std::min<uint32_t>(point_count, 10);
+
+    auto gpuPts =
+        readBackBuffer<DstPointI64>(vk_, scale_pass_->dstBuffer(), checkCount);
+
+    LOG(INFO) << "Map-" << id_ << " GPU readback (first " << checkCount
+              << " points):";
+
+    for (uint32_t i = 0; i < checkCount; ++i) {
+      auto& srcp = pgraph.points[i];
+
+      int64_t gpu_x = gpuPts[i].x;
+      int64_t gpu_y = gpuPts[i].y;
+
+      int64_t cpu_x = scaling.ScaleX(srcp.x);
+      int64_t cpu_y = scaling.ScaleY(srcp.y);
+
+      double unscaled_x = scaling.UnscaleX(gpu_x);
+      double unscaled_y = scaling.UnscaleY(gpu_y);
+
+      LOG(INFO) << "i=" << i
+                << " src=(" << srcp.x << "," << srcp.y << ")"
+                << " gpu=(" << gpu_x << "," << gpu_y << ")"
+                << " cpu=(" << cpu_x << "," << cpu_y << ")"
+                << " unscaled=(" << unscaled_x << "," << unscaled_y << ")";
+    }
+  }
+
+  void DebugPrintEdges(uint32_t point_count) const {
+
+    uint32_t checkEdges = std::min<uint32_t>(edge_count_, 10);
+
+    auto gpuEdges =
+        readBackBuffer<GpuEdge>(vk_, edge_pass_->edgesBuffer(), checkEdges);
+
+    auto gpuPts =
+        readBackBuffer<DstPointI64>(vk_, scale_pass_->dstBuffer(), point_count);
+
+    LOG(INFO) << "Map-" << id_ << " GPU edge readback (first " << checkEdges
+              << " edges):";
+
+    for (uint32_t i = 0; i < checkEdges; ++i) {
+      const auto& e = gpuEdges[i];
+
+      auto& p1 = gpuPts[e.p1_idx];
+      auto& p2 = gpuPts[e.p2_idx];
+
+      int64_t a = p1.y - p2.y;
+      int64_t b = p2.x - p1.x;
+      int64_t c = -(p1.x * a) - (p1.y * b);
+
+      if (b < 0) {
+        a = -a;
+        b = -b;
+        c = -c;
+      }
+
+      bool ok = (a == e.a) && (b == e.b) && (c == e.c);
+
+      LOG(INFO) << "eid=" << e.eid
+                << " p1=" << e.p1_idx
+                << " p2=" << e.p2_idx
+                << " GPU=(" << e.a << "," << e.b << "," << e.c << ")"
+                << " CPU=(" << a << "," << b << "," << c << ")"
+                << " match=" << (ok ? "YES" : "NO");
+    }
+  }
 };
 
 }  // namespace vk

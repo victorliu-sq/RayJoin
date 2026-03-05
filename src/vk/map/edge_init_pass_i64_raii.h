@@ -40,7 +40,6 @@ class EdgeInitPassI64RAII {
     allocateDescriptors();
     createBuffers();
     uploadCPUData(chains, rowIndex);
-
     // descriptors updated once here
     recordDescriptors();
   }
