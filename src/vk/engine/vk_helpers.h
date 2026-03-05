@@ -134,4 +134,15 @@ inline void endSubmitWait(VkDevice device, VkQueue q, VkCommandPool pool,
   vkFreeCommandBuffers(device, pool, 1, &cmd);
 }
 
+template <typename T>
+inline AllocBuf createStorageBuffer(VmaAllocator vma, size_t count) {
+  return vmaCreateBufferSimple(
+      vma,
+      sizeof(T) * count,
+      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+          VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
+          VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+      VMA_MEMORY_USAGE_GPU_ONLY);
+}
+
 #endif  // RAYJOIN_VK_ALLOC_H

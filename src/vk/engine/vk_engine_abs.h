@@ -29,17 +29,8 @@ class VkComputeEngine {
 
   void run() {
     VkCommandBuffer cmd = beginOneTime(m_ctx.device, m_ctx.cmdPool);
-
-    recordCopy(cmd);
-
-    recordBarrier(cmd);
-
     preDispatch(cmd);
-
     recordDispatch(cmd);
-
-    recordPostBarrier(cmd);
-
     endSubmitWait(m_ctx.device, m_ctx.queue, m_ctx.cmdPool, cmd);
   }
 
@@ -47,16 +38,11 @@ class VkComputeEngine {
   /* ---------- initialization hooks ---------- */
   virtual void createPipeline(const char* spvPath) = 0;
   virtual void allocateDescriptors() = 0;
-  virtual void prepareBuffers() = 0;
-  virtual void stageCPUData() = 0;
   virtual void recordDescriptors() = 0;
 
   /* ---------- command hooks ---------- */
-  virtual void recordCopy(VkCommandBuffer cmd) = 0;
-  virtual void recordBarrier(VkCommandBuffer cmd) = 0;
   virtual void preDispatch(VkCommandBuffer cmd) = 0;
   virtual void recordDispatch(VkCommandBuffer cmd) = 0;
-  virtual void recordPostBarrier(VkCommandBuffer cmd) = 0;
 
  protected:
   VkComputeContext m_ctx{};

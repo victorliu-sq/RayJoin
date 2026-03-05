@@ -1,7 +1,6 @@
 #ifndef RAYJOIN_MAP_H
 #define RAYJOIN_MAP_H
 
-#include "edge_init_pass_i64.h"
 #include "edge_init_pass_i64_raii.h"
 #include "glog/logging.h"
 #include "planar_graph.h"
@@ -23,13 +22,30 @@ class Map {
   Map() = delete;
   Map(int id) : id_(id) {}
 
+  ~Map() {
+    auto& vk_ctx = GetVkComputeContext();
+    // Scaling
+    vmaDestroyBufferSafe(vk_ctx.vma, srcPointsDev_);
+    vmaDestroyBufferSafe(vk_ctx.vma, scaledPointsDev_);
+    // Edge Init
+    vmaDestroyBufferSafe(vk_ctx.vma, chainsDev_);
+    vmaDestroyBufferSafe(vk_ctx.vma, rowDev_);
+    vmaDestroyBufferSafe(vk_ctx.vma, edgesDev_);
+  }
+
   template <typename SRC_COORD_T>
   void LoadFrom(const Scaling<SRC_COORD_T, INTERNAL_COORD_T>& scaling,
                 const PlanarGraph<SRC_COORD_T>& pgraph) {
     LOG(INFO) << "Init Map-" << id_ << " From PGraphs";
 
-    // Step1 only: scale points on GPU
+    auto& vk_ctx = GetVkComputeContext();
+
+    /* ------------------------------------------------------------ */
+    /* Step1: scale points                                          */
+    /* ------------------------------------------------------------ */
+
     uint32_t point_count = static_cast<uint32_t>(pgraph.points.size());
+
     if (point_count == 0) {
       LOG(WARNING) << "Map-" << id_ << ": empty planar graph points";
       return;
@@ -42,18 +58,33 @@ class Map {
       src[i].y = (double) pgraph.points[i].y;
     }
 
+    /* allocate GPU buffers */
+
+    srcPointsDev_ = createStorageBuffer<SrcPointD>(vk_ctx.vma, point_count);
+    scaledPointsDev_ =
+        createStorageBuffer<DstPointI64>(vk_ctx.vma, point_count);
+
+    /* upload CPU → GPU */
+
+    writeToBuffer(srcPointsDev_, src);
+
+    /* run scaling compute pass */
+
     std::string spvPathScaling =
         std::string(SHADER_DIR) + "/scale_points_d2_i64.spv";
 
     scale_pass_ = std::make_unique<ScalePointsPassD2I64RAII>(
-        spvPathScaling.c_str(), src, scaling.rx(), scaling.ry(),
-        scaling.deltax(), scaling.deltay());
+        spvPathScaling.c_str(), srcPointsDev_, scaledPointsDev_, point_count,
+        scaling.rx(), scaling.ry(), scaling.deltax(), scaling.deltay());
 
     scale_pass_->run();
 
     DebugPrintScaledPoints(scaling, pgraph, point_count);
 
-    // ----- Step2: initialize edges on GPU -----
+    /* ------------------------------------------------------------ */
+    /* Step2: initialize edges                                      */
+    /* ------------------------------------------------------------ */
+
     chain_count_ = static_cast<uint32_t>(pgraph.chains.size());
 
     if (chain_count_ == 0) {
@@ -63,8 +94,10 @@ class Map {
 
     edge_count_ = point_count - chain_count_;
 
-    LOG(INFO) << "Map-" << id_ << ": chains=" << chain_count_
+    LOG(INFO) << "Map-" << id_ << " chains=" << chain_count_
               << " edges=" << edge_count_;
+
+    /* prepare CPU data */
 
     std::vector<GpuChain> chainsGpu(chain_count_);
 
@@ -82,12 +115,24 @@ class Map {
       rowGpu[i] = static_cast<GpuIndex>(pgraph.row_index[i]);
     }
 
-    const AllocBuf& pointsDev = scale_pass_->dstBuffer();
+    /* allocate GPU buffers */
+
+    chainsDev_ = createStorageBuffer<GpuChain>(vk_ctx.vma, chain_count_);
+    rowDev_ = createStorageBuffer<GpuIndex>(vk_ctx.vma, chain_count_ + 1);
+    edgesDev_ = createStorageBuffer<GpuEdge>(vk_ctx.vma, edge_count_);
+
+    /* upload CPU → GPU */
+
+    writeToBuffer(chainsDev_, chainsGpu);
+    writeToBuffer(rowDev_, rowGpu);
+
+    /* run edge init compute pass */
 
     std::string spvPath = std::string(SHADER_DIR) + "/edge_init_i64.spv";
 
     edge_pass_ = std::make_unique<EdgeInitPassI64RAII>(
-        spvPath.c_str(), pointsDev, chainsGpu, rowGpu);
+        spvPath.c_str(), scaledPointsDev_, chainsDev_, rowDev_, edgesDev_,
+        point_count, chain_count_);
 
     edge_pass_->run();
 
@@ -101,15 +146,24 @@ class Map {
 
  private:
   int id_;
-  // VkComputeContext vk_;
 
   std::unique_ptr<ScalePointsPassD2I64RAII> scale_pass_;
-  std::unique_ptr<EdgeInitPassI64RAII> edge_pass_{};
+  std::unique_ptr<EdgeInitPassI64RAII> edge_pass_;
 
   uint32_t chain_count_ = 0;
   uint32_t edge_count_ = 0;
 
-  // ---------------- Debug helpers ----------------
+  /* GPU buffers owned by Map */
+
+  AllocBuf srcPointsDev_{};
+  AllocBuf scaledPointsDev_{};
+  AllocBuf chainsDev_{};
+  AllocBuf rowDev_{};
+  AllocBuf edgesDev_{};
+
+  /* ------------------------------------------------------------ */
+  /* Debug helpers                                                 */
+  /* ------------------------------------------------------------ */
 
   template <typename SRC_COORD_T>
   void DebugPrintScaledPoints(
@@ -117,8 +171,7 @@ class Map {
       const PlanarGraph<SRC_COORD_T>& pgraph, uint32_t point_count) const {
     uint32_t checkCount = std::min<uint32_t>(point_count, 10);
 
-    auto gpuPts =
-        readBackBuffer<DstPointI64>(scale_pass_->dstBuffer(), checkCount);
+    auto gpuPts = readBackBuffer<DstPointI64>(scaledPointsDev_, checkCount);
 
     LOG(INFO) << "Map-" << id_ << " GPU readback (first " << checkCount
               << " points):";
@@ -145,11 +198,8 @@ class Map {
   void DebugPrintEdges(uint32_t point_count) const {
     uint32_t checkEdges = std::min<uint32_t>(edge_count_, 10);
 
-    auto gpuEdges =
-        readBackBuffer<GpuEdge>(edge_pass_->edgesBuffer(), checkEdges);
-
-    auto gpuPts =
-        readBackBuffer<DstPointI64>(scale_pass_->dstBuffer(), point_count);
+    auto gpuEdges = readBackBuffer<GpuEdge>(edgesDev_, checkEdges);
+    auto gpuPts = readBackBuffer<DstPointI64>(scaledPointsDev_, point_count);
 
     LOG(INFO) << "Map-" << id_ << " GPU edge readback (first " << checkEdges
               << " edges):";
@@ -183,4 +233,4 @@ class Map {
 }  // namespace vk
 }  // namespace rayjoin
 
-#endif  // RAYJOIN_MAP_H
+#endif

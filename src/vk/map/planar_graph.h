@@ -164,7 +164,6 @@ struct PlanarGraph {
             << ", avg seg len: " << mean << ", stdev: " << stdev;
     return pgraph;
   }
-
 };
 
 }  // namespace vk
