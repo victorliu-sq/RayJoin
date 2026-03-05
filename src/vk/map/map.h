@@ -111,48 +111,6 @@ class Map {
     }
 
     // ----- Step2: initialize edges on GPU -----
-    // chain_count_ = static_cast<uint32_t>(pgraph.chains.size());
-    // if (chain_count_ == 0) {
-    //   LOG(WARNING) << "Map-" << id_ << ": no chains";
-    //   return;
-    // }
-    //
-    // edge_count_ = point_count_ - chain_count_;
-    // LOG(INFO) << "Map-" << id_ << ": chains=" << chain_count_
-    //           << " edges=" << edge_count_;
-    //
-    // if (!edge_pass_inited_) {
-    //   // std::string spvPath = std::string(SHADER_DIR) +
-    //   "/edge_init_i64.spv"; std::string spvPath = std::string(SHADER_DIR) +
-    //   "/edge_init_i64_dev_addr.spv"; edge_pass_.init(vk_, spvPath.c_str());
-    //   edge_pass_inited_ = true;
-    // }
-    //
-    // edge_pass_.prepareBuffers(chain_count_, point_count_);
-    //
-    // // Build GPU chain array (only needed fields)
-    // std::vector<GpuChain> chainsGpu(chain_count_);
-    // for (uint32_t i = 0; i < chain_count_; ++i) {
-    //   chainsGpu[i].left_polygon_id =
-    //       static_cast<int32_t>(pgraph.chains[i].left_polygon_id);
-    //   chainsGpu[i].right_polygon_id =
-    //       static_cast<int32_t>(pgraph.chains[i].right_polygon_id);
-    // }
-    //
-    // // Build row_index (uint32)
-    // std::vector<GpuIndex> rowGpu(chain_count_ + 1);
-    // for (uint32_t i = 0; i < chain_count_ + 1; ++i) {
-    //   rowGpu[i] = static_cast<GpuIndex>(pgraph.row_index[i]);
-    // }
-    //
-    // // Points buffer from scale pass
-    // const AllocBuf& pointsDev = scale_pass_.dstBuffer();
-    //
-    // edge_pass_.run(pointsDev, chainsGpu, rowGpu);
-    //
-    // LOG(INFO) << "Map-" << id_ << ": initialized " << edge_pass_.numEdges()
-    //           << " edges on GPU";
-
     chain_count_ = static_cast<uint32_t>(pgraph.chains.size());
 
     if (chain_count_ == 0) {
