@@ -2,9 +2,11 @@
 #define RAYJOIN_MAP_H
 
 #include "edge_init_pass_i64.h"
+#include "edge_init_pass_i64_dev_addr.h"
+#include "edge_init_pass_i64_raii.h"
 #include "glog/logging.h"
 #include "planar_graph.h"
-#include "vk/common/vk_context.h"
+#include "vk/engine/vk_compute_context.h"
 #include "vk/map/gpu_edge_types.h"
 #include "vk/map/scale_points_d2_i64.h"
 #include "vk/map/scaling.h"
@@ -25,10 +27,10 @@ class Map {
   Map(int id, const VkComputeContext& ctx) : id_(id), vk_(ctx) {}
 
   ~Map() {
-    if (edge_pass_inited_) {
-      edge_pass_.destroy();
-      edge_pass_inited_ = false;
-    }
+    // if (edge_pass_inited_) {
+    //   edge_pass_.destroy();
+    //   edge_pass_inited_ = false;
+    // }
 
     if (scale_pass_inited_) {
       scale_pass_.destroy();
@@ -109,45 +111,87 @@ class Map {
     }
 
     // ----- Step2: initialize edges on GPU -----
+    // chain_count_ = static_cast<uint32_t>(pgraph.chains.size());
+    // if (chain_count_ == 0) {
+    //   LOG(WARNING) << "Map-" << id_ << ": no chains";
+    //   return;
+    // }
+    //
+    // edge_count_ = point_count_ - chain_count_;
+    // LOG(INFO) << "Map-" << id_ << ": chains=" << chain_count_
+    //           << " edges=" << edge_count_;
+    //
+    // if (!edge_pass_inited_) {
+    //   // std::string spvPath = std::string(SHADER_DIR) +
+    //   "/edge_init_i64.spv"; std::string spvPath = std::string(SHADER_DIR) +
+    //   "/edge_init_i64_dev_addr.spv"; edge_pass_.init(vk_, spvPath.c_str());
+    //   edge_pass_inited_ = true;
+    // }
+    //
+    // edge_pass_.prepareBuffers(chain_count_, point_count_);
+    //
+    // // Build GPU chain array (only needed fields)
+    // std::vector<GpuChain> chainsGpu(chain_count_);
+    // for (uint32_t i = 0; i < chain_count_; ++i) {
+    //   chainsGpu[i].left_polygon_id =
+    //       static_cast<int32_t>(pgraph.chains[i].left_polygon_id);
+    //   chainsGpu[i].right_polygon_id =
+    //       static_cast<int32_t>(pgraph.chains[i].right_polygon_id);
+    // }
+    //
+    // // Build row_index (uint32)
+    // std::vector<GpuIndex> rowGpu(chain_count_ + 1);
+    // for (uint32_t i = 0; i < chain_count_ + 1; ++i) {
+    //   rowGpu[i] = static_cast<GpuIndex>(pgraph.row_index[i]);
+    // }
+    //
+    // // Points buffer from scale pass
+    // const AllocBuf& pointsDev = scale_pass_.dstBuffer();
+    //
+    // edge_pass_.run(pointsDev, chainsGpu, rowGpu);
+    //
+    // LOG(INFO) << "Map-" << id_ << ": initialized " << edge_pass_.numEdges()
+    //           << " edges on GPU";
+
     chain_count_ = static_cast<uint32_t>(pgraph.chains.size());
+
     if (chain_count_ == 0) {
       LOG(WARNING) << "Map-" << id_ << ": no chains";
       return;
     }
 
     edge_count_ = point_count_ - chain_count_;
+
     LOG(INFO) << "Map-" << id_ << ": chains=" << chain_count_
               << " edges=" << edge_count_;
 
-    if (!edge_pass_inited_) {
-      std::string spvPath = std::string(SHADER_DIR) + "/edge_init_i64.spv";
-      edge_pass_.init(vk_, spvPath.c_str());
-      edge_pass_inited_ = true;
-    }
-
-    edge_pass_.prepareBuffers(chain_count_, point_count_);
-
-    // Build GPU chain array (only needed fields)
     std::vector<GpuChain> chainsGpu(chain_count_);
+
     for (uint32_t i = 0; i < chain_count_; ++i) {
       chainsGpu[i].left_polygon_id =
           static_cast<int32_t>(pgraph.chains[i].left_polygon_id);
+
       chainsGpu[i].right_polygon_id =
           static_cast<int32_t>(pgraph.chains[i].right_polygon_id);
     }
 
-    // Build row_index (uint32)
     std::vector<GpuIndex> rowGpu(chain_count_ + 1);
+
     for (uint32_t i = 0; i < chain_count_ + 1; ++i) {
       rowGpu[i] = static_cast<GpuIndex>(pgraph.row_index[i]);
     }
 
-    // Points buffer from scale pass
     const AllocBuf& pointsDev = scale_pass_.dstBuffer();
 
-    edge_pass_.run(pointsDev, chainsGpu, rowGpu);
+    std::string spvPath =
+        std::string(SHADER_DIR) + "/edge_init_i64_dev_addr.spv";
 
-    LOG(INFO) << "Map-" << id_ << ": initialized " << edge_pass_.numEdges()
+    edge_pass_ = std::make_unique<EdgeInitPassI64RAII>(
+        vk_, spvPath.c_str(), pointsDev, chainsGpu, rowGpu);
+
+    edge_pass_->run();
+
+    LOG(INFO) << "Map-" << id_ << ": initialized " << edge_count_
               << " edges on GPU";
   }
 
@@ -168,8 +212,12 @@ class Map {
   // Step2 Pipeline
   bool scale_pass_inited_ = false;
 
-  EdgeInitPassI64 edge_pass_;
-  bool edge_pass_inited_ = false;
+  // EdgeInitPassI64 edge_pass_;
+  // EdgeInitPassI64DevAddr edge_pass_;
+  // bool edge_pass_inited_ = false;
+
+  // Step2 pipeline (RAII)
+  std::unique_ptr<EdgeInitPassI64RAII> edge_pass_;
 
   uint32_t chain_count_ = 0;
   uint32_t edge_count_ = 0;
