@@ -3,13 +3,6 @@
 #include <array>
 #include <memory>
 
-// #include "glog/logging.h"
-// #include "map/planar_graph.h"
-// #include "map_overlay_grid.h"
-// #include "map_overlay_lbvh.h"
-// #include "map_overlay_rt.h"
-// #include "util/rational.h"
-
 #include "core/overlay_config.h"
 #include "query_config.h"
 #include "shader/config.h"
@@ -213,7 +206,7 @@ void RunOverlay(const rayjoin::OverlayConfig& config) {
   overlay->Init();
 
   timer_next("Build Index");
-  // overlay->BuildIndex();
+  overlay->BuildIndex();
 
   timer_next("Intersection edges");
   // overlay->IntersectEdge(0);

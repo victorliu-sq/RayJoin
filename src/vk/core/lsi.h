@@ -1,6 +1,7 @@
 #ifndef RAYJOIN_LSI_H
 #define RAYJOIN_LSI_H
 #include "glog/logging.h"
+#include "vk/engine/vk_helpers.h"
 
 namespace rayjoin {
 namespace vk {
@@ -40,6 +41,8 @@ class LSI {
  protected:
   CONTEXT_T& ctx_;
   // Queue<xsect_t> xsect_queue_;
+  AllocBuf xsect_dev_{};
+
   // SharedValue<uint64_t> prof_counter_;
 };
 

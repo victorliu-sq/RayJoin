@@ -6,8 +6,8 @@ namespace rayjoin {
 namespace vk {
 class VkComputeEngine {
  public:
-  VkComputeEngine(const VkComputeContext& ctx, const char* spvPath)
-      : m_ctx(ctx) {}
+  VkComputeEngine()
+      : m_ctx(GetVkComputeContext()) {}
 
   virtual ~VkComputeEngine() {
     if (m_pipeline) {
@@ -44,24 +44,14 @@ class VkComputeEngine {
   }
 
  protected:
-  void setup(const char* spvPath) {
-    createPipeline(spvPath);
-    allocateDescriptors();
-    createBuffers();
-    uploadCPUData();
-    recordDescriptors();
-  }
-
   /* ---------- initialization hooks ---------- */
-
   virtual void createPipeline(const char* spvPath) = 0;
   virtual void allocateDescriptors() = 0;
-  virtual void createBuffers() = 0;
-  virtual void uploadCPUData() = 0;
+  virtual void prepareBuffers() = 0;
+  virtual void stageCPUData() = 0;
   virtual void recordDescriptors() = 0;
 
   /* ---------- command hooks ---------- */
-
   virtual void recordCopy(VkCommandBuffer cmd) = 0;
   virtual void recordBarrier(VkCommandBuffer cmd) = 0;
   virtual void preDispatch(VkCommandBuffer cmd) = 0;

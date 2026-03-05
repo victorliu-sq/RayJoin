@@ -1,5 +1,6 @@
 #include <glog/logging.h>
 
+#include "../../vk/core/vk_global_context.h"
 #include "flag/flags.h"
 #include "util/guard_gflag.h"
 #include "util/guard_glog.h"
@@ -9,6 +10,7 @@ int main(int argc, char* argv[]) {
   FLAGS_stderrthreshold = 0;
   auto flags = CreateGflagsGuard(argc, argv, "Usage: -poly1 -poly2");
   auto g_glog_guard = CreateGlogGuard("polyover_vk");
+  auto vk_runtime = CreateVkGlobalRuntime();
 
   rayjoin::OverlayConfig config;
   std::string exec_path = argv[0];

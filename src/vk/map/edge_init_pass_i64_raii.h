@@ -17,20 +17,14 @@ namespace vk {
 
 class EdgeInitPassI64RAII : public VkComputeEngine {
  public:
-  EdgeInitPassI64RAII(const VkComputeContext& ctx, const char* spvPath,
+  EdgeInitPassI64RAII(const char* spvPath,
                       const AllocBuf& pointsDev,
                       const std::vector<GpuChain>& chains,
                       const std::vector<GpuIndex>& rowIndex)
-      : VkComputeEngine(ctx, spvPath),
+      : VkComputeEngine(),
         m_pointsDev(pointsDev),
         m_chainsCPU(chains),
         m_rowCPU(rowIndex) {
-    if (chains.empty())
-      throw std::runtime_error("EdgeInitPass: chains empty");
-
-    if (rowIndex.size() < 2)
-      throw std::runtime_error("EdgeInitPass: rowIndex invalid");
-
     m_numChains = (uint32_t) chains.size();
     m_numPoints = (uint32_t) rowIndex.back();
     m_numEdges = m_numPoints - m_numChains;
@@ -38,9 +32,11 @@ class EdgeInitPassI64RAII : public VkComputeEngine {
     LOG(INFO) << "[EdgeInitPass] chains=" << m_numChains
               << " points=" << m_numPoints << " edges=" << m_numEdges;
 
-    LOG(INFO) << "[EdgeInitPass] sizeof(GpuEdge)=" << sizeof(GpuEdge);
-
-    setup(spvPath);
+    EdgeInitPassI64RAII::createPipeline(spvPath);
+    EdgeInitPassI64RAII::allocateDescriptors();
+    EdgeInitPassI64RAII::prepareBuffers();
+    EdgeInitPassI64RAII::stageCPUData();
+    EdgeInitPassI64RAII::recordDescriptors();
   }
 
   ~EdgeInitPassI64RAII() {
@@ -64,13 +60,6 @@ class EdgeInitPassI64RAII : public VkComputeEngine {
 
   /* ---------------- Pipeline ---------------- */
   void createPipeline(const char* spvPath) override {
-    LOG(INFO) << "[EdgeInitPass] loading shader: " << spvPath;
-
-    auto spirv = readSpvU32(spvPath);
-
-    LOG(INFO) << "[EdgeInitPass] SPIR-V size = "
-              << spirv.size() * sizeof(uint32_t) << " bytes";
-
     VkDescriptorSetLayoutBinding b[4]{};
     for (int i = 0; i < 4; ++i) {
       b[i].binding = i;
@@ -99,6 +88,12 @@ class EdgeInitPassI64RAII : public VkComputeEngine {
     pl.pPushConstantRanges = &pcr;
 
     VK_CHECK(vkCreatePipelineLayout(m_ctx.device, &pl, nullptr, &m_pipeLayout));
+
+
+    LOG(INFO) << "[EdgeInitPass] loading shader: " << spvPath;
+    auto spirv = readSpvU32(spvPath);
+    LOG(INFO) << "[EdgeInitPass] SPIR-V size = "
+              << spirv.size() * sizeof(uint32_t) << " bytes";
 
     VkShaderModuleCreateInfo sm{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
     sm.codeSize = spirv.size() * sizeof(uint32_t);
@@ -147,7 +142,7 @@ class EdgeInitPassI64RAII : public VkComputeEngine {
 
   /* ---------------- Buffers ---------------- */
 
-  void createBuffers() override {
+  void prepareBuffers() override {
     VkDeviceSize chainsSize = sizeof(GpuChain) * m_numChains;
     VkDeviceSize rowSize = sizeof(GpuIndex) * (m_numChains + 1);
     VkDeviceSize edgesSize = sizeof(GpuEdge) * m_numEdges;
@@ -181,19 +176,15 @@ class EdgeInitPassI64RAII : public VkComputeEngine {
 
   /* ---------------- Upload CPU Data ---------------- */
 
-  void uploadCPUData() override {
+  void stageCPUData() override {
     void* mapped;
 
     VK_CHECK(vmaMapMemory(m_ctx.vma, m_chainsStaging.alloc, &mapped));
-
     memcpy(mapped, m_chainsCPU.data(), sizeof(GpuChain) * m_numChains);
-
     vmaUnmapMemory(m_ctx.vma, m_chainsStaging.alloc);
 
     VK_CHECK(vmaMapMemory(m_ctx.vma, m_rowStaging.alloc, &mapped));
-
     memcpy(mapped, m_rowCPU.data(), sizeof(GpuIndex) * (m_numChains + 1));
-
     vmaUnmapMemory(m_ctx.vma, m_rowStaging.alloc);
   }
 
