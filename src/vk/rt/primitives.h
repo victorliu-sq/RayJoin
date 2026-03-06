@@ -10,9 +10,9 @@ namespace vk {
 
 class FillPrimitivesGroupNewPass : public VkComputeEngine {
  public:
-  FillPrimitivesGroupNewPass(const char* spvPath, const AllocBuf& points,
-                             const AllocBuf& edges, const AllocBuf& aabbs,
-                             const AllocBuf& eidRange, uint32_t numEdges,
+  FillPrimitivesGroupNewPass(const char* spvPath, const VkDeviceBuf& points,
+                             const VkDeviceBuf& edges, const VkDeviceBuf& aabbs,
+                             const VkDeviceBuf& eidRange, uint32_t numEdges,
                              uint32_t maxIter, float areaEnlarge)
       : VkComputeEngine(),
         m_points(points),
@@ -39,10 +39,10 @@ class FillPrimitivesGroupNewPass : public VkComputeEngine {
   uint32_t m_maxIter;
   float m_areaEnlarge;
 
-  AllocBuf m_points;
-  AllocBuf m_edges;
-  AllocBuf m_aabbs;
-  AllocBuf m_eidRange;
+  const VkDeviceBuf& m_points;
+  const VkDeviceBuf& m_edges;
+  const VkDeviceBuf& m_aabbs;
+  const VkDeviceBuf& m_eidRange;
 
   void createPipeline(const char* spvPath) override {
     VkDescriptorSetLayoutBinding b[4]{};
@@ -119,10 +119,10 @@ class FillPrimitivesGroupNewPass : public VkComputeEngine {
   }
 
   void recordDescriptors() override {
-    VkDescriptorBufferInfo pInfo{m_points.buf, 0, VK_WHOLE_SIZE};
-    VkDescriptorBufferInfo eInfo{m_edges.buf, 0, VK_WHOLE_SIZE};
-    VkDescriptorBufferInfo aInfo{m_aabbs.buf, 0, VK_WHOLE_SIZE};
-    VkDescriptorBufferInfo rInfo{m_eidRange.buf, 0, VK_WHOLE_SIZE};
+    VkDescriptorBufferInfo pInfo{m_points.Buf(), 0, VK_WHOLE_SIZE};
+    VkDescriptorBufferInfo eInfo{m_edges.Buf(), 0, VK_WHOLE_SIZE};
+    VkDescriptorBufferInfo aInfo{m_aabbs.Buf(), 0, VK_WHOLE_SIZE};
+    VkDescriptorBufferInfo rInfo{m_eidRange.Buf(), 0, VK_WHOLE_SIZE};
 
     VkWriteDescriptorSet wr[4]{};
 

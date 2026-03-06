@@ -1,5 +1,7 @@
 #ifndef RAYJOIN_VK_BUFFER_H
 #define RAYJOIN_VK_BUFFER_H
+#include "vk/core/vk_global_context.h"
+#include "vk_compute_context.h"
 #include "vk_helpers.h"
 #include "vk_mem_alloc.h"
 #include "vulkan/vulkan_core.h"
@@ -38,7 +40,16 @@ class VkAbsBuf {
 
 class VkDeviceBuf : public VkAbsBuf {
  public:
-  VkDeviceBuf(VkDeviceSize size) {
+  VkDeviceBuf() = default;
+  // VkDeviceBuf(VkDeviceSize size) {
+  //   createBufferSimple(size,
+  //                      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+  //                          VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
+  //                          VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+  //                      VMA_MEMORY_USAGE_GPU_ONLY);
+  // }
+
+  void Init(VkDeviceSize size) {
     createBufferSimple(size,
                        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
                            VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
@@ -81,7 +92,6 @@ class VkStagingBuf : public VkAbsBuf {
     endSubmitWait(vk_ctx.device, vk_ctx.queue, vk_ctx.cmdPool, cmd);
   }
 
-
   void Stage2Device(const AllocBuf& deviceBuf, VkDeviceSize size) {
     VkCommandBuffer cmd = beginOneTime(vk_ctx.device, vk_ctx.cmdPool);
 
@@ -90,7 +100,6 @@ class VkStagingBuf : public VkAbsBuf {
 
     endSubmitWait(vk_ctx.device, vk_ctx.queue, vk_ctx.cmdPool, cmd);
   }
-
 
   void Device2Stage(const VkDeviceBuf& deviceBuf, VkDeviceSize size) {
     VkCommandBuffer cmd = beginOneTime(vk_ctx.device, vk_ctx.cmdPool);
@@ -110,7 +119,5 @@ class VkStagingBuf : public VkAbsBuf {
     endSubmitWait(vk_ctx.device, vk_ctx.queue, vk_ctx.cmdPool, cmd);
   }
 };
-
-
 
 #endif  // RAYJOIN_VK_BUFFER_H

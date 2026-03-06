@@ -1,6 +1,7 @@
 #ifndef RAYJOIN_LSI_H
 #define RAYJOIN_LSI_H
 #include "glog/logging.h"
+#include "vk/engine/vk_buffer.h"
 #include "vk/engine/vk_helpers.h"
 #include "vk_global_context.h"
 
@@ -38,8 +39,8 @@ class LSI {
   virtual ~LSI() {
     auto& vk_ctx = GetVkComputeContext();
 
-    vmaDestroyBufferSafe(vk_ctx.vma, xsect_dev_);
-    vmaDestroyBufferSafe(vk_ctx.vma, prof_counter_);
+    // vmaDestroyBufferSafe(vk_ctx.vma, xsect_dev_);
+    // vmaDestroyBufferSafe(vk_ctx.vma, prof_counter_);
   }
 
   virtual void Init(size_t max_n_xsects) {
@@ -50,9 +51,12 @@ class LSI {
     auto& vk_ctx = GetVkComputeContext();
     // xsect_dev_ = createStorageBuffer<xsect_t>(vk_ctx.vma, max_n_xsects);
     // prof_counter_ = createStorageBuffer<uint64_t>(vk_ctx.vma, 1);
-    xsect_dev_ =
-        createStorageBuffer(vk_ctx.vma, sizeof(xsect_t) * max_n_xsects);
-    prof_counter_ = createStorageBuffer(vk_ctx.vma, sizeof(uint64_t) * 1);
+    // xsect_dev_ =
+    //     createStorageBuffer(vk_ctx.vma, sizeof(xsect_t) * max_n_xsects);
+    // prof_counter_ = createStorageBuffer(vk_ctx.vma, sizeof(uint64_t) * 1);
+
+    xsect_dev_.Init(sizeof(xsect_t) * max_n_xsects);
+    prof_counter_.Init(sizeof(uint64_t) * 1);
   }
 
   virtual void Query(int query_map_id) = 0;
@@ -74,8 +78,8 @@ class LSI {
   // Queue<xsect_t> xsect_queue_;
   // SharedValue<uint64_t> prof_counter_;
 
-  AllocBuf xsect_dev_{};
-  AllocBuf prof_counter_{};
+  VkDeviceBuf xsect_dev_{};
+  VkDeviceBuf prof_counter_{};
 };
 
 }  // namespace vk

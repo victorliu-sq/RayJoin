@@ -2,10 +2,12 @@
 #define RAYJOIN_EDGE_INIT_PASS_I64_RAII_H
 
 #include <glog/logging.h>
+
 #include <stdexcept>
 #include <string>
 #include <vector>
 
+#include "vk/engine/vk_buffer.h"
 #include "vk/engine/vk_compute_context.h"
 #include "vk/engine/vk_engine_abs.h"
 #include "vk/engine/vk_helpers.h"
@@ -16,9 +18,9 @@ namespace vk {
 
 class EdgeInitPassI64RAII : public VkComputeEngine {
  public:
-  EdgeInitPassI64RAII(const char* spvPath, const AllocBuf& pointsDev,
-                      const AllocBuf& chainsDev, const AllocBuf& rowDev,
-                      const AllocBuf& edgesDev, uint32_t numPoints,
+  EdgeInitPassI64RAII(const char* spvPath, const VkDeviceBuf& pointsDev,
+                      const VkDeviceBuf& chainsDev, const VkDeviceBuf& rowDev,
+                      const VkDeviceBuf& edgesDev, uint32_t numPoints,
                       uint32_t numChains)
       : VkComputeEngine(),
         m_pointsDev(pointsDev),
@@ -33,7 +35,7 @@ class EdgeInitPassI64RAII : public VkComputeEngine {
     recordDescriptors();
   }
 
-  const AllocBuf& edgesBuffer() const { return m_edgesDev; }
+  const VkDeviceBuf& edgesBuffer() const { return m_edgesDev; }
 
  protected:
   struct PushConstants {
@@ -123,10 +125,10 @@ class EdgeInitPassI64RAII : public VkComputeEngine {
   }
 
   void recordDescriptors() override {
-    VkDescriptorBufferInfo pInfo{m_pointsDev.buf, 0, VK_WHOLE_SIZE};
-    VkDescriptorBufferInfo cInfo{m_chainsDev.buf, 0, VK_WHOLE_SIZE};
-    VkDescriptorBufferInfo rInfo{m_rowDev.buf, 0, VK_WHOLE_SIZE};
-    VkDescriptorBufferInfo eInfo{m_edgesDev.buf, 0, VK_WHOLE_SIZE};
+    VkDescriptorBufferInfo pInfo{m_pointsDev.Buf(), 0, VK_WHOLE_SIZE};
+    VkDescriptorBufferInfo cInfo{m_chainsDev.Buf(), 0, VK_WHOLE_SIZE};
+    VkDescriptorBufferInfo rInfo{m_rowDev.Buf(), 0, VK_WHOLE_SIZE};
+    VkDescriptorBufferInfo eInfo{m_edgesDev.Buf(), 0, VK_WHOLE_SIZE};
 
     VkWriteDescriptorSet wr[4]{};
 
@@ -156,7 +158,7 @@ class EdgeInitPassI64RAII : public VkComputeEngine {
 
   /* ---------- Dispatch ---------- */
   void recordDispatch(VkCommandBuffer cmd) override {
-    vkCmdFillBuffer(cmd, m_edgesDev.buf, 0, VK_WHOLE_SIZE, 0);
+    vkCmdFillBuffer(cmd, m_edgesDev.Buf(), 0, VK_WHOLE_SIZE, 0);
 
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeline);
 
@@ -179,10 +181,10 @@ class EdgeInitPassI64RAII : public VkComputeEngine {
   uint32_t m_numChains{};
   uint32_t m_numEdges{};
 
-  AllocBuf m_pointsDev{};
-  AllocBuf m_chainsDev{};
-  AllocBuf m_rowDev{};
-  AllocBuf m_edgesDev{};
+  const VkDeviceBuf& m_pointsDev;
+  const VkDeviceBuf& m_chainsDev;
+  const VkDeviceBuf& m_rowDev;
+  const VkDeviceBuf& m_edgesDev;
 };
 
 }  // namespace vk

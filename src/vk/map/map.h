@@ -35,14 +35,14 @@ class Map {
   Map(int id) : id_(id) {}
 
   ~Map() {
-    auto& vk_ctx = GetVkComputeContext();
+    // auto& vk_ctx = GetVkComputeContext();
     // Scaling
-    vmaDestroyBufferSafe(vk_ctx.vma, srcPointsDev_);
-    vmaDestroyBufferSafe(vk_ctx.vma, scaledPointsDev_);
+    // vmaDestroyBufferSafe(vk_ctx.vma, srcPointsDev_);
+    // vmaDestroyBufferSafe(vk_ctx.vma, scaledPointsDev_);
     // Edge Init
-    vmaDestroyBufferSafe(vk_ctx.vma, chainsDev_);
-    vmaDestroyBufferSafe(vk_ctx.vma, rowDev_);
-    vmaDestroyBufferSafe(vk_ctx.vma, edgesDev_);
+    // vmaDestroyBufferSafe(vk_ctx.vma, chainsDev_);
+    // vmaDestroyBufferSafe(vk_ctx.vma, rowDev_);
+    // vmaDestroyBufferSafe(vk_ctx.vma, edgesDev_);
   }
 
   template <typename SRC_COORD_T>
@@ -59,10 +59,12 @@ class Map {
     // srcPointsDev_ = createStorageBuffer<SrcPointD>(vk_ctx.vma, point_count_);
     // scaledPointsDev_ = createStorageBuffer<DstPointI64>(vk_ctx.vma,
     // point_count_);
-    srcPointsDev_ =
-        createStorageBuffer(vk_ctx.vma, sizeof(SrcPointD) * point_count_);
-    scaledPointsDev_ =
-        createStorageBuffer(vk_ctx.vma, sizeof(DstPointI64) * point_count_);
+    // srcPointsDev_ =
+    //     createStorageBuffer(vk_ctx.vma, sizeof(SrcPointD) * point_count_);
+    // scaledPointsDev_ =
+    //     createStorageBuffer(vk_ctx.vma, sizeof(DstPointI64) * point_count_);
+    srcPointsDev_.Init(sizeof(SrcPointD) * point_count_);
+    scaledPointsDev_.Init(sizeof(DstPointI64) * point_count_);
 
     /* upload CPU → GPU */
     writeToStorageBuffer(srcPointsDev_, pgraph.points);
@@ -87,10 +89,14 @@ class Map {
     // rowDev_ = createStorageBuffer<index_t>(vk_ctx.vma, chain_count_ + 1);
     // edgesDev_ = createStorageBuffer<Edge>(vk_ctx.vma, edge_count_);
 
-    chainsDev_ = createStorageBuffer(vk_ctx.vma, sizeof(Chain) * chain_count_);
-    rowDev_ =
-        createStorageBuffer(vk_ctx.vma, sizeof(index_t) * (chain_count_ + 1));
-    edgesDev_ = createStorageBuffer(vk_ctx.vma, sizeof(Edge) * edge_count_);
+    // chainsDev_ = createStorageBuffer(vk_ctx.vma, sizeof(Chain) *
+    // chain_count_); rowDev_ =
+    //     createStorageBuffer(vk_ctx.vma, sizeof(index_t) * (chain_count_ +
+    //     1));
+    // edgesDev_ = createStorageBuffer(vk_ctx.vma, sizeof(Edge) * edge_count_);
+    chainsDev_.Init(sizeof(Chain) * chain_count_);
+    rowDev_.Init(sizeof(index_t) * (chain_count_ + 1));
+    edgesDev_.Init(sizeof(Edge) * edge_count_);
 
     /* upload CPU → GPU */
     writeToStorageBuffer(chainsDev_, pgraph.chains);
@@ -112,8 +118,8 @@ class Map {
   size_t get_edges_num() const { return edge_count_; }
   size_t get_points_num() const { return point_count_; }
 
-  const AllocBuf& getPointsBuffer() const { return scaledPointsDev_; }
-  const AllocBuf& getEdgesBuffer() const { return edgesDev_; }
+  const VkDeviceBuf& getPointsBuffer() const { return scaledPointsDev_; }
+  const VkDeviceBuf& getEdgesBuffer() const { return edgesDev_; }
 
  private:
   int id_;
@@ -127,11 +133,11 @@ class Map {
 
   /* GPU buffers owned by Map */
 
-  AllocBuf srcPointsDev_{};
-  AllocBuf scaledPointsDev_{};
-  AllocBuf chainsDev_{};
-  AllocBuf rowDev_{};
-  AllocBuf edgesDev_{};
+  VkDeviceBuf srcPointsDev_{};
+  VkDeviceBuf scaledPointsDev_{};
+  VkDeviceBuf chainsDev_{};
+  VkDeviceBuf rowDev_{};
+  VkDeviceBuf edgesDev_{};
 
   /* ------------------------------------------------------------ */
   /* Debug helpers                                                 */
@@ -143,7 +149,8 @@ class Map {
       const PlanarGraph<SRC_COORD_T>& pgraph, uint32_t point_count) const {
     uint32_t checkCount = std::min<uint32_t>(point_count, 10);
 
-    auto gpuPts = readBackStorageBuffer<DstPointI64>(scaledPointsDev_, checkCount);
+    auto gpuPts =
+        readBackStorageBuffer<DstPointI64>(scaledPointsDev_, checkCount);
 
     LOG(INFO) << "Map-" << id_ << " GPU readback (first " << checkCount
               << " points):";
@@ -171,7 +178,8 @@ class Map {
     uint32_t checkEdges = std::min<uint32_t>(edge_count_, 10);
 
     auto gpuEdges = readBackStorageBuffer<Edge>(edgesDev_, checkEdges);
-    auto gpuPts = readBackStorageBuffer<DstPointI64>(scaledPointsDev_, point_count);
+    auto gpuPts =
+        readBackStorageBuffer<DstPointI64>(scaledPointsDev_, point_count);
 
     LOG(INFO) << "Map-" << id_ << " GPU edge readback (first " << checkEdges
               << " edges):";

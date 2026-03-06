@@ -4,6 +4,7 @@
 #include <cstring>
 #include <vector>
 
+#include "vk/engine/vk_buffer.h"
 #include "vk/engine/vk_compute_context.h"
 #include "vk/engine/vk_engine_abs.h"
 #include "vk/engine/vk_helpers.h"
@@ -36,9 +37,9 @@ struct PushConstantsD2I64 {
 
 class ScalePointsPassD2I64RAII : public VkComputeEngine {
  public:
-  ScalePointsPassD2I64RAII(const char* spvPath, const AllocBuf& srcBuffer,
-                           const AllocBuf& dstBuffer, uint32_t count, double rx,
-                           double ry, double deltax, double deltay)
+  ScalePointsPassD2I64RAII(const char* spvPath, const VkDeviceBuf& srcBuffer,
+                           const VkDeviceBuf& dstBuffer, uint32_t count,
+                           double rx, double ry, double deltax, double deltay)
       : VkComputeEngine(),
         m_srcDevice(srcBuffer),
         m_dstDevice(dstBuffer),
@@ -138,8 +139,8 @@ class ScalePointsPassD2I64RAII : public VkComputeEngine {
   }
 
   void recordDescriptors() override {
-    VkDescriptorBufferInfo srcInfo{m_srcDevice.buf, 0, VK_WHOLE_SIZE};
-    VkDescriptorBufferInfo dstInfo{m_dstDevice.buf, 0, VK_WHOLE_SIZE};
+    VkDescriptorBufferInfo srcInfo{m_srcDevice.Buf(), 0, VK_WHOLE_SIZE};
+    VkDescriptorBufferInfo dstInfo{m_dstDevice.Buf(), 0, VK_WHOLE_SIZE};
 
     VkWriteDescriptorSet wr[2]{};
 
@@ -181,8 +182,8 @@ class ScalePointsPassD2I64RAII : public VkComputeEngine {
   double m_deltax{};
   double m_deltay{};
 
-  AllocBuf m_srcDevice{};
-  AllocBuf m_dstDevice{};
+  const VkDeviceBuf& m_srcDevice;
+  const VkDeviceBuf& m_dstDevice;
 };
 
 }  // namespace vk
