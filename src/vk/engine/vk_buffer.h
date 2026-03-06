@@ -81,6 +81,7 @@ class VkStagingBuf : public VkAbsBuf {
     endSubmitWait(vk_ctx.device, vk_ctx.queue, vk_ctx.cmdPool, cmd);
   }
 
+
   void Stage2Device(const AllocBuf& deviceBuf, VkDeviceSize size) {
     VkCommandBuffer cmd = beginOneTime(vk_ctx.device, vk_ctx.cmdPool);
 
