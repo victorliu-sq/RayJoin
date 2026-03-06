@@ -59,20 +59,12 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
       map_edge_count_[im] = ne;
       LOG(INFO) << "Map-" << im << ": points=" << np << ", edges=" << ne;
 
-      // closest_eids_buf_[im] = createStorageBuffer(
-      //     vk_ctx.vma, sizeof(index_t) * np);  // closest edge id per vertex
-      // point_in_polygon_buf_[im] = createStorageBuffer(
-      //     vk_ctx.vma, sizeof(index_t) * np);  // point -> polygon id
-      // eid_range_buf_[im] = createStorageBuffer(
-      //     vk_ctx.vma, sizeof(std::pair<uint32_t, uint32_t>) * ne);  //
-      //     primitive -> edge range mapping
-
-      closest_eids_buf_[im].Init(sizeof(index_t) *
-                                 np);  // closest edge id per vertex
-      point_in_polygon_buf_[im].Init(sizeof(index_t) *
-                                     np);  // point -> polygon id
-      eid_range_buf_[im].Init(sizeof(std::pair<uint32_t, uint32_t>) *
-                              ne);  // primitive -> edge range mapping
+      // closest edge id per vertex
+      closest_eids_buf_[im].Init(sizeof(index_t) * np);
+      // point -> polygon id
+      point_in_polygon_buf_[im].Init(sizeof(index_t) * np);
+      // primitive -> edge range mapping
+      eid_range_buf_[im].Init(sizeof(std::pair<uint32_t, uint32_t>) * ne);
 
       max_n_points = std::max(max_n_points, np);
       max_n_edges = std::max(max_n_edges, ne);
@@ -109,15 +101,12 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     for (int im = 0; im < 2; im++) {
       auto map = ctx.get_map(im);
 
-      std::string spvPath =
-          std::string(SHADER_DIR) + "/fill_primitives_group_new.spv";
-
-      FillPrimitivesGroupNewPass pass(spvPath.c_str(), map->getPointsBuffer(),
-                                      map->getEdgesBuffer(), aabbs_buf_,
-                                      eid_range_buf_[im], map_edge_count_[im],
-                                      ag_iter, area_enlarge);
-
-      pass.run();
+      std::string spvPath = std::string(SHADER_DIR) + "/fill_primitives.spv";
+      fill_primitives_pass_ = std::make_unique<FillPrimitives>(
+          spvPath.c_str(), map->getPointsBuffer(), map->getEdgesBuffer(),
+          aabbs_buf_, eid_range_buf_[im], map_edge_count_[im], ag_iter,
+          area_enlarge);
+      fill_primitives_pass_->run();
 
       // traverse_handles_[im] = rt_engine_->BuildAccelCustom(aabbs_buf_);
       //
@@ -155,6 +144,11 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
   // -------------------------------
   size_t map_point_count_[2] = {0, 0};
   size_t map_edge_count_[2] = {0, 0};
+
+  // -------------------------------
+  // Pipelines
+  // -------------------------------
+  std::unique_ptr<FillPrimitives> fill_primitives_pass_;
 
   // Queue<xsect_t> xsect_queue_;
 };

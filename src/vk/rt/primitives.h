@@ -8,9 +8,9 @@
 namespace rayjoin {
 namespace vk {
 
-class FillPrimitivesGroupNewPass : public VkComputeEngine {
+class FillPrimitives: public VkComputeEngine {
  public:
-  FillPrimitivesGroupNewPass(const char* spvPath, const VkDeviceBuf& points,
+  FillPrimitives(const char* spvPath, const VkDeviceBuf& points,
                              const VkDeviceBuf& edges, const VkDeviceBuf& aabbs,
                              const VkDeviceBuf& eidRange, uint32_t numEdges,
                              uint32_t maxIter, float areaEnlarge)
