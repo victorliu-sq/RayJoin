@@ -8,14 +8,20 @@
 
 #include "vk/engine/vk_compute_context.h"
 #include "vk/engine/vk_helpers.h"
+#include "vk/util/type_traits.h"
 #include "vk_mem_alloc.h"
 
-struct alignas(16) SrcPointD {
-  double x, y;
-};
-struct alignas(16) DstPointI64 {
-  int64_t x, y;
-};
+// struct alignas(16) SrcPointD {
+//   double x, y;
+// };
+//
+// struct alignas(16) DstPointI64 {
+//   int64_t x, y;
+// };
+
+using SrcPointD = Vec2<double>;
+using DstPointI64 = Vec2<int64_t>;
+
 static_assert(sizeof(SrcPointD) == 16);
 static_assert(sizeof(DstPointI64) == 16);
 

@@ -8,7 +8,7 @@ namespace vk {
 template <typename COORD_T>
 struct BoundingBox {
   COORD_T min_x, min_y, max_x, max_y;
-
+  // for double, 4 * 8 = 32 bytes
   BoundingBox()
       : min_x(std::numeric_limits<COORD_T>::max()),
         min_y(std::numeric_limits<COORD_T>::max()),

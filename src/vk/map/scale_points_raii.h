@@ -22,6 +22,8 @@ struct alignas(16) DstPointI64 {
 
 static_assert(sizeof(SrcPointD) == 16);
 static_assert(sizeof(DstPointI64) == 16);
+static_assert(sizeof(Vec2<double>) == sizeof(SrcPointD));
+static_assert(alignof(Vec2<double>) == alignof(SrcPointD));
 
 struct PushConstantsD2I64 {
   double rx;
@@ -65,7 +67,6 @@ class ScalePointsPassD2I64RAII : public VkComputeEngine {
   /* ---------- Pipeline ---------- */
   void createPipeline(const char* spvPath) override {
     VkDescriptorSetLayoutBinding bindings[2]{};
-
     for (int i = 0; i < 2; ++i) {
       bindings[i].binding = i;
       bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;

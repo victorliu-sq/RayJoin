@@ -4,24 +4,25 @@ struct PointI64 {
 };
 
 struct Chain {
-  int left_polygon_id;
-  int right_polygon_id;
+  int64_t id;
+  int64_t first_point_idx;
+  int64_t last_point_idx;
+  int64_t left_polygon_id;
+  int64_t right_polygon_id;
 };
 
-// uint => uint32 => 4 bytes
 struct Edge {
   int64_t a;
   int64_t b;
   int64_t c;
 
-  uint eid;
-  uint p1_idx;
-  uint p2_idx;
-  uint left_polygon_id;
-  uint right_polygon_id;
+  uint64_t eid;
+  uint64_t p1_idx;
+  uint64_t p2_idx;
+  uint64_t left_polygon_id;
+  uint64_t right_polygon_id;
 };
 
-// [[vk::binding(# of binding, # of set)]]
 [[vk::binding(0, 0)]]
 StructuredBuffer<PointI64> gPoints;
 
@@ -29,7 +30,7 @@ StructuredBuffer<PointI64> gPoints;
 StructuredBuffer<Chain> gChains;
 
 [[vk::binding(2, 0)]]
-StructuredBuffer<uint> gRowIdx;
+StructuredBuffer<uint32_t> gRowIdx;
 
 [[vk::binding(3, 0)]]
 RWStructuredBuffer<Edge> gEdges;
@@ -50,34 +51,35 @@ uint findChain(uint pIdx) {
 
   while (lo + 1 < hi) {
     uint mid = (lo + hi) >> 1;
+
     if (gRowIdx[mid] <= pIdx)
       lo = mid;
     else
       hi = mid;
   }
+
   return lo;
 }
 
 [numthreads(256, 1, 1)]
 void main(uint3 tid: SV_DispatchThreadID) {
   uint pIdx = tid.x;
-  if (pIdx >= pc.numPoints) {
+
+  if (pIdx >= pc.numPoints)
     return;
-  }
 
   uint chainId = findChain(pIdx);
 
-  uint start = gRowIdx[chainId];
-  uint end = gRowIdx[chainId + 1];
+  uint64_t start = gRowIdx[chainId];
+  uint64_t end = gRowIdx[chainId + 1];
 
-  if (pIdx >= end - 1) {
+  if (pIdx >= end - 1)
     return;
-  }
 
   uint eid = pIdx - chainId;
-  if (eid >= pc.numEdges) {
+
+  if (eid >= pc.numEdges)
     return;
-  }
 
   Chain ch = gChains[chainId];
 
@@ -98,9 +100,11 @@ void main(uint3 tid: SV_DispatchThreadID) {
   e.a = a;
   e.b = b;
   e.c = c;
+
   e.eid = eid;
   e.p1_idx = pIdx;
   e.p2_idx = pIdx + 1;
+
   e.left_polygon_id = ch.left_polygon_id;
   e.right_polygon_id = ch.right_polygon_id;
 

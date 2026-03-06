@@ -1,8 +1,8 @@
 #ifndef RAYJOIN_TYPE_TRAITS_H
 #define RAYJOIN_TYPE_TRAITS_H
 
-template <typename T>
-struct Vec2 {
+template<typename T>
+struct alignas(16) Vec2 {
   T x, y;
 };
 

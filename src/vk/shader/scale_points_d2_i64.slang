@@ -11,8 +11,12 @@ struct DstPoint {
   int64_t y;
 };
 
-StructuredBuffer<SrcPoint> gSrc : register(t0);    // binding 0
-RWStructuredBuffer<DstPoint> gDst : register(u1);  // binding 1
+// StructuredBuffer<SrcPoint> gSrc : register(t0);    // binding 0
+// RWStructuredBuffer<DstPoint> gDst : register(u1);  // binding 1
+[[vk::binding(0, 0)]]
+StructuredBuffer<SrcPoint> gSrc;
+[[vk::binding(1, 0)]]
+RWStructuredBuffer<DstPoint> gDst;
 
 struct PushConstants {
   double rx;
