@@ -65,15 +65,16 @@ class Map {
     //     createStorageBuffer(vk_ctx.vma, sizeof(DstPointI64) * point_count_);
     srcPointsDev_.Init(sizeof(SrcPointD) * point_count_);
     scaledPointsDev_.Init(sizeof(DstPointI64) * point_count_);
+    scalingDev_.Init(sizeof(Scaling<SRC_COORD_T, INTERNAL_COORD_T>));
 
     /* upload CPU → GPU */
     writeToStorageBuffer(srcPointsDev_, pgraph.points);
+    writeToStorageBuffer(scalingDev_, scaling);
     /* run scaling compute pass */
     std::string spvPathScaling =
         std::string(SHADER_DIR) + "/scale_points_d2_i64.spv";
     scale_pass_ = std::make_unique<ScalePointsPassD2I64RAII>(
-        spvPathScaling.c_str(), srcPointsDev_, scaledPointsDev_, point_count_,
-        scaling.rx(), scaling.ry(), scaling.deltax(), scaling.deltay());
+        spvPathScaling.c_str(), srcPointsDev_, scaledPointsDev_, scalingDev_, point_count_);
 
     scale_pass_->run();
     DebugPrintScaledPoints(scaling, pgraph, point_count_);
@@ -135,6 +136,8 @@ class Map {
 
   VkDeviceBuf srcPointsDev_{};
   VkDeviceBuf scaledPointsDev_{};
+  VkDeviceBuf scalingDev_{};
+
   VkDeviceBuf chainsDev_{};
   VkDeviceBuf rowDev_{};
   VkDeviceBuf edgesDev_{};

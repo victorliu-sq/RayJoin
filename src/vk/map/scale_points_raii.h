@@ -38,35 +38,24 @@ struct PushConstantsD2I64 {
 class ScalePointsPassD2I64RAII : public VkComputeEngine {
  public:
   ScalePointsPassD2I64RAII(const char* spvPath, const VkDeviceBuf& srcBuffer,
-                           const VkDeviceBuf& dstBuffer, uint32_t count,
-                           double rx, double ry, double deltax, double deltay)
+                           const VkDeviceBuf& dstBuffer,
+                           const VkDeviceBuf& scalingBuffer, uint32_t count)
       : VkComputeEngine(),
         m_srcDevice(srcBuffer),
         m_dstDevice(dstBuffer),
-        m_count(count),
-        m_rx(rx),
-        m_ry(ry),
-        m_deltax(deltax),
-        m_deltay(deltay) {
+        m_scalingDevice(scalingBuffer),
+        m_count(count) {
     createPipeline(spvPath);
     allocateDescriptors();
     recordDescriptors();
   }
 
  protected:
-  struct Push {
-    double rx;
-    double ry;
-    double deltax;
-    double deltay;
-    uint32_t count;
-    uint32_t pad0;
-  };
-
   /* ---------- Pipeline ---------- */
   void createPipeline(const char* spvPath) override {
-    VkDescriptorSetLayoutBinding bindings[2]{};
-    for (int i = 0; i < 2; ++i) {
+    VkDescriptorSetLayoutBinding bindings[3]{};
+
+    for (uint32_t i = 0; i < 3; ++i) {
       bindings[i].binding = i;
       bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
       bindings[i].descriptorCount = 1;
@@ -75,22 +64,16 @@ class ScalePointsPassD2I64RAII : public VkComputeEngine {
 
     VkDescriptorSetLayoutCreateInfo dsl{
         VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
-    dsl.bindingCount = 2;
+    dsl.bindingCount = 3;
     dsl.pBindings = bindings;
 
     VK_CHECK(
         vkCreateDescriptorSetLayout(m_ctx.device, &dsl, nullptr, &m_setLayout));
 
-    VkPushConstantRange pcr{};
-    pcr.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    pcr.size = sizeof(Push);
-
     VkPipelineLayoutCreateInfo pl{
         VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
     pl.setLayoutCount = 1;
     pl.pSetLayouts = &m_setLayout;
-    pl.pushConstantRangeCount = 1;
-    pl.pPushConstantRanges = &pcr;
 
     VK_CHECK(vkCreatePipelineLayout(m_ctx.device, &pl, nullptr, &m_pipeLayout));
 
@@ -119,7 +102,7 @@ class ScalePointsPassD2I64RAII : public VkComputeEngine {
 
   /* ---------- Descriptors ---------- */
   void allocateDescriptors() override {
-    VkDescriptorPoolSize sizes[] = {{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2}};
+    VkDescriptorPoolSize sizes[] = {{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3}};
 
     VkDescriptorPoolCreateInfo ci{
         VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
@@ -141,8 +124,9 @@ class ScalePointsPassD2I64RAII : public VkComputeEngine {
   void recordDescriptors() override {
     VkDescriptorBufferInfo srcInfo{m_srcDevice.Buf(), 0, VK_WHOLE_SIZE};
     VkDescriptorBufferInfo dstInfo{m_dstDevice.Buf(), 0, VK_WHOLE_SIZE};
+    VkDescriptorBufferInfo scalingInfo{m_scalingDevice.Buf(), 0, VK_WHOLE_SIZE};
 
-    VkWriteDescriptorSet wr[2]{};
+    VkWriteDescriptorSet wr[3]{};
 
     wr[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     wr[0].dstSet = m_descSet;
@@ -155,7 +139,11 @@ class ScalePointsPassD2I64RAII : public VkComputeEngine {
     wr[1].dstBinding = 1;
     wr[1].pBufferInfo = &dstInfo;
 
-    vkUpdateDescriptorSets(m_ctx.device, 2, wr, 0, nullptr);
+    wr[2] = wr[0];
+    wr[2].dstBinding = 2;
+    wr[2].pBufferInfo = &scalingInfo;
+
+    vkUpdateDescriptorSets(m_ctx.device, 3, wr, 0, nullptr);
   }
 
   /* ---------- Dispatch ---------- */
@@ -165,25 +153,17 @@ class ScalePointsPassD2I64RAII : public VkComputeEngine {
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeLayout,
                             0, 1, &m_descSet, 0, nullptr);
 
-    Push pc{m_rx, m_ry, m_deltax, m_deltay, m_count, 0};
-
-    vkCmdPushConstants(cmd, m_pipeLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0,
-                       sizeof(pc), &pc);
-
     uint32_t groups = (m_count + 255) / 256;
+
     vkCmdDispatch(cmd, groups, 1, 1);
   }
 
  private:
   uint32_t m_count{};
 
-  double m_rx{};
-  double m_ry{};
-  double m_deltax{};
-  double m_deltay{};
-
   const VkDeviceBuf& m_srcDevice;
   const VkDeviceBuf& m_dstDevice;
+  const VkDeviceBuf& m_scalingDevice;
 };
 
 }  // namespace vk
