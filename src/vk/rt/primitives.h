@@ -1,88 +1,70 @@
-#ifndef RAYJOIN_SCALE_POINTS_D2_I64_RAII_H
-#define RAYJOIN_SCALE_POINTS_D2_I64_RAII_H
-
-#include <cstring>
-#include <vector>
+#ifndef RAYJOIN_PRIMITIVES_H
+#define RAYJOIN_PRIMITIVES_H
 
 #include "vk/engine/vk_compute_context.h"
 #include "vk/engine/vk_engine_abs.h"
 #include "vk/engine/vk_helpers.h"
-#include "vk_mem_alloc.h"
 
 namespace rayjoin {
 namespace vk {
 
-struct alignas(16) SrcPointD {
-  double x, y;
-};
-
-struct alignas(16) DstPointI64 {
-  int64_t x, y;
-};
-
-static_assert(sizeof(SrcPointD) == 16);
-static_assert(sizeof(DstPointI64) == 16);
-static_assert(sizeof(Vec2<double>) == sizeof(SrcPointD));
-static_assert(alignof(Vec2<double>) == alignof(SrcPointD));
-
-struct PushConstantsD2I64 {
-  double rx;
-  double ry;
-  double deltax;
-  double deltay;
-  uint32_t count;
-  uint32_t pad0;
-};
-
-class ScalePointsPassD2I64RAII : public VkComputeEngine {
+class FillPrimitivesGroupNewPass : public VkComputeEngine {
  public:
-  ScalePointsPassD2I64RAII(const char* spvPath, const AllocBuf& srcBuffer,
-                           const AllocBuf& dstBuffer, uint32_t count, double rx,
-                           double ry, double deltax, double deltay)
+  FillPrimitivesGroupNewPass(const char* spvPath, const AllocBuf& points,
+                             const AllocBuf& edges, const AllocBuf& aabbs,
+                             const AllocBuf& eidRange, uint32_t numEdges,
+                             uint32_t maxIter, float areaEnlarge)
       : VkComputeEngine(),
-        m_srcDevice(srcBuffer),
-        m_dstDevice(dstBuffer),
-        m_count(count),
-        m_rx(rx),
-        m_ry(ry),
-        m_deltax(deltax),
-        m_deltay(deltay) {
+        m_points(points),
+        m_edges(edges),
+        m_aabbs(aabbs),
+        m_eidRange(eidRange),
+        m_numEdges(numEdges),
+        m_maxIter(maxIter),
+        m_areaEnlarge(areaEnlarge) {
     createPipeline(spvPath);
     allocateDescriptors();
     recordDescriptors();
   }
 
- protected:
-  struct Push {
-    double rx;
-    double ry;
-    double deltax;
-    double deltay;
-    uint32_t count;
-    uint32_t pad0;
+ private:
+  struct PushConstants {
+    uint32_t numEdges;
+    uint32_t maxIter;
+    float areaEnlarge;
+    uint32_t pad;
   };
 
-  /* ---------- Pipeline ---------- */
+  uint32_t m_numEdges;
+  uint32_t m_maxIter;
+  float m_areaEnlarge;
+
+  AllocBuf m_points;
+  AllocBuf m_edges;
+  AllocBuf m_aabbs;
+  AllocBuf m_eidRange;
+
   void createPipeline(const char* spvPath) override {
-    VkDescriptorSetLayoutBinding bindings[2]{};
-    for (int i = 0; i < 2; ++i) {
-      bindings[i].binding = i;
-      bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-      bindings[i].descriptorCount = 1;
-      bindings[i].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    VkDescriptorSetLayoutBinding b[4]{};
+
+    for (int i = 0; i < 4; i++) {
+      b[i].binding = i;
+      b[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+      b[i].descriptorCount = 1;
+      b[i].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     }
 
     VkDescriptorSetLayoutCreateInfo dsl{
         VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
-    dsl.bindingCount = 2;
-    dsl.pBindings = bindings;
+    dsl.bindingCount = 4;
+    dsl.pBindings = b;
 
     VK_CHECK(
         vkCreateDescriptorSetLayout(m_ctx.device, &dsl, nullptr, &m_setLayout));
 
     VkPushConstantRange pcr{};
     pcr.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    pcr.size = sizeof(Push);
+    pcr.size = sizeof(PushConstants);
 
     VkPipelineLayoutCreateInfo pl{
         VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
@@ -116,9 +98,8 @@ class ScalePointsPassD2I64RAII : public VkComputeEngine {
                                       nullptr, &m_pipeline));
   }
 
-  /* ---------- Descriptors ---------- */
   void allocateDescriptors() override {
-    VkDescriptorPoolSize sizes[] = {{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2}};
+    VkDescriptorPoolSize sizes[] = {{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 4}};
 
     VkDescriptorPoolCreateInfo ci{
         VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
@@ -138,54 +119,53 @@ class ScalePointsPassD2I64RAII : public VkComputeEngine {
   }
 
   void recordDescriptors() override {
-    VkDescriptorBufferInfo srcInfo{m_srcDevice.buf, 0, VK_WHOLE_SIZE};
-    VkDescriptorBufferInfo dstInfo{m_dstDevice.buf, 0, VK_WHOLE_SIZE};
+    VkDescriptorBufferInfo pInfo{m_points.buf, 0, VK_WHOLE_SIZE};
+    VkDescriptorBufferInfo eInfo{m_edges.buf, 0, VK_WHOLE_SIZE};
+    VkDescriptorBufferInfo aInfo{m_aabbs.buf, 0, VK_WHOLE_SIZE};
+    VkDescriptorBufferInfo rInfo{m_eidRange.buf, 0, VK_WHOLE_SIZE};
 
-    VkWriteDescriptorSet wr[2]{};
+    VkWriteDescriptorSet wr[4]{};
 
-    wr[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    for (int i = 0; i < 4; i++)
+      wr[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+
+    wr[0] = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
     wr[0].dstSet = m_descSet;
     wr[0].dstBinding = 0;
     wr[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     wr[0].descriptorCount = 1;
-    wr[0].pBufferInfo = &srcInfo;
+    wr[0].pBufferInfo = &pInfo;
 
     wr[1] = wr[0];
     wr[1].dstBinding = 1;
-    wr[1].pBufferInfo = &dstInfo;
+    wr[1].pBufferInfo = &eInfo;
+    wr[2] = wr[0];
+    wr[2].dstBinding = 2;
+    wr[2].pBufferInfo = &aInfo;
+    wr[3] = wr[0];
+    wr[3].dstBinding = 3;
+    wr[3].pBufferInfo = &rInfo;
 
-    vkUpdateDescriptorSets(m_ctx.device, 2, wr, 0, nullptr);
+    vkUpdateDescriptorSets(m_ctx.device, 4, wr, 0, nullptr);
   }
 
-  /* ---------- Dispatch ---------- */
   void recordDispatch(VkCommandBuffer cmd) override {
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeline);
 
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeLayout,
                             0, 1, &m_descSet, 0, nullptr);
 
-    Push pc{m_rx, m_ry, m_deltax, m_deltay, m_count, 0};
+    PushConstants pc{m_numEdges, m_maxIter, m_areaEnlarge, 0};
 
     vkCmdPushConstants(cmd, m_pipeLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0,
                        sizeof(pc), &pc);
 
-    uint32_t groups = (m_count + 255) / 256;
+    uint32_t groups = (m_numEdges + 63) / 64;
+
     vkCmdDispatch(cmd, groups, 1, 1);
   }
-
- private:
-  uint32_t m_count{};
-
-  double m_rx{};
-  double m_ry{};
-  double m_deltax{};
-  double m_deltay{};
-
-  AllocBuf m_srcDevice{};
-  AllocBuf m_dstDevice{};
 };
-
 }  // namespace vk
 }  // namespace rayjoin
 
-#endif
+#endif  // RAYJOIN_PRIMITIVES_H

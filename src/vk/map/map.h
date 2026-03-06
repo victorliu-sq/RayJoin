@@ -56,9 +56,14 @@ class Map {
     /* ------------------------------------------------------------ */
     point_count_ = static_cast<uint32_t>(pgraph.points.size());
     /* allocate GPU buffers */
-    srcPointsDev_ = createStorageBuffer<SrcPointD>(vk_ctx.vma, point_count_);
+    // srcPointsDev_ = createStorageBuffer<SrcPointD>(vk_ctx.vma, point_count_);
+    // scaledPointsDev_ = createStorageBuffer<DstPointI64>(vk_ctx.vma,
+    // point_count_);
+    srcPointsDev_ =
+        createStorageBuffer(vk_ctx.vma, sizeof(SrcPointD) * point_count_);
     scaledPointsDev_ =
-        createStorageBuffer<DstPointI64>(vk_ctx.vma, point_count_);
+        createStorageBuffer(vk_ctx.vma, sizeof(DstPointI64) * point_count_);
+
     /* upload CPU → GPU */
     writeToBuffer(srcPointsDev_, pgraph.points);
     /* run scaling compute pass */
@@ -78,9 +83,14 @@ class Map {
     chain_count_ = static_cast<uint32_t>(pgraph.chains.size());
     edge_count_ = point_count_ - chain_count_;
 
-    chainsDev_ = createStorageBuffer<Chain>(vk_ctx.vma, chain_count_);
-    rowDev_ = createStorageBuffer<index_t>(vk_ctx.vma, chain_count_ + 1);
-    edgesDev_ = createStorageBuffer<Edge>(vk_ctx.vma, edge_count_);
+    // chainsDev_ = createStorageBuffer<Chain>(vk_ctx.vma, chain_count_);
+    // rowDev_ = createStorageBuffer<index_t>(vk_ctx.vma, chain_count_ + 1);
+    // edgesDev_ = createStorageBuffer<Edge>(vk_ctx.vma, edge_count_);
+
+    chainsDev_ = createStorageBuffer(vk_ctx.vma, sizeof(Chain) * chain_count_);
+    rowDev_ =
+        createStorageBuffer(vk_ctx.vma, sizeof(index_t) * (chain_count_ + 1));
+    edgesDev_ = createStorageBuffer(vk_ctx.vma, sizeof(Edge) * edge_count_);
 
     /* upload CPU → GPU */
     writeToBuffer(chainsDev_, pgraph.chains);
@@ -100,14 +110,16 @@ class Map {
   }
 
   size_t get_edges_num() const { return edge_count_; }
-  size_t get_points_num() const {return point_count_; }
+  size_t get_points_num() const { return point_count_; }
+
+  const AllocBuf& getPointsBuffer() const { return scaledPointsDev_; }
+  const AllocBuf& getEdgesBuffer() const { return edgesDev_; }
 
  private:
   int id_;
 
   std::unique_ptr<ScalePointsPassD2I64RAII> scale_pass_;
   std::unique_ptr<EdgeInitPassI64RAII> edge_pass_;
-
 
   uint32_t point_count_ = 0;
   uint32_t chain_count_ = 0;

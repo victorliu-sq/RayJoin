@@ -2,7 +2,6 @@
 #define RAYJOIN_EDGE_INIT_PASS_I64_RAII_H
 
 #include <glog/logging.h>
-
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -156,12 +155,9 @@ class EdgeInitPassI64RAII : public VkComputeEngine {
   }
 
   /* ---------- Dispatch ---------- */
-
-  void preDispatch(VkCommandBuffer cmd) override {
-    vkCmdFillBuffer(cmd, m_edgesDev.buf, 0, VK_WHOLE_SIZE, 0);
-  }
-
   void recordDispatch(VkCommandBuffer cmd) override {
+    vkCmdFillBuffer(cmd, m_edgesDev.buf, 0, VK_WHOLE_SIZE, 0);
+
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeline);
 
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeLayout,

@@ -29,7 +29,6 @@ class VkComputeEngine {
 
   void run() {
     VkCommandBuffer cmd = beginOneTime(m_ctx.device, m_ctx.cmdPool);
-    preDispatch(cmd);
     recordDispatch(cmd);
     endSubmitWait(m_ctx.device, m_ctx.queue, m_ctx.cmdPool, cmd);
   }
@@ -41,7 +40,6 @@ class VkComputeEngine {
   virtual void recordDescriptors() = 0;
 
   /* ---------- command hooks ---------- */
-  virtual void preDispatch(VkCommandBuffer cmd) = 0;
   virtual void recordDispatch(VkCommandBuffer cmd) = 0;
 
  protected:

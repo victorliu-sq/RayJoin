@@ -27,13 +27,6 @@ static inline void vkCheck(VkResult result) {
   }
 }
 
-struct AllocBuf {
-  VkBuffer buf = VK_NULL_HANDLE;
-  VmaAllocation alloc = VK_NULL_HANDLE;
-  VkDeviceSize size = 0;
-  VkDeviceAddress addr = 0;
-};
-
 inline std::vector<uint32_t> readSpvU32(const char* path) {
   std::ifstream f(path, std::ios::binary);
   if (!f)
@@ -83,11 +76,26 @@ inline void endSubmitWait(VkDevice device, VkQueue q, VkCommandPool pool,
   vkFreeCommandBuffers(device, pool, 1, &cmd);
 }
 
+
+struct AllocBuf {
+  // VmaAllocator vma = VK_NULL_HANDLE;
+  VkBuffer buf = VK_NULL_HANDLE;  // handler to the buffer
+  VmaAllocation alloc = VK_NULL_HANDLE;  // handler to the manager of this buffer
+  // VkDeviceSize size = 0;
+  // VkDeviceAddress addr = 0;
+  // ~AllocBuf() {
+  //   if (buf) {
+  //     vmaDestroyBuffer(vma, buf, alloc);
+  //   }
+  // }
+};
+
 inline AllocBuf vmaCreateBufferSimple(VmaAllocator vma, VkDeviceSize size,
                                       VkBufferUsageFlags usage,
                                       VmaMemoryUsage memUsage) {
   AllocBuf out{};
-  out.size = size;
+  // out.size = size;
+  // out.vma = vma;
 
   VkBufferCreateInfo bi{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
   bi.size = size;
@@ -101,39 +109,20 @@ inline AllocBuf vmaCreateBufferSimple(VmaAllocator vma, VkDeviceSize size,
   return out;
 }
 
-template <typename T>
-inline AllocBuf createStorageBuffer(VmaAllocator vma, size_t count) {
-  return vmaCreateBufferSimple(vma, sizeof(T) * count,
+inline AllocBuf createStorageBuffer(VmaAllocator vma, size_t size) {
+  return vmaCreateBufferSimple(vma, size,
                                VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
                                    VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
                                    VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                                VMA_MEMORY_USAGE_GPU_ONLY);
 }
 
-inline AllocBuf vmaCreateDeviceBuffer(VmaAllocator vma, VkDevice device,
-                                      VkDeviceSize size,
-                                      VkBufferUsageFlags usage,
-                                      VmaMemoryUsage memUsage) {
-  AllocBuf out{};
-  out.size = size;
-
-  VkBufferCreateInfo bi{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-  bi.size = size;
-  bi.usage = usage;
-  bi.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-  VmaAllocationCreateInfo ai{};
-  ai.usage = memUsage;
-
-  VK_CHECK(vmaCreateBuffer(vma, &bi, &ai, &out.buf, &out.alloc, nullptr));
-
-  // Get device Address
-  VkBufferDeviceAddressInfo info{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
-  info.buffer = out.buf;
-
-  vkGetBufferDeviceAddress(device, &info);
-
-  return out;
+inline AllocBuf createStagingBuffer(VmaAllocator vma, size_t size) {
+  return vmaCreateBufferSimple(
+      vma, size,
+      VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+      VMA_MEMORY_USAGE_CPU_ONLY  // staging must be CPU visible
+  );
 }
 
 inline void vmaDestroyBufferSafe(VmaAllocator vma, AllocBuf& b) {

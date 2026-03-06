@@ -48,8 +48,11 @@ class LSI {
     //           << " MB";
     // xsect_queue_.Init(max_n_xsects);
     auto& vk_ctx = GetVkComputeContext();
-    xsect_dev_ = createStorageBuffer<xsect_t>(vk_ctx.vma, max_n_xsects);
-    prof_counter_ = createStorageBuffer<uint64_t>(vk_ctx.vma, 1);
+    // xsect_dev_ = createStorageBuffer<xsect_t>(vk_ctx.vma, max_n_xsects);
+    // prof_counter_ = createStorageBuffer<uint64_t>(vk_ctx.vma, 1);
+    xsect_dev_ =
+        createStorageBuffer(vk_ctx.vma, sizeof(xsect_t) * max_n_xsects);
+    prof_counter_ = createStorageBuffer(vk_ctx.vma, sizeof(uint64_t) * 1);
   }
 
   virtual void Query(int query_map_id) = 0;

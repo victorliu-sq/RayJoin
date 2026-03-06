@@ -2,6 +2,7 @@
 #define RAYJOIN_MAP_OVERLAY_RT_H
 
 #include "vk/core/lsi_rt.h"
+#include "vk/rt/primitives.h"
 #include "vk/rt/rt_engine.h"
 
 namespace rayjoin {
@@ -9,6 +10,8 @@ namespace vk {
 
 template <typename CONTEXT_T>
 class MapOverlayRT : public MapOverlay<CONTEXT_T> {
+  using map_t = typename CONTEXT_T::map_t;
+
  public:
   explicit MapOverlayRT(CONTEXT_T& ctx) : MapOverlay<CONTEXT_T>(ctx) {
     rt_engine_ = std::make_shared<RTEngine>();
@@ -46,23 +49,21 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     size_t max_n_edges = 0;
 
     for (int im = 0; im < 2; im++) {
-      auto map = ctx.get_map(im);
+      std::shared_ptr<map_t> map = ctx.get_map(im);
 
       size_t np = map->get_points_num();
       size_t ne = map->get_edges_num();
 
       map_point_count_[im] = np;
       map_edge_count_[im] = ne;
+      LOG(INFO) << "Map-" << im << ": points=" << np << ", edges=" << ne;
 
-      // closest edge id per vertex
-      closest_eids_buf_[im] = createStorageBuffer<index_t>(vk_ctx.vma, np);
-
-      // point -> polygon id
-      point_in_polygon_buf_[im] = createStorageBuffer<index_t>(vk_ctx.vma, np);
-
-      // primitive -> edge range mapping
-      eid_range_buf_[im] =
-          createStorageBuffer<std::pair<uint32_t, uint32_t>>(vk_ctx.vma, ne);
+      closest_eids_buf_[im] = createStorageBuffer(
+          vk_ctx.vma, sizeof(index_t) * np);  // closest edge id per vertex
+      point_in_polygon_buf_[im] = createStorageBuffer(
+          vk_ctx.vma, sizeof(index_t) * np);  // point -> polygon id
+      eid_range_buf_[im] = createStorageBuffer(
+          vk_ctx.vma, sizeof(std::pair<uint32_t, uint32_t>) * ne);  // primitive -> edge range mapping
 
       max_n_points = std::max(max_n_points, np);
       max_n_edges = std::max(max_n_edges, ne);
@@ -70,8 +71,11 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     // -------------------------------
     // Allocate AABB primitive buffer
     // -------------------------------
-    aabbs_buf_ =
-        createStorageBuffer<VkAabbPositionsKHR>(vk_ctx.vma, max_n_edges);
+    // aabbs_buf_ =
+    //     createStorageBuffer<VkAabbPositionsKHR>(vk_ctx.vma, max_n_edges);
+
+    aabbs_buf_ = createStorageBuffer(vk_ctx.vma,
+                                     sizeof(VkAabbPositionsKHR) * max_n_edges);
     // -------------------------------
     // Compute total edges
     // -------------------------------
@@ -84,7 +88,33 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     // this->pip_->Init(max_n_points);
   }
 
-  void BuildIndex() override {}
+  void BuildIndex() override {
+    auto& ctx = this->ctx_;
+    auto& vk_ctx = GetVkComputeContext();
+
+    auto ag_iter = config_.ag_iter;
+    auto area_enlarge = config_.enlarge;
+
+    for (int im = 0; im < 2; im++) {
+      auto map = ctx.get_map(im);
+
+      std::string spvPath =
+          std::string(SHADER_DIR) + "/fill_primitives_group_new.spv";
+
+      FillPrimitivesGroupNewPass pass(spvPath.c_str(), map->getPointsBuffer(),
+                                      map->getEdgesBuffer(), aabbs_buf_,
+                                      eid_range_buf_[im], map_edge_count_[im],
+                                      ag_iter, area_enlarge);
+
+      pass.run();
+
+      // traverse_handles_[im] = rt_engine_->BuildAccelCustom(aabbs_buf_);
+      //
+      // if (config_.fau) {
+      //   clearBuffer(aabbs_buf_);
+      // }
+    }
+  }
 
   void IntersectEdge(int query_map_id) override {}
 

@@ -14,9 +14,11 @@ std::vector<T> readBackBuffer(const AllocBuf& deviceBuf,
   VkDeviceSize size = sizeof(T) * elementCount;
 
   // staging buffer (GPU -> CPU)
-  AllocBuf staging =
-      vmaCreateBufferSimple(vk_ctx.vma, size, VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                            VMA_MEMORY_USAGE_CPU_ONLY);
+  // AllocBuf staging =
+  //     vmaCreateBufferSimple(vk_ctx.vma, size,
+  //     VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+  //                           VMA_MEMORY_USAGE_CPU_ONLY);
+  AllocBuf staging = createStagingBuffer(vk_ctx.vma, size);
 
   VkCommandBuffer cmd = beginOneTime(vk_ctx.device, vk_ctx.cmdPool);
 
@@ -41,12 +43,15 @@ std::vector<T> readBackBuffer(const AllocBuf& deviceBuf,
 template <typename T>
 void writeToBuffer(const AllocBuf& deviceBuf, const std::vector<T>& data) {
   auto& vk_ctx = GetVkComputeContext();
-  VkDeviceSize size = sizeof(T) * data.size();
+  uint32_t elementCount = static_cast<uint32_t>(data.size());
+  VkDeviceSize size = sizeof(T) * elementCount;
 
   // staging buffer (CPU -> GPU)
-  AllocBuf staging =
-      vmaCreateBufferSimple(vk_ctx.vma, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                            VMA_MEMORY_USAGE_CPU_ONLY);
+  // AllocBuf staging =
+  //     vmaCreateBufferSimple(vk_ctx.vma, size,
+  //     VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+  //                           VMA_MEMORY_USAGE_CPU_ONLY);
+  AllocBuf staging = createStagingBuffer(vk_ctx.vma, size);
 
   // map and write
   void* mapped = nullptr;
