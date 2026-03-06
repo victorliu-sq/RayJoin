@@ -20,6 +20,8 @@ class VkAbsBuf {
   VkBuffer buf = VK_NULL_HANDLE;
   VmaAllocation alloc = VK_NULL_HANDLE;
 
+  // ==================================================================
+  // Helper method
   void createBufferSimple(VkDeviceSize size, VkBufferUsageFlags usage,
                           VmaMemoryUsage memUsage) {
     VkBufferCreateInfo bi{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};

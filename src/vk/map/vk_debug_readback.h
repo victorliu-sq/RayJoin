@@ -11,19 +11,10 @@
 template <typename T>
 std::vector<T> readBackStorageBuffer(const AllocBuf& deviceBuf,
                               uint32_t elementCount) {
-  auto& vk_ctx = GetVkComputeContext();
   VkDeviceSize size = sizeof(T) * elementCount;
-
-  // AllocBuf staging = createStagingBuffer(vk_ctx.vma, size);
-  VkStagingBuf staging(size);
-  // copy device -> staging
-  // VkCommandBuffer cmd = beginOneTime(vk_ctx.device, vk_ctx.cmdPool);
-  // VkBufferCopy cpy{0, 0, size};
-  // vkCmdCopyBuffer(cmd, deviceBuf.buf, staging.Buf(), 1, &cpy);
-  // endSubmitWait(vk_ctx.device, vk_ctx.queue, vk_ctx.cmdPool, cmd);
-  staging.Device2Stage(deviceBuf, size);
-  // map and read
   std::vector<T> out(elementCount);
+  VkStagingBuf staging(size);
+  staging.Device2Stage(deviceBuf, size);
   staging.Stage2Host(out);
   return out;
 }
@@ -33,16 +24,8 @@ void writeToStorageBuffer(const AllocBuf& deviceBuf, const std::vector<T>& in) {
   auto& vk_ctx = GetVkComputeContext();
   uint32_t elementCount = static_cast<uint32_t>(in.size());
   VkDeviceSize size = sizeof(T) * elementCount;
-
-  // AllocBuf staging = createStagingBuffer(vk_ctx.vma, size);
   VkStagingBuf staging(size);
-  // map and write
   staging.Host2Stage(in);
-  // copy staging -> device
-  // VkCommandBuffer cmd = beginOneTime(vk_ctx.device, vk_ctx.cmdPool);
-  // VkBufferCopy cpy{0, 0, size};
-  // vkCmdCopyBuffer(cmd, staging.Buf(), deviceBuf.buf, 1, &cpy);
-  // endSubmitWait(vk_ctx.device, vk_ctx.queue, vk_ctx.cmdPool, cmd);
   staging.Stage2Device(deviceBuf, size);
 }
 
