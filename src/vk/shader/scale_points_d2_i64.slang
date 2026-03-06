@@ -72,6 +72,22 @@ struct Scaling {
 
   double ddeltax;
   double ddeltay;
+
+  inline int64_t ScaleX(double x) {
+    return (int64_t) (x * rx + deltax);
+  }
+
+  inline int64_t ScaleY(double y) {
+    return (int64_t) (y * ry + deltay);
+  }
+
+  inline double UnscaleX(int64_t internal_x) {
+    return internal_x * rrx + ddeltax;
+  }
+
+  inline double UnscaleY(int64_t internal_y) {
+    return internal_y * rry + ddeltay;
+  }
 };
 
 [[vk::binding(0, 0)]]
@@ -92,9 +108,6 @@ void main(uint3 dtid: SV_DispatchThreadID) {
   double x = gSrc[i].x;
   double y = gSrc[i].y;
 
-  int64_t sx = (int64_t) (x * sc.rx + sc.deltax);
-  int64_t sy = (int64_t) (y * sc.ry + sc.deltay);
-
-  gDst[i].x = sx;
-  gDst[i].y = sy;
+  gDst[i].x = sc.ScaleX(gSrc[i].x);
+  gDst[i].y = sc.ScaleY(gSrc[i].y);
 }

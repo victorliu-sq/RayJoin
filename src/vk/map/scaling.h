@@ -93,9 +93,6 @@ class Scaling {
     return internal_y;
   }
 
-  Vec2<internal_coord_t> Scale(const Vec2<coord_t>& p) const {
-    return {ScaleX(p.x), ScaleY(p.y)};
-  }
 
   coord_t UnscaleX(internal_coord_t internal_x) const {
     return internal_x * rrx_ + ddeltax_;
@@ -103,6 +100,10 @@ class Scaling {
 
   coord_t UnscaleY(internal_coord_t internal_y) const {
     return internal_y * rry_ + ddeltay_;
+  }
+
+  Vec2<internal_coord_t> Scale(const Vec2<coord_t>& p) const {
+    return {ScaleX(p.x), ScaleY(p.y)};
   }
 
   Vec2<coord_t> Unscale(const Vec2<internal_coord_t>& p) const {
