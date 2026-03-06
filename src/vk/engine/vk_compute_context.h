@@ -24,6 +24,7 @@ struct VkComputeContext {
   VkCommandPool cmdPool = VK_NULL_HANDLE;
   // Submit Command Buffer
   VkQueue queue = VK_NULL_HANDLE;
+
   // Create Staging or Device Buffer
   VmaAllocator vma = VK_NULL_HANDLE;
 };

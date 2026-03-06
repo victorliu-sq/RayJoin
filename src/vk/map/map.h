@@ -65,7 +65,7 @@ class Map {
         createStorageBuffer(vk_ctx.vma, sizeof(DstPointI64) * point_count_);
 
     /* upload CPU → GPU */
-    writeToBuffer(srcPointsDev_, pgraph.points);
+    writeToStorageBuffer(srcPointsDev_, pgraph.points);
     /* run scaling compute pass */
     std::string spvPathScaling =
         std::string(SHADER_DIR) + "/scale_points_d2_i64.spv";
@@ -93,8 +93,8 @@ class Map {
     edgesDev_ = createStorageBuffer(vk_ctx.vma, sizeof(Edge) * edge_count_);
 
     /* upload CPU → GPU */
-    writeToBuffer(chainsDev_, pgraph.chains);
-    writeToBuffer(rowDev_, pgraph.row_index);
+    writeToStorageBuffer(chainsDev_, pgraph.chains);
+    writeToStorageBuffer(rowDev_, pgraph.row_index);
 
     /* run edge init compute pass */
     std::string spvPath = std::string(SHADER_DIR) + "/edge_init_i64.spv";
@@ -143,7 +143,7 @@ class Map {
       const PlanarGraph<SRC_COORD_T>& pgraph, uint32_t point_count) const {
     uint32_t checkCount = std::min<uint32_t>(point_count, 10);
 
-    auto gpuPts = readBackBuffer<DstPointI64>(scaledPointsDev_, checkCount);
+    auto gpuPts = readBackStorageBuffer<DstPointI64>(scaledPointsDev_, checkCount);
 
     LOG(INFO) << "Map-" << id_ << " GPU readback (first " << checkCount
               << " points):";
@@ -170,8 +170,8 @@ class Map {
   void DebugPrintEdges(uint32_t point_count) const {
     uint32_t checkEdges = std::min<uint32_t>(edge_count_, 10);
 
-    auto gpuEdges = readBackBuffer<Edge>(edgesDev_, checkEdges);
-    auto gpuPts = readBackBuffer<DstPointI64>(scaledPointsDev_, point_count);
+    auto gpuEdges = readBackStorageBuffer<Edge>(edgesDev_, checkEdges);
+    auto gpuPts = readBackStorageBuffer<DstPointI64>(scaledPointsDev_, point_count);
 
     LOG(INFO) << "Map-" << id_ << " GPU edge readback (first " << checkEdges
               << " edges):";
