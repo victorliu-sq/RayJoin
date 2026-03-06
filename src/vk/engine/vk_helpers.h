@@ -83,11 +83,6 @@ struct AllocBuf {
   VmaAllocation alloc = VK_NULL_HANDLE;  // handler to the manager of this buffer
   // VkDeviceSize size = 0;
   // VkDeviceAddress addr = 0;
-  // ~AllocBuf() {
-  //   if (buf) {
-  //     vmaDestroyBuffer(vma, buf, alloc);
-  //   }
-  // }
 };
 
 inline AllocBuf vmaCreateBufferSimple(VmaAllocator vma, VkDeviceSize size,
