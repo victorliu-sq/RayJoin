@@ -2,9 +2,23 @@
 #define RAYJOIN_LSI_H
 #include "glog/logging.h"
 #include "vk/engine/vk_helpers.h"
+#include "vk_global_context.h"
 
 namespace rayjoin {
 namespace vk {
+
+struct alignas(32) Intersection {
+  int64_t x;
+  int64_t y;
+
+  uint32_t eid0;
+  uint32_t eid1;
+
+  uint32_t mid_point_polygon_id;
+  uint32_t pad;  // padding for alignment
+};
+static_assert(sizeof(Intersection) == 32);  // size: 28 + 4
+static_assert(alignof(Intersection) == 32);
 
 template <typename CONTEXT_T>
 class LSI {
@@ -12,18 +26,30 @@ class LSI {
   using coord_t = typename CONTEXT_T::coord_t;
   using internal_coord_t = typename CONTEXT_T::internal_coord_t;
   using coefficient_t = typename CONTEXT_T::coefficient_t;
+  // double, int64_t, and int64_t
 
  public:
   // using xsect_t = dev::Intersection<internal_coord_t>;
+  using xsect_t = Intersection;
 
   explicit LSI(CONTEXT_T& ctx) : ctx_(ctx) {}
 
-  virtual ~LSI() = default;
+  // virtual ~LSI() = default;
+  virtual ~LSI() {
+    auto& vk_ctx = GetVkComputeContext();
+
+    vmaDestroyBufferSafe(vk_ctx.vma, xsect_dev_);
+    vmaDestroyBufferSafe(vk_ctx.vma, prof_counter_);
+  }
 
   virtual void Init(size_t max_n_xsects) {
-    // LOG(INFO) << "Queue size: " << max_n_xsects * sizeof(xsect_t) / 1024 / 1024
+    // LOG(INFO) << "Queue size: " << max_n_xsects * sizeof(xsect_t) / 1024 /
+    // 1024
     //           << " MB";
     // xsect_queue_.Init(max_n_xsects);
+    auto& vk_ctx = GetVkComputeContext();
+    xsect_dev_ = createStorageBuffer<xsect_t>(vk_ctx.vma, max_n_xsects);
+    prof_counter_ = createStorageBuffer<uint64_t>(vk_ctx.vma, 1);
   }
 
   virtual void Query(int query_map_id) = 0;
@@ -36,17 +62,20 @@ class LSI {
   //   return ArrayView<xsect_t>(xsect_queue_.data(), xsect_queue_.size());
   // }
 
-  // void CopyTo(thrust::host_vector<xsect_t>& out) { xsect_queue_.CopyTo(out); }
+  // void CopyTo(thrust::host_vector<xsect_t>& out) { xsect_queue_.CopyTo(out);
+  // }
 
  protected:
   CONTEXT_T& ctx_;
-  // Queue<xsect_t> xsect_queue_;
-  AllocBuf xsect_dev_{};
 
+  // Queue<xsect_t> xsect_queue_;
   // SharedValue<uint64_t> prof_counter_;
+
+  AllocBuf xsect_dev_{};
+  AllocBuf prof_counter_{};
 };
 
-}
-}
+}  // namespace vk
+}  // namespace rayjoin
 
 #endif  // RAYJOIN_LSI_H

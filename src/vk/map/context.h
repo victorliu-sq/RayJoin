@@ -102,6 +102,8 @@ class Context {
     }
   }
 
+  std::shared_ptr<map_t> get_map(int mapno) { return maps_[mapno]; }
+
   // For MapOverlayRT::Init
   size_t get_edge_num() const {
     size_t n_edges = 0;

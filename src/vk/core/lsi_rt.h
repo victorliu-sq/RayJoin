@@ -7,6 +7,7 @@ namespace vk {
 template <typename CONTEXT_T>
 class LSIRT : public LSI<CONTEXT_T> {
  public:
+  // super class
   using lsi = LSI<CONTEXT_T>;
 
   explicit LSIRT(CONTEXT_T& ctx, const std::shared_ptr<RTEngine>& rt_engine)

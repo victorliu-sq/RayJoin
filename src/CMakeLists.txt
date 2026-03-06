@@ -81,13 +81,14 @@ add_subdirectory(app/02_query)
 
 # =========================== RayJoin-VK ===================================
 set(CMAKE_POSITION_INDEPENDENT_CODE ON CACHE BOOL "Build all libs with -fPIC" FORCE)
+
 # Nvpro_core2
-find_package(NvproCore2 REQUIRED)
-if (NOT NvproCore2_FOUND)
-    message(FATAL_ERROR "NvproCore2 not found, please install the NvproCore2 library")
-else ()
-    message("NvproCore2 is found. with include directory as ${NvproCore2_INCLUDE_DIRS}")
-endif ()
+#find_package(NvproCore2 REQUIRED)
+#if (NOT NvproCore2_FOUND)
+#    message(FATAL_ERROR "NvproCore2 not found, please install the NvproCore2 library")
+#else ()
+#    message("NvproCore2 is found. with include directory as ${NvproCore2_INCLUDE_DIRS}")
+#endif ()
 
 add_library(rayjoin_lib_vk SHARED
 #        core/run_overlay.cu

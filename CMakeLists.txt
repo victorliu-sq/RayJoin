@@ -101,20 +101,6 @@ else ()
     message("glog is found, with include directory as ${CMAKE_SOURCE_DIR}/deps/include")
 endif ()
 
-find_package(glog 0.6.0 REQUIRED)
-if (NOT glog_FOUND)
-    message(FATAL_ERROR "glog not found, please install the glog library")
-else ()
-    message("glog is found, with include directory as ${CMAKE_SOURCE_DIR}/deps/include")
-endif ()
-
-find_package(glog 0.6.0 REQUIRED)
-if (NOT glog_FOUND)
-    message(FATAL_ERROR "glog not found, please install the glog library")
-else ()
-    message("glog is found, with include directory as ${CMAKE_SOURCE_DIR}/deps/include")
-endif ()
-
 # Vulkan
 find_package(Vulkan REQUIRED)
 if (NOT Vulkan_FOUND)

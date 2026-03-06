@@ -54,29 +54,29 @@ class Map {
     /* ------------------------------------------------------------ */
     /* Step1: scale points                                          */
     /* ------------------------------------------------------------ */
-    uint32_t point_count = static_cast<uint32_t>(pgraph.points.size());
+    point_count_ = static_cast<uint32_t>(pgraph.points.size());
     /* allocate GPU buffers */
-    srcPointsDev_ = createStorageBuffer<SrcPointD>(vk_ctx.vma, point_count);
+    srcPointsDev_ = createStorageBuffer<SrcPointD>(vk_ctx.vma, point_count_);
     scaledPointsDev_ =
-        createStorageBuffer<DstPointI64>(vk_ctx.vma, point_count);
+        createStorageBuffer<DstPointI64>(vk_ctx.vma, point_count_);
     /* upload CPU → GPU */
     writeToBuffer(srcPointsDev_, pgraph.points);
     /* run scaling compute pass */
     std::string spvPathScaling =
         std::string(SHADER_DIR) + "/scale_points_d2_i64.spv";
     scale_pass_ = std::make_unique<ScalePointsPassD2I64RAII>(
-        spvPathScaling.c_str(), srcPointsDev_, scaledPointsDev_, point_count,
+        spvPathScaling.c_str(), srcPointsDev_, scaledPointsDev_, point_count_,
         scaling.rx(), scaling.ry(), scaling.deltax(), scaling.deltay());
 
     scale_pass_->run();
-    DebugPrintScaledPoints(scaling, pgraph, point_count);
+    DebugPrintScaledPoints(scaling, pgraph, point_count_);
 
     /* ------------------------------------------------------------ */
     /* Step2: initialize edges                                      */
     /* ------------------------------------------------------------ */
     /* allocate GPU buffers */
     chain_count_ = static_cast<uint32_t>(pgraph.chains.size());
-    edge_count_ = point_count - chain_count_;
+    edge_count_ = point_count_ - chain_count_;
 
     chainsDev_ = createStorageBuffer<Chain>(vk_ctx.vma, chain_count_);
     rowDev_ = createStorageBuffer<index_t>(vk_ctx.vma, chain_count_ + 1);
@@ -90,16 +90,17 @@ class Map {
     std::string spvPath = std::string(SHADER_DIR) + "/edge_init_i64.spv";
     edge_pass_ = std::make_unique<EdgeInitPassI64RAII>(
         spvPath.c_str(), scaledPointsDev_, chainsDev_, rowDev_, edgesDev_,
-        point_count, chain_count_);
+        point_count_, chain_count_);
 
     edge_pass_->run();
     LOG(INFO) << "Map-" << id_ << ": initialized " << edge_count_
               << " edges on GPU";
 
-    DebugPrintEdges(point_count);
+    DebugPrintEdges(point_count_);
   }
 
   size_t get_edges_num() const { return edge_count_; }
+  size_t get_points_num() const {return point_count_; }
 
  private:
   int id_;
@@ -107,6 +108,8 @@ class Map {
   std::unique_ptr<ScalePointsPassD2I64RAII> scale_pass_;
   std::unique_ptr<EdgeInitPassI64RAII> edge_pass_;
 
+
+  uint32_t point_count_ = 0;
   uint32_t chain_count_ = 0;
   uint32_t edge_count_ = 0;
 

@@ -34,57 +34,6 @@ struct AllocBuf {
   VkDeviceAddress addr = 0;
 };
 
-inline AllocBuf vmaCreateBufferSimple(VmaAllocator vma, VkDeviceSize size,
-                                      VkBufferUsageFlags usage,
-                                      VmaMemoryUsage memUsage) {
-  AllocBuf out{};
-  out.size = size;
-
-  VkBufferCreateInfo bi{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-  bi.size = size;
-  bi.usage = usage;
-  bi.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-  VmaAllocationCreateInfo ai{};
-  ai.usage = memUsage;
-
-  VK_CHECK(vmaCreateBuffer(vma, &bi, &ai, &out.buf, &out.alloc, nullptr));
-  return out;
-}
-
-inline AllocBuf vmaCreateDeviceBuffer(VmaAllocator vma, VkDevice device,
-                                      VkDeviceSize size,
-                                      VkBufferUsageFlags usage,
-                                      VmaMemoryUsage memUsage) {
-  AllocBuf out{};
-  out.size = size;
-
-  VkBufferCreateInfo bi{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-  bi.size = size;
-  bi.usage = usage;
-  bi.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-  VmaAllocationCreateInfo ai{};
-  ai.usage = memUsage;
-
-  VK_CHECK(vmaCreateBuffer(vma, &bi, &ai, &out.buf, &out.alloc, nullptr));
-
-  // Get device Address
-  VkBufferDeviceAddressInfo info{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
-  info.buffer = out.buf;
-
-  vkGetBufferDeviceAddress(device, &info);
-
-  return out;
-}
-
-inline void vmaDestroyBufferSafe(VmaAllocator vma, AllocBuf& b) {
-  if (b.buf) {
-    vmaDestroyBuffer(vma, b.buf, b.alloc);
-    b = {};
-  }
-}
-
 inline std::vector<uint32_t> readSpvU32(const char* path) {
   std::ifstream f(path, std::ios::binary);
   if (!f)
@@ -134,15 +83,64 @@ inline void endSubmitWait(VkDevice device, VkQueue q, VkCommandPool pool,
   vkFreeCommandBuffers(device, pool, 1, &cmd);
 }
 
+inline AllocBuf vmaCreateBufferSimple(VmaAllocator vma, VkDeviceSize size,
+                                      VkBufferUsageFlags usage,
+                                      VmaMemoryUsage memUsage) {
+  AllocBuf out{};
+  out.size = size;
+
+  VkBufferCreateInfo bi{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+  bi.size = size;
+  bi.usage = usage;
+  bi.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+  VmaAllocationCreateInfo ai{};
+  ai.usage = memUsage;
+
+  VK_CHECK(vmaCreateBuffer(vma, &bi, &ai, &out.buf, &out.alloc, nullptr));
+  return out;
+}
+
 template <typename T>
 inline AllocBuf createStorageBuffer(VmaAllocator vma, size_t count) {
-  return vmaCreateBufferSimple(
-      vma,
-      sizeof(T) * count,
-      VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-          VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
-          VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-      VMA_MEMORY_USAGE_GPU_ONLY);
+  return vmaCreateBufferSimple(vma, sizeof(T) * count,
+                               VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
+                                   VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
+                                   VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                               VMA_MEMORY_USAGE_GPU_ONLY);
+}
+
+inline AllocBuf vmaCreateDeviceBuffer(VmaAllocator vma, VkDevice device,
+                                      VkDeviceSize size,
+                                      VkBufferUsageFlags usage,
+                                      VmaMemoryUsage memUsage) {
+  AllocBuf out{};
+  out.size = size;
+
+  VkBufferCreateInfo bi{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+  bi.size = size;
+  bi.usage = usage;
+  bi.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+  VmaAllocationCreateInfo ai{};
+  ai.usage = memUsage;
+
+  VK_CHECK(vmaCreateBuffer(vma, &bi, &ai, &out.buf, &out.alloc, nullptr));
+
+  // Get device Address
+  VkBufferDeviceAddressInfo info{VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO};
+  info.buffer = out.buf;
+
+  vkGetBufferDeviceAddress(device, &info);
+
+  return out;
+}
+
+inline void vmaDestroyBufferSafe(VmaAllocator vma, AllocBuf& b) {
+  if (b.buf) {
+    vmaDestroyBuffer(vma, b.buf, b.alloc);
+    b = {};
+  }
 }
 
 #endif  // RAYJOIN_VK_ALLOC_H
