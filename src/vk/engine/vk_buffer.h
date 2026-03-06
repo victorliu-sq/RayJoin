@@ -36,9 +36,9 @@ class VkAbsBuf {
   }
 };
 
-class VkStorageBuf : public VkAbsBuf {
+class VkDeviceBuf : public VkAbsBuf {
  public:
-  VkStorageBuf(VkDeviceSize size) {
+  VkDeviceBuf(VkDeviceSize size) {
     createBufferSimple(size,
                        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
                            VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
@@ -92,7 +92,7 @@ class VkStagingBuf : public VkAbsBuf {
   }
 
 
-  void Device2Stage(const VkStorageBuf& deviceBuf, VkDeviceSize size) {
+  void Device2Stage(const VkDeviceBuf& deviceBuf, VkDeviceSize size) {
     VkCommandBuffer cmd = beginOneTime(vk_ctx.device, vk_ctx.cmdPool);
 
     VkBufferCopy cpy{0, 0, size};
@@ -101,7 +101,7 @@ class VkStagingBuf : public VkAbsBuf {
     endSubmitWait(vk_ctx.device, vk_ctx.queue, vk_ctx.cmdPool, cmd);
   }
 
-  void Stage2Device(const VkStorageBuf& deviceBuf, VkDeviceSize size) {
+  void Stage2Device(const VkDeviceBuf& deviceBuf, VkDeviceSize size) {
     VkCommandBuffer cmd = beginOneTime(vk_ctx.device, vk_ctx.cmdPool);
 
     VkBufferCopy cpy{0, 0, size};

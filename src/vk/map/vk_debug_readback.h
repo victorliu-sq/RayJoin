@@ -29,7 +29,7 @@ void writeToStorageBuffer(const AllocBuf& deviceBuf, const std::vector<T>& in) {
 
 
 template <typename T>
-std::vector<T> readBackStorageBuffer(const VkStorageBuf& deviceBuf,
+std::vector<T> readBackStorageBuffer(const VkDeviceBuf& deviceBuf,
                               uint32_t elementCount) {
   VkDeviceSize size = sizeof(T) * elementCount;
   std::vector<T> out(elementCount);
@@ -40,7 +40,7 @@ std::vector<T> readBackStorageBuffer(const VkStorageBuf& deviceBuf,
 }
 
 template <typename T>
-void writeToStorageBuffer(const VkStorageBuf& deviceBuf, const std::vector<T>& in) {
+void writeToStorageBuffer(const VkDeviceBuf& deviceBuf, const std::vector<T>& in) {
   auto& vk_ctx = GetVkComputeContext();
   uint32_t elementCount = static_cast<uint32_t>(in.size());
   VkDeviceSize size = sizeof(T) * elementCount;
