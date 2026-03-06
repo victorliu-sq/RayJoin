@@ -89,6 +89,27 @@ class VkStagingBuf : public VkAbsBuf {
 
     endSubmitWait(vk_ctx.device, vk_ctx.queue, vk_ctx.cmdPool, cmd);
   }
+
+
+  void Device2Stage(const VkStorageBuf& deviceBuf, VkDeviceSize size) {
+    VkCommandBuffer cmd = beginOneTime(vk_ctx.device, vk_ctx.cmdPool);
+
+    VkBufferCopy cpy{0, 0, size};
+    vkCmdCopyBuffer(cmd, deviceBuf.Buf(), buf, 1, &cpy);
+
+    endSubmitWait(vk_ctx.device, vk_ctx.queue, vk_ctx.cmdPool, cmd);
+  }
+
+  void Stage2Device(const VkStorageBuf& deviceBuf, VkDeviceSize size) {
+    VkCommandBuffer cmd = beginOneTime(vk_ctx.device, vk_ctx.cmdPool);
+
+    VkBufferCopy cpy{0, 0, size};
+    vkCmdCopyBuffer(cmd, buf, deviceBuf.Buf(), 1, &cpy);
+
+    endSubmitWait(vk_ctx.device, vk_ctx.queue, vk_ctx.cmdPool, cmd);
+  }
 };
+
+
 
 #endif  // RAYJOIN_VK_BUFFER_H
