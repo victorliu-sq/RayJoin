@@ -11,162 +11,150 @@
 #include "vk_mem_alloc.h"
 
 namespace rayjoin {
-namespace vk {
+  namespace vk {
 
-struct alignas(16) SrcPointD {
-  double x, y;
-};
+    struct alignas(16) SrcPointD {
+      double x, y;
+    };
 
-struct alignas(16) DstPointI64 {
-  int64_t x, y;
-};
+    struct alignas(16) DstPointI64 {
+      int64_t x, y;
+    };
 
-static_assert(sizeof(SrcPointD) == 16);
-static_assert(sizeof(DstPointI64) == 16);
-static_assert(sizeof(Vec2<double>) == sizeof(SrcPointD));
-static_assert(alignof(Vec2<double>) == alignof(SrcPointD));
+    static_assert(sizeof(SrcPointD) == 16);
+    static_assert(sizeof(DstPointI64) == 16);
+    static_assert(sizeof(Vec2<double>) == sizeof(SrcPointD));
+    static_assert(alignof(Vec2<double>) == alignof(SrcPointD));
 
-struct PushConstantsD2I64 {
-  double rx;
-  double ry;
-  double deltax;
-  double deltay;
-  uint32_t count;
-  uint32_t pad0;
-};
+    struct PushConstantsD2I64 {
+      double rx;
+      double ry;
+      double deltax;
+      double deltay;
+      uint32_t count;
+      uint32_t pad0;
+    };
 
-class ScalePointsPassD2I64RAII : public VkComputeEngine {
- public:
-  ScalePointsPassD2I64RAII(const char* spvPath, const VkDeviceBuf& srcBuffer,
-                           const VkDeviceBuf& dstBuffer,
-                           const VkDeviceBuf& scalingBuffer, uint32_t count)
-      : VkComputeEngine(),
-        m_srcDevice(srcBuffer),
-        m_dstDevice(dstBuffer),
-        m_scalingDevice(scalingBuffer),
-        m_count(count) {
-    createPipeline(spvPath);
-    allocateDescriptors();
-    recordDescriptors();
-  }
+    class ScalePointsPassD2I64RAII : public VkComputeEngine {
+    public:
+      ScalePointsPassD2I64RAII(
+          const char *spvPath, const VkDeviceBuf &srcBuffer, const VkDeviceBuf &dstBuffer, const VkDeviceBuf &scalingBuffer, uint32_t count) :
+          VkComputeEngine(), m_srcDevice(srcBuffer), m_dstDevice(dstBuffer), m_scalingDevice(scalingBuffer), m_count(count) {
+        createPipeline(spvPath);
+        allocateDescriptors();
+        recordDescriptors();
+      }
 
- protected:
-  /* ---------- Pipeline ---------- */
-  void createPipeline(const char* spvPath) override {
-    VkDescriptorSetLayoutBinding bindings[3]{};
+      void run() override { VkComputeEngine::run(); }
 
-    for (uint32_t i = 0; i < 3; ++i) {
-      bindings[i].binding = i;
-      bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-      bindings[i].descriptorCount = 1;
-      bindings[i].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    }
+    protected:
+      /* ---------- Pipeline ---------- */
+      void createPipeline(const char *spvPath) override {
+        VkDescriptorSetLayoutBinding bindings[3]{};
 
-    VkDescriptorSetLayoutCreateInfo dsl{
-        VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
-    dsl.bindingCount = 3;
-    dsl.pBindings = bindings;
+        for (uint32_t i = 0; i < 3; ++i) {
+          bindings[i].binding = i;
+          bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+          bindings[i].descriptorCount = 1;
+          bindings[i].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+        }
 
-    VK_CHECK(
-        vkCreateDescriptorSetLayout(m_ctx.device, &dsl, nullptr, &m_setLayout));
+        VkDescriptorSetLayoutCreateInfo dsl{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+        dsl.bindingCount = 3;
+        dsl.pBindings = bindings;
 
-    VkPipelineLayoutCreateInfo pl{
-        VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
-    pl.setLayoutCount = 1;
-    pl.pSetLayouts = &m_setLayout;
+        VK_CHECK(vkCreateDescriptorSetLayout(m_ctx.device, &dsl, nullptr, &m_setLayout));
 
-    VK_CHECK(vkCreatePipelineLayout(m_ctx.device, &pl, nullptr, &m_pipeLayout));
+        VkPipelineLayoutCreateInfo pl{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+        pl.setLayoutCount = 1;
+        pl.pSetLayouts = &m_setLayout;
 
-    auto spirv = readSpvU32(spvPath);
+        VK_CHECK(vkCreatePipelineLayout(m_ctx.device, &pl, nullptr, &m_pipeLayout));
 
-    VkShaderModuleCreateInfo sm{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
-    sm.codeSize = spirv.size() * sizeof(uint32_t);
-    sm.pCode = spirv.data();
+        auto spirv = readSpvU32(spvPath);
 
-    VK_CHECK(vkCreateShaderModule(m_ctx.device, &sm, nullptr, &m_shader));
+        VkShaderModuleCreateInfo sm{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
+        sm.codeSize = spirv.size() * sizeof(uint32_t);
+        sm.pCode = spirv.data();
 
-    VkPipelineShaderStageCreateInfo stage{
-        VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
-    stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-    stage.module = m_shader;
-    stage.pName = "main";
+        VK_CHECK(vkCreateShaderModule(m_ctx.device, &sm, nullptr, &m_shader));
 
-    VkComputePipelineCreateInfo cp{
-        VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
-    cp.stage = stage;
-    cp.layout = m_pipeLayout;
+        VkPipelineShaderStageCreateInfo stage{VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
+        stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+        stage.module = m_shader;
+        stage.pName = "main";
 
-    VK_CHECK(vkCreateComputePipelines(m_ctx.device, VK_NULL_HANDLE, 1, &cp,
-                                      nullptr, &m_pipeline));
-  }
+        VkComputePipelineCreateInfo cp{VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
+        cp.stage = stage;
+        cp.layout = m_pipeLayout;
 
-  /* ---------- Descriptors ---------- */
-  void allocateDescriptors() override {
-    VkDescriptorPoolSize sizes[] = {{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3}};
+        VK_CHECK(vkCreateComputePipelines(m_ctx.device, VK_NULL_HANDLE, 1, &cp, nullptr, &m_pipeline));
+      }
 
-    VkDescriptorPoolCreateInfo ci{
-        VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
-    ci.maxSets = 1;
-    ci.poolSizeCount = 1;
-    ci.pPoolSizes = sizes;
+      /* ---------- Descriptors ---------- */
+      void allocateDescriptors() override {
+        VkDescriptorPoolSize sizes[] = {{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3}};
 
-    VK_CHECK(vkCreateDescriptorPool(m_ctx.device, &ci, nullptr, &m_descPool));
+        VkDescriptorPoolCreateInfo ci{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+        ci.maxSets = 1;
+        ci.poolSizeCount = 1;
+        ci.pPoolSizes = sizes;
 
-    VkDescriptorSetAllocateInfo ai{
-        VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
-    ai.descriptorPool = m_descPool;
-    ai.descriptorSetCount = 1;
-    ai.pSetLayouts = &m_setLayout;
+        VK_CHECK(vkCreateDescriptorPool(m_ctx.device, &ci, nullptr, &m_descPool));
 
-    VK_CHECK(vkAllocateDescriptorSets(m_ctx.device, &ai, &m_descSet));
-  }
+        VkDescriptorSetAllocateInfo ai{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+        ai.descriptorPool = m_descPool;
+        ai.descriptorSetCount = 1;
+        ai.pSetLayouts = &m_setLayout;
 
-  void recordDescriptors() override {
-    VkDescriptorBufferInfo srcInfo{m_srcDevice.Buf(), 0, VK_WHOLE_SIZE};
-    VkDescriptorBufferInfo dstInfo{m_dstDevice.Buf(), 0, VK_WHOLE_SIZE};
-    VkDescriptorBufferInfo scalingInfo{m_scalingDevice.Buf(), 0, VK_WHOLE_SIZE};
+        VK_CHECK(vkAllocateDescriptorSets(m_ctx.device, &ai, &m_descSet));
+      }
 
-    VkWriteDescriptorSet wr[3]{};
+      void recordDescriptors() override {
+        VkDescriptorBufferInfo srcInfo{m_srcDevice.Buf(), 0, VK_WHOLE_SIZE};
+        VkDescriptorBufferInfo dstInfo{m_dstDevice.Buf(), 0, VK_WHOLE_SIZE};
+        VkDescriptorBufferInfo scalingInfo{m_scalingDevice.Buf(), 0, VK_WHOLE_SIZE};
 
-    wr[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    wr[0].dstSet = m_descSet;
-    wr[0].dstBinding = 0;
-    wr[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    wr[0].descriptorCount = 1;
-    wr[0].pBufferInfo = &srcInfo;
+        VkWriteDescriptorSet wr[3]{};
 
-    wr[1] = wr[0];
-    wr[1].dstBinding = 1;
-    wr[1].pBufferInfo = &dstInfo;
+        wr[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        wr[0].dstSet = m_descSet;
+        wr[0].dstBinding = 0;
+        wr[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        wr[0].descriptorCount = 1;
+        wr[0].pBufferInfo = &srcInfo;
 
-    wr[2] = wr[0];
-    wr[2].dstBinding = 2;
-    wr[2].pBufferInfo = &scalingInfo;
+        wr[1] = wr[0];
+        wr[1].dstBinding = 1;
+        wr[1].pBufferInfo = &dstInfo;
 
-    vkUpdateDescriptorSets(m_ctx.device, 3, wr, 0, nullptr);
-  }
+        wr[2] = wr[0];
+        wr[2].dstBinding = 2;
+        wr[2].pBufferInfo = &scalingInfo;
 
-  /* ---------- Dispatch ---------- */
-  void recordDispatch(VkCommandBuffer cmd) override {
-    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeline);
+        vkUpdateDescriptorSets(m_ctx.device, 3, wr, 0, nullptr);
+      }
 
-    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeLayout,
-                            0, 1, &m_descSet, 0, nullptr);
+      /* ---------- Dispatch ---------- */
+      void recordDispatch(VkCommandBuffer cmd) override {
+        vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeline);
 
-    uint32_t groups = (m_count + 255) / 256;
+        vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeLayout, 0, 1, &m_descSet, 0, nullptr);
 
-    vkCmdDispatch(cmd, groups, 1, 1);
-  }
+        uint32_t groups = (m_count + 255) / 256;
 
- private:
-  uint32_t m_count{};
+        vkCmdDispatch(cmd, groups, 1, 1);
+      }
 
-  const VkDeviceBuf& m_srcDevice;
-  const VkDeviceBuf& m_dstDevice;
-  const VkDeviceBuf& m_scalingDevice;
-};
+    private:
+      uint32_t m_count{};
 
-}  // namespace vk
-}  // namespace rayjoin
+      const VkDeviceBuf &m_srcDevice;
+      const VkDeviceBuf &m_dstDevice;
+      const VkDeviceBuf &m_scalingDevice;
+    };
+
+  } // namespace vk
+} // namespace rayjoin
 
 #endif

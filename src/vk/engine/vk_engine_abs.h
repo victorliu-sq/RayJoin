@@ -27,7 +27,7 @@ class VkComputeEngine {
     }
   }
 
-  void run() {
+  virtual void run() {
     VkCommandBuffer cmd = beginOneTime(m_ctx.device, m_ctx.cmdPool);
     recordDispatch(cmd);
     endSubmitWait(m_ctx.device, m_ctx.queue, m_ctx.cmdPool, cmd);

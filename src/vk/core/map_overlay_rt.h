@@ -114,7 +114,16 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     }
   }
 
-  void IntersectEdge(int query_map_id) override {}
+  void IntersectEdge(int query_map_id) override {
+    int base_map_id = 1 - query_map_id;
+    auto lsi = std::dynamic_pointer_cast<LSIRT<CONTEXT_T>>(this->lsi_);
+
+    config_.eid_range = eid_range_[base_map_id];
+    config_.handle = traverse_handles_[base_map_id];
+
+    lsi->set_config(config_);
+    lsi->Query(query_map_id);
+  }
 
   void LocateVerticesInOtherMap(int query_map_id) override {}
 
@@ -152,6 +161,8 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
   // BVH Handlers
   // -------------------------------
   VkAccelerationStructureKHR traverse_handles_[2];
+
+  std::shared_ptr<VkDeviceBuf> eid_range_[2];
 
   // Queue<xsect_t> xsect_queue_;
 

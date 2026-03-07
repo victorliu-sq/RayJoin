@@ -17,7 +17,48 @@ class LSIRT : public LSI<CONTEXT_T> {
   void Init(size_t max_n_xsects) override { lsi::Init(max_n_xsects); }
 
   // use rt-engine
-  void Query(int query_map_id) override {}
+  void Query(int query_map_id) override {
+    if (!rt_engine_) {
+      throw std::runtime_error("LSIRT::Query(): rt_engine_ is null");
+    }
+    if (config_.handle == VK_NULL_HANDLE) {
+      throw std::runtime_error("LSIRT::Query(): config_.handle is null");
+    }
+    if (!config_.eid_range) {
+      throw std::runtime_error("LSIRT::Query(): config_.eid_range is null");
+    }
+    if (query_map_id != 0 && query_map_id != 1) {
+      throw std::runtime_error("LSIRT::Query(): query_map_id must be 0 or 1");
+    }
+
+    auto& ctx = this->ctx_;
+    int base_map_id = 1 - query_map_id;
+
+    auto query_map = ctx.get_map(query_map_id);
+    auto base_map = ctx.get_map(base_map_id);
+
+    if (!query_map || !base_map) {
+      throw std::runtime_error("LSIRT::Query(): map is null");
+    }
+
+    // This is the next interface you want RTEngine to support.
+    // It wires together all resources needed by Vulkan RT traversal.
+    rt_engine_->SetLSIQuery(
+        config_.handle,                   // BLAS of base map
+        *config_.eid_range,               // primitive -> [eid_begin, eid_end)
+        base_map->getPointsBuffer(),      // base points
+        base_map->getEdgesBuffer(),       // base edges
+        query_map->getPointsBuffer(),     // query points
+        query_map->getEdgesBuffer(),      // query edges
+        this->get_xsect_buffer(),         // output intersections
+        this->get_prof_counter_buffer(),  // optional profiling counter
+        static_cast<uint32_t>(this->get_xsect_capacity()), query_map_id,
+        static_cast<uint32_t>(query_map->get_edges_num()));
+
+    rt_engine_->RunLSI();
+  }
+
+  void set_config(QueryConfigRT config) { config_ = std::move(config); }
 
  private:
   std::shared_ptr<RTEngine> rt_engine_;
