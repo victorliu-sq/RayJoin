@@ -27,7 +27,7 @@ struct QueryConfigRT {
 
   // runtime bindings for current query
   VkAccelerationStructureKHR handle = VK_NULL_HANDLE;
-  std::shared_ptr<VkDeviceBuf> eid_range = nullptr;
+  const VkDeviceBuf* eid_range = nullptr;
 };
 
 }  // namespace vk

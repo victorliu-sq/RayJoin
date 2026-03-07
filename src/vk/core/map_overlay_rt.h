@@ -15,26 +15,33 @@ template <typename CONTEXT_T>
 class MapOverlayRT : public MapOverlay<CONTEXT_T> {
   using map_t = typename CONTEXT_T::map_t;
 
- public:
-  explicit MapOverlayRT(CONTEXT_T& ctx) : MapOverlay<CONTEXT_T>(ctx) {
+public:
+  explicit MapOverlayRT(CONTEXT_T &ctx) : MapOverlay<CONTEXT_T>(ctx) {
     rt_engine_ = std::make_shared<RTEngine>();
     this->lsi_ = std::make_shared<LSIRT<CONTEXT_T>>(ctx, rt_engine_);
     // this->pip_ = std::make_shared<PIPRT<CONTEXT_T>>(ctx, rt_engine_);
   }
 
-  void set_config(const QueryConfigRT& config) { config_ = config; }
+  void set_config(const QueryConfigRT &config) { config_ = config; }
 
   void Init() override {
-    auto& ctx = this->ctx_;
-    auto& lsi = this->lsi_;
-    auto& vk_ctx = GetVkComputeContext();
+    auto &ctx = this->ctx_;
+    auto &lsi = this->lsi_;
+    auto &vk_ctx = GetVkComputeContext();
 
     // -------------------------------
     // TODO:: Initialize RT Engine
     // -------------------------------
-    rt_engine_ = std::make_shared<rayjoin::vk::RTEngine>();
     rt_engine_->Init();
 
+    {
+      std::string rgen_spv = std::string(SHADER_DIR) + "/lsi_rgen.spv";
+      std::string rint_spv = std::string(SHADER_DIR) + "/lsi_rint.spv";
+      std::string rmiss_spv = std::string(SHADER_DIR) + "/lsi_rmiss.spv";
+
+      rt_engine_->InitLSIPipeline(rgen_spv.c_str(), rint_spv.c_str(),
+                                  rmiss_spv.c_str());
+    }
     // -------------------------------
     // Scan maps
     // -------------------------------
@@ -56,7 +63,8 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
       // point -> polygon id
       point_in_polygon_buf_[im].Init(sizeof(index_t) * np);
       // primitive -> edge range mapping
-      eid_range_buf_[im].Init(sizeof(std::pair<uint32_t, uint32_t>) * ne);
+      // eid_range_buf_[im].Init(sizeof(std::pair<uint32_t, uint32_t>) * ne);
+      eid_range_buf_[im].Init(sizeof(EidRange) * ne);
 
       max_n_points = std::max(max_n_points, np);
       max_n_edges = std::max(max_n_edges, ne);
@@ -84,8 +92,8 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
   }
 
   void BuildIndex() override {
-    auto& ctx = this->ctx_;
-    auto& vk_ctx = GetVkComputeContext();
+    auto &ctx = this->ctx_;
+    auto &vk_ctx = GetVkComputeContext();
 
     auto ag_iter = config_.ag_iter;
     auto area_enlarge = config_.enlarge;
@@ -97,7 +105,7 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
 
       fill_primitives_pass_ = std::make_unique<FillPrimitives>(
           spvPath.c_str(), map->getPointsBuffer(), map->getEdgesBuffer(),
-          map->getScalingBuffer(),  // ← NEW
+          map->getScalingBuffer(), // ← NEW
           aabbs_buf_, eid_range_buf_[im], map_edge_count_[im], ag_iter,
           area_enlarge);
 
@@ -118,7 +126,7 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     int base_map_id = 1 - query_map_id;
     auto lsi = std::dynamic_pointer_cast<LSIRT<CONTEXT_T>>(this->lsi_);
 
-    config_.eid_range = eid_range_[base_map_id];
+    config_.eid_range = &eid_range_buf_[base_map_id];
     config_.handle = traverse_handles_[base_map_id];
 
     lsi->set_config(config_);
@@ -129,9 +137,9 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
 
   void ComputeOutputPolygons() override {}
 
-  void WriteResult(const char* path) override {}
+  void WriteResult(const char *path) override {}
 
- private:
+private:
   std::shared_ptr<RTEngine> rt_engine_;
   QueryConfigRT config_;
 
@@ -161,13 +169,10 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
   // BVH Handlers
   // -------------------------------
   VkAccelerationStructureKHR traverse_handles_[2];
-
-  std::shared_ptr<VkDeviceBuf> eid_range_[2];
-
   // Queue<xsect_t> xsect_queue_;
 
-  void DebugPrintAABBs(std::shared_ptr<map_t> map, const VkDeviceBuf& aabbBuf,
-                       const VkDeviceBuf& eidRangeBuf,
+  void DebugPrintAABBs(std::shared_ptr<map_t> map, const VkDeviceBuf &aabbBuf,
+                       const VkDeviceBuf &eidRangeBuf,
                        uint32_t edge_count) const {
     uint32_t checkCount = std::min<uint32_t>(edge_count, 10);
 
@@ -190,15 +195,15 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
               << " primitives):";
 
     for (uint32_t i = 0; i < checkCount; i++) {
-      const auto& aabb = gpuAABBs[i];
-      const auto& range = gpuRanges[i];
+      const auto &aabb = gpuAABBs[i];
+      const auto &range = gpuRanges[i];
 
       uint32_t eid = range.first;
 
-      const auto& e = gpuEdges[eid];
+      const auto &e = gpuEdges[eid];
 
-      auto& p1 = gpuPts[e.p1_idx];
-      auto& p2 = gpuPts[e.p2_idx];
+      auto &p1 = gpuPts[e.p1_idx];
+      auto &p2 = gpuPts[e.p2_idx];
 
       double x1 = scaling.UnscaleX(p1.x);
       double y1 = scaling.UnscaleY(p1.y);
@@ -223,6 +228,6 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
   }
 };
 
-}  // namespace vk
-}  // namespace rayjoin
-#endif  // RAYJOIN_MAP_OVERLAY_RT_H
+} // namespace vk
+} // namespace rayjoin
+#endif // RAYJOIN_MAP_OVERLAY_RT_H

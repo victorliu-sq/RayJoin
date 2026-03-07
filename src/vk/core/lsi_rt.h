@@ -24,7 +24,7 @@ class LSIRT : public LSI<CONTEXT_T> {
     if (config_.handle == VK_NULL_HANDLE) {
       throw std::runtime_error("LSIRT::Query(): config_.handle is null");
     }
-    if (!config_.eid_range) {
+    if (config_.eid_range == nullptr) {
       throw std::runtime_error("LSIRT::Query(): config_.eid_range is null");
     }
     if (query_map_id != 0 && query_map_id != 1) {
