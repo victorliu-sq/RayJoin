@@ -99,6 +99,7 @@ add_library(rayjoin_lib_vk SHARED
 #       VK
         vk/core/run_overlay.cc
         vk/core/vk_global_context.cc
+        vk/rt/rt_engine.cc
         vk/vma_iimpl.cc
 )
 

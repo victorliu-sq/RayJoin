@@ -15,6 +15,36 @@ class VkAbsBuf {
   VkBuffer Buf() const { return buf; }
   VmaAllocation Alloc() const { return alloc; }
 
+  VkDeviceAddress DeviceAddress() const {
+    VkBufferDeviceAddressInfo info{};
+    info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+    info.buffer = buf;
+
+    return vkGetBufferDeviceAddress(vk_ctx.device, &info);
+  }
+
+  // ❌ disable copying
+  VkAbsBuf(const VkAbsBuf&) = delete;
+  VkAbsBuf& operator=(const VkAbsBuf&) = delete;
+
+  // ✅ enable moving
+  VkAbsBuf(VkAbsBuf&& other) noexcept
+      : vk_ctx(other.vk_ctx), buf(other.buf), alloc(other.alloc) {
+    other.buf = VK_NULL_HANDLE;
+    other.alloc = VK_NULL_HANDLE;
+  }
+
+  VkAbsBuf& operator=(VkAbsBuf&& other) noexcept {
+    if (this != &other) {
+      buf = other.buf;
+      alloc = other.alloc;
+
+      other.buf = VK_NULL_HANDLE;
+      other.alloc = VK_NULL_HANDLE;
+    }
+    return *this;
+  }
+
  protected:
   // VmaAllocator vma = VK_NULL_HANDLE;
   const VkComputeContext& vk_ctx;
@@ -50,10 +80,21 @@ class VkDeviceBuf : public VkAbsBuf {
   // }
 
   void Init(VkDeviceSize size) {
+    createBufferSimple(
+        size,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
+            VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+            // REQUIRED FOR RAY TRACING
+            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
+            VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
+            VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR,
+        VMA_MEMORY_USAGE_GPU_ONLY);
+  }
+
+  void InitAS(VkDeviceSize size) {
     createBufferSimple(size,
-                       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT |
-                           VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
-                           VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                       VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR |
+                           VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
                        VMA_MEMORY_USAGE_GPU_ONLY);
   }
 };

@@ -22,18 +22,6 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     // this->pip_ = std::make_shared<PIPRT<CONTEXT_T>>(ctx, rt_engine_);
   }
 
-  ~MapOverlayRT() override {
-    // auto& vk_ctx = GetVkComputeContext();
-
-    // for (int i = 0; i < 2; i++) {
-    //   vmaDestroyBufferSafe(vk_ctx.vma, closest_eids_buf_[i]);
-    //   vmaDestroyBufferSafe(vk_ctx.vma, point_in_polygon_buf_[i]);
-    //   vmaDestroyBufferSafe(vk_ctx.vma, eid_range_buf_[i]);
-    // }
-    //
-    // vmaDestroyBufferSafe(vk_ctx.vma, aabbs_buf_);
-  }
-
   void set_config(const QueryConfigRT& config) { config_ = config; }
 
   void Init() override {
@@ -44,6 +32,8 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     // -------------------------------
     // TODO:: Initialize RT Engine
     // -------------------------------
+    rt_engine_ = std::make_shared<rayjoin::vk::RTEngine>();
+    rt_engine_->Init();
 
     // -------------------------------
     // Scan maps
@@ -115,8 +105,9 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
 
       DebugPrintAABBs(map, aabbs_buf_, eid_range_buf_[im], map_edge_count_[im]);
 
-      // traverse_handles_[im] = rt_engine_->BuildAccelCustom(aabbs_buf_);
-      //
+      traverse_handles_[im] =
+          rt_engine_->BuildAccelCustom(aabbs_buf_, map_edge_count_[im]);
+
       // if (config_.fau) {
       //   clearBuffer(aabbs_buf_);
       // }
@@ -156,6 +147,11 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
   // Pipelines
   // -------------------------------
   std::unique_ptr<FillPrimitives> fill_primitives_pass_;
+
+  // -------------------------------
+  // BVH Handlers
+  // -------------------------------
+  VkAccelerationStructureKHR traverse_handles_[2];
 
   // Queue<xsect_t> xsect_queue_;
 
