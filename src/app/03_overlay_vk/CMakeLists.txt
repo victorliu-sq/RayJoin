@@ -53,6 +53,7 @@ foreach (SHADER ${SLANG_SHADERS})
   add_custom_command(
           OUTPUT ${SPIRV}
           COMMAND ${SLANGC}
+          -I ${SHADER_DIR}/module
           ${SHADER}
           -entry main
           -stage compute

@@ -7,16 +7,16 @@
 
 namespace rayjoin {
 namespace vk {
-
-class FillPrimitives: public VkComputeEngine {
+class FillPrimitives : public VkComputeEngine {
  public:
   FillPrimitives(const char* spvPath, const VkDeviceBuf& points,
-                             const VkDeviceBuf& edges, const VkDeviceBuf& aabbs,
-                             const VkDeviceBuf& eidRange, uint32_t numEdges,
-                             uint32_t maxIter, float areaEnlarge)
+                 const VkDeviceBuf& edges, const VkDeviceBuf& scaling,
+                 const VkDeviceBuf& aabbs, const VkDeviceBuf& eidRange,
+                 uint32_t numEdges, uint32_t maxIter, float areaEnlarge)
       : VkComputeEngine(),
         m_points(points),
         m_edges(edges),
+        m_scaling(scaling),
         m_aabbs(aabbs),
         m_eidRange(eidRange),
         m_numEdges(numEdges),
@@ -41,23 +41,24 @@ class FillPrimitives: public VkComputeEngine {
 
   const VkDeviceBuf& m_points;
   const VkDeviceBuf& m_edges;
+  const VkDeviceBuf& m_scaling;
   const VkDeviceBuf& m_aabbs;
   const VkDeviceBuf& m_eidRange;
 
   void createPipeline(const char* spvPath) override {
-    VkDescriptorSetLayoutBinding b[4]{};
+    VkDescriptorSetLayoutBinding bindings[5]{};
 
-    for (int i = 0; i < 4; i++) {
-      b[i].binding = i;
-      b[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-      b[i].descriptorCount = 1;
-      b[i].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    for (uint32_t i = 0; i < 5; i++) {
+      bindings[i].binding = i;
+      bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+      bindings[i].descriptorCount = 1;
+      bindings[i].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     }
 
     VkDescriptorSetLayoutCreateInfo dsl{
         VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
-    dsl.bindingCount = 4;
-    dsl.pBindings = b;
+    dsl.bindingCount = 5;
+    dsl.pBindings = bindings;
 
     VK_CHECK(
         vkCreateDescriptorSetLayout(m_ctx.device, &dsl, nullptr, &m_setLayout));
@@ -99,7 +100,9 @@ class FillPrimitives: public VkComputeEngine {
   }
 
   void allocateDescriptors() override {
-    VkDescriptorPoolSize sizes[] = {{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 4}};
+    VkDescriptorPoolSize sizes[] = {
+        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 5},
+    };
 
     VkDescriptorPoolCreateInfo ci{
         VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
@@ -121,15 +124,15 @@ class FillPrimitives: public VkComputeEngine {
   void recordDescriptors() override {
     VkDescriptorBufferInfo pInfo{m_points.Buf(), 0, VK_WHOLE_SIZE};
     VkDescriptorBufferInfo eInfo{m_edges.Buf(), 0, VK_WHOLE_SIZE};
+    VkDescriptorBufferInfo sInfo{m_scaling.Buf(), 0, VK_WHOLE_SIZE};
     VkDescriptorBufferInfo aInfo{m_aabbs.Buf(), 0, VK_WHOLE_SIZE};
     VkDescriptorBufferInfo rInfo{m_eidRange.Buf(), 0, VK_WHOLE_SIZE};
 
-    VkWriteDescriptorSet wr[4]{};
+    VkWriteDescriptorSet wr[5]{};
 
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < 5; i++)
       wr[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 
-    wr[0] = {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
     wr[0].dstSet = m_descSet;
     wr[0].dstBinding = 0;
     wr[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -139,14 +142,20 @@ class FillPrimitives: public VkComputeEngine {
     wr[1] = wr[0];
     wr[1].dstBinding = 1;
     wr[1].pBufferInfo = &eInfo;
+
     wr[2] = wr[0];
     wr[2].dstBinding = 2;
     wr[2].pBufferInfo = &aInfo;
+
     wr[3] = wr[0];
     wr[3].dstBinding = 3;
     wr[3].pBufferInfo = &rInfo;
 
-    vkUpdateDescriptorSets(m_ctx.device, 4, wr, 0, nullptr);
+    wr[4] = wr[0];
+    wr[4].dstBinding = 4;
+    wr[4].pBufferInfo = &sInfo;
+
+    vkUpdateDescriptorSets(m_ctx.device, 5, wr, 0, nullptr);
   }
 
   void recordDispatch(VkCommandBuffer cmd) override {
@@ -165,6 +174,7 @@ class FillPrimitives: public VkComputeEngine {
     vkCmdDispatch(cmd, groups, 1, 1);
   }
 };
+
 }  // namespace vk
 }  // namespace rayjoin
 

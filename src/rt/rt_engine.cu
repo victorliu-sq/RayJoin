@@ -1,5 +1,3 @@
-#include "rt/rt_engine.h"
-
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <optix_function_table_definition.h>  // for g_optixFunctionTable
@@ -11,6 +9,7 @@
 #include <stdexcept>
 
 #include "glog/logging.h"
+#include "rt/rt_engine.h"
 #include "rt/sbt_record.h"
 #include "util/exception.h"
 #include "util/markers.h"

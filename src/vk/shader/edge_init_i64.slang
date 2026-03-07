@@ -1,3 +1,5 @@
+import edge;
+
 struct PointI64 {
   int64_t x;
   int64_t y;
@@ -9,18 +11,6 @@ struct Chain {
   int64_t last_point_idx;
   int64_t left_polygon_id;
   int64_t right_polygon_id;
-};
-
-struct Edge {
-  int64_t a;
-  int64_t b;
-  int64_t c;
-
-  uint64_t eid;
-  uint64_t p1_idx;
-  uint64_t p2_idx;
-  uint64_t left_polygon_id;
-  uint64_t right_polygon_id;
 };
 
 [[vk::binding(0, 0)]]

@@ -121,6 +121,7 @@ class Map {
 
   const VkDeviceBuf& getPointsBuffer() const { return scaledPointsDev_; }
   const VkDeviceBuf& getEdgesBuffer() const { return edgesDev_; }
+  const VkDeviceBuf& getScalingBuffer() const { return scalingDev_; }
 
  private:
   int id_;
