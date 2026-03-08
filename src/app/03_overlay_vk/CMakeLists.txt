@@ -35,18 +35,24 @@
 #        ENTRIES
 #        main compute edge_init_i64_dev_addr.spv
 #)
+
+# =========================== Shader =======================================
+
 set(SLANGC ${CMAKE_SOURCE_DIR}/deps/slang/bin/slangc)
 set(SHADER_DIR ${CMAKE_SOURCE_DIR}/src/vk/shader)
 
-file(GLOB SLANG_SHADERS
+# --------------------------------------------------------------------------
+# Regular compute shaders: only compile .slang files directly under SHADER_DIR
+# Excludes SHADER_DIR/rt/*.slang, which are handled separately below.
+# --------------------------------------------------------------------------
+file(GLOB COMPUTE_SHADERS
         ${SHADER_DIR}/*.slang
 )
 
 set(SHADER_TARGETS "")
 set(SPIRV_OUTPUTS "")
 
-foreach (SHADER ${SLANG_SHADERS})
-
+foreach (SHADER ${COMPUTE_SHADERS})
   get_filename_component(SHADER_NAME ${SHADER} NAME_WE)
   set(SPIRV ${SPV_OUTPUT_DIR}/${SHADER_NAME}.spv)
 
@@ -62,45 +68,110 @@ foreach (SHADER ${SLANG_SHADERS})
           -fvk-use-scalar-layout
           -o ${SPIRV}
           DEPENDS ${SHADER}
-          COMMENT "Compiling ${SHADER_NAME}.slang"
+          COMMENT "Compiling compute shader ${SHADER_NAME}.slang"
           VERBATIM
   )
 
-  # create a target per shader
   set(TARGET_NAME ${SHADER_NAME}_spv)
-
-  add_custom_target(${TARGET_NAME}
-          DEPENDS ${SPIRV}
-  )
+  add_custom_target(${TARGET_NAME} DEPENDS ${SPIRV})
 
   list(APPEND SHADER_TARGETS ${TARGET_NAME})
   list(APPEND SPIRV_OUTPUTS ${SPIRV})
-
 endforeach ()
 
-# optional global target
+# --------------------------------------------------------------------------
+# RT shader: one source file, compiled 3 times into 3 SPIR-V files
+#
+# Assumes:
+#   ${SHADER_DIR}/rt/lsi_rt.slang
+#
+# with entry points:
+#   raygenMain        -> raygeneration
+#   missMain          -> miss
+#   intersectionMain  -> intersection
+# --------------------------------------------------------------------------
+set(RT_SHADER ${SHADER_DIR}/rt/lsi_rt.slang)
+set(RT_SPV_DIR ${SPV_OUTPUT_DIR}/rt)
+
+set(LSI_RGEN_SPV ${RT_SPV_DIR}/lsi_rgen.spv)
+set(LSI_MISS_SPV ${RT_SPV_DIR}/lsi_miss.spv)
+set(LSI_RINT_SPV ${RT_SPV_DIR}/lsi_rint.spv)
+
+add_custom_command(
+        OUTPUT ${LSI_RGEN_SPV}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${RT_SPV_DIR}
+        COMMAND ${SLANGC}
+        -I ${SHADER_DIR}/module
+        ${RT_SHADER}
+        -entry raygenMain
+        -stage raygeneration
+        -profile sm_6_6
+        -target spirv
+        -fvk-use-scalar-layout
+        -o ${LSI_RGEN_SPV}
+        DEPENDS ${RT_SHADER}
+        COMMENT "Compiling RT raygen shader lsi_rt.slang -> lsi_rgen.spv"
+        VERBATIM
+)
+
+add_custom_command(
+        OUTPUT ${LSI_MISS_SPV}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${RT_SPV_DIR}
+        COMMAND ${SLANGC}
+        -I ${SHADER_DIR}/module
+        ${RT_SHADER}
+        -entry missMain
+        -stage miss
+        -profile sm_6_6
+        -target spirv
+        -fvk-use-scalar-layout
+        -o ${LSI_MISS_SPV}
+        DEPENDS ${RT_SHADER}
+        COMMENT "Compiling RT miss shader lsi_rt.slang -> lsi_miss.spv"
+        VERBATIM
+)
+
+add_custom_command(
+        OUTPUT ${LSI_RINT_SPV}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${RT_SPV_DIR}
+        COMMAND ${SLANGC}
+        -I ${SHADER_DIR}/module
+        ${RT_SHADER}
+        -entry intersectionMain
+        -stage intersection
+        -profile sm_6_6
+        -target spirv
+        -fvk-use-scalar-layout
+        -o ${LSI_RINT_SPV}
+        DEPENDS ${RT_SHADER}
+        COMMENT "Compiling RT intersection shader lsi_rt.slang -> lsi_rint.spv"
+        VERBATIM
+)
+
+add_custom_target(lsi_rt_rgen_spv DEPENDS ${LSI_RGEN_SPV})
+add_custom_target(lsi_rt_miss_spv DEPENDS ${LSI_MISS_SPV})
+add_custom_target(lsi_rt_rint_spv DEPENDS ${LSI_RINT_SPV})
+
+list(APPEND SHADER_TARGETS
+        lsi_rt_rgen_spv
+        lsi_rt_miss_spv
+        lsi_rt_rint_spv
+)
+
+list(APPEND SPIRV_OUTPUTS
+        ${LSI_RGEN_SPV}
+        ${LSI_MISS_SPV}
+        ${LSI_RINT_SPV}
+)
+
+# Optional global target
 add_custom_target(shaders ALL DEPENDS ${SPIRV_OUTPUTS})
 
-# =========================== LSI_VK Executable =======================================
+# =========================== LSI_VK Executable =============================
 add_executable(polyover_vk_exec main.cc)
 
 target_link_libraries(polyover_vk_exec PRIVATE
         rayjoin_lib_vk
 )
 
-#target_compile_options(polyover_vk_exec PRIVATE
-#        $<$<COMPILE_LANGUAGE:CUDA>:--expt-extended-lambda --expt-relaxed-constexpr --prec-div=true>
-#)
-
-#set_target_properties(polyover_vk_exec PROPERTIES
-#        CUDA_ARCHITECTURES "${ENABLED_ARCHS}"
-#        CUDA_SEPARABLE_COMPILATION ON
-#)
-
-#add_dependencies(polyover_vk_exec optix_ptx)
-
-# Make executable depend on the shader build
-#add_dependencies(polyover_vk_exec ${scale_points_SPV_TARGET})
-#add_dependencies(polyover_vk_exec ${edge_init_SPV_TARGET})
-#add_dependencies(polyover_vk_exec ${edge_init_dev_addr_SPV_TARGET})
 add_dependencies(polyover_vk_exec ${SHADER_TARGETS})

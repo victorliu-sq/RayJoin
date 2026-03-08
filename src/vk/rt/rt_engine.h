@@ -13,7 +13,7 @@
 namespace rayjoin {
 namespace vk {
 class RTEngine {
- public:
+public:
   RTEngine();
   ~RTEngine();
 
@@ -28,8 +28,7 @@ class RTEngine {
   // Equivalent to OptiX BuildAccelCustom().
   // Builds a BLAS over AABB primitives and returns the compacted AS handle.
   // --------------------------------------------------------------------------
-  VkAccelerationStructureKHR BuildAccelCustom(const VkDeviceBuf& aabb_buf,
-                                              uint32_t primitive_count);
+  VkAccelerationStructureKHR BuildAccelCustom(const VkDeviceBuf &aabb_buf, uint32_t primitive_count);
 
   // ==========================================================================
   // NEWLY ADDED FOR LSI RAY TRACING
@@ -46,9 +45,7 @@ class RTEngine {
   //
   // This is the Vulkan replacement for OptiX module/pipeline setup for LSI.
   // --------------------------------------------------------------------------
-  void InitLSIPipeline(const char* rgen_spv,
-                       const char* rint_spv,
-                       const char* rmiss_spv);
+  void InitLSIPipeline(const char *rgen_spv, const char *rint_spv, const char *rmiss_spv);
 
   // --------------------------------------------------------------------------
   // NEW:
@@ -57,13 +54,15 @@ class RTEngine {
   // This is the Vulkan equivalent of preparing OptiX launch params.
   // --------------------------------------------------------------------------
   void SetLSIQuery(VkAccelerationStructureKHR handle,
-                   const VkDeviceBuf& eid_range_buf,
-                   const VkDeviceBuf& base_points_buf,
-                   const VkDeviceBuf& base_edges_buf,
-                   const VkDeviceBuf& query_points_buf,
-                   const VkDeviceBuf& query_edges_buf,
-                   const VkDeviceBuf& xsect_buf,
-                   const VkDeviceBuf& prof_counter_buf,
+                   const VkDeviceBuf &eid_range_buf,
+                   const VkDeviceBuf &base_points_buf,
+                   const VkDeviceBuf &base_edges_buf,
+                   const VkDeviceBuf &query_points_buf,
+                   const VkDeviceBuf &query_edges_buf,
+                   const VkDeviceBuf &scaling_buf,
+                   const VkDeviceBuf &xsect_buf,
+                   const VkDeviceBuf &xsect_counter_buf, // NEW
+                   const VkDeviceBuf &prof_counter_buf,
                    uint32_t xsect_capacity,
                    int query_map_id,
                    uint32_t query_edge_count);
@@ -75,7 +74,7 @@ class RTEngine {
   // --------------------------------------------------------------------------
   void RunLSI();
 
- private:
+private:
   // --------------------------------------------------------------------------
   // EXISTING:
   // Tracks BLAS handles and their backing buffers so they can be destroyed
@@ -98,13 +97,15 @@ class RTEngine {
   struct LSIQueryState {
     VkAccelerationStructureKHR handle = VK_NULL_HANDLE;
 
-    const VkDeviceBuf* eid_range_buf = nullptr;
-    const VkDeviceBuf* base_points_buf = nullptr;
-    const VkDeviceBuf* base_edges_buf = nullptr;
-    const VkDeviceBuf* query_points_buf = nullptr;
-    const VkDeviceBuf* query_edges_buf = nullptr;
-    const VkDeviceBuf* xsect_buf = nullptr;
-    const VkDeviceBuf* prof_counter_buf = nullptr;
+    const VkDeviceBuf *eid_range_buf = nullptr;
+    const VkDeviceBuf *base_points_buf = nullptr;
+    const VkDeviceBuf *base_edges_buf = nullptr;
+    const VkDeviceBuf *query_points_buf = nullptr;
+    const VkDeviceBuf *query_edges_buf = nullptr;
+    const VkDeviceBuf *scaling_buf = nullptr;
+    const VkDeviceBuf *xsect_buf = nullptr;
+    const VkDeviceBuf *xsect_counter_buf = nullptr;
+    const VkDeviceBuf *prof_counter_buf = nullptr;
 
     uint32_t xsect_capacity = 0;
     int query_map_id = 0;
@@ -142,54 +143,46 @@ class RTEngine {
   // --------------------------------------------------------------------------
   LSIQueryState lsi_query_{};
 
- private:
+private:
   // --------------------------------------------------------------------------
   // EXISTING:
   // BLAS storage.
   // --------------------------------------------------------------------------
   std::vector<AccelEntry> accels_;
 
-  const VkComputeContext* ctx_ = nullptr;
+  const VkComputeContext *ctx_ = nullptr;
   VkDevice device_ = VK_NULL_HANDLE;
 
   // --------------------------------------------------------------------------
   // EXISTING:
   // Vulkan acceleration structure function pointers.
   // --------------------------------------------------------------------------
-  PFN_vkCreateAccelerationStructureKHR fpCreateAccelerationStructureKHR =
-      nullptr;
+  PFN_vkCreateAccelerationStructureKHR fpCreateAccelerationStructureKHR = nullptr;
 
-  PFN_vkDestroyAccelerationStructureKHR fpDestroyAccelerationStructureKHR =
-      nullptr;
+  PFN_vkDestroyAccelerationStructureKHR fpDestroyAccelerationStructureKHR = nullptr;
 
-  PFN_vkGetAccelerationStructureBuildSizesKHR
-      fpGetAccelerationStructureBuildSizesKHR = nullptr;
+  PFN_vkGetAccelerationStructureBuildSizesKHR fpGetAccelerationStructureBuildSizesKHR = nullptr;
 
-  PFN_vkCmdBuildAccelerationStructuresKHR fpCmdBuildAccelerationStructuresKHR =
-      nullptr;
+  PFN_vkCmdBuildAccelerationStructuresKHR fpCmdBuildAccelerationStructuresKHR = nullptr;
 
-  PFN_vkCmdWriteAccelerationStructuresPropertiesKHR
-      fpCmdWriteAccelerationStructuresPropertiesKHR = nullptr;
+  PFN_vkCmdWriteAccelerationStructuresPropertiesKHR fpCmdWriteAccelerationStructuresPropertiesKHR = nullptr;
 
-  PFN_vkCmdCopyAccelerationStructureKHR fpCmdCopyAccelerationStructureKHR =
-      nullptr;
+  PFN_vkCmdCopyAccelerationStructureKHR fpCmdCopyAccelerationStructureKHR = nullptr;
 
   // --------------------------------------------------------------------------
   // NEW:
   // Additional Vulkan RT function pointers needed for launching ray tracing
   // pipelines, creating SBTs, and obtaining AS device addresses.
   // --------------------------------------------------------------------------
-  PFN_vkGetAccelerationStructureDeviceAddressKHR
-      fpGetAccelerationStructureDeviceAddressKHR = nullptr;
+  PFN_vkGetAccelerationStructureDeviceAddressKHR fpGetAccelerationStructureDeviceAddressKHR = nullptr;
 
   PFN_vkCreateRayTracingPipelinesKHR fpCreateRayTracingPipelinesKHR = nullptr;
 
-  PFN_vkGetRayTracingShaderGroupHandlesKHR
-      fpGetRayTracingShaderGroupHandlesKHR = nullptr;
+  PFN_vkGetRayTracingShaderGroupHandlesKHR fpGetRayTracingShaderGroupHandlesKHR = nullptr;
 
   PFN_vkCmdTraceRaysKHR fpCmdTraceRaysKHR = nullptr;
 
- private:
+private:
   // --------------------------------------------------------------------------
   // EXISTING + EXTENDED:
   // Loads Vulkan function pointers.
@@ -207,7 +200,7 @@ class RTEngine {
   // Creates a shader module from a SPIR-V file.
   // Used by InitLSIPipeline().
   // --------------------------------------------------------------------------
-  VkShaderModule loadShaderModule(const char* spv_path);
+  VkShaderModule loadShaderModule(const char *spv_path);
 
   // --------------------------------------------------------------------------
   // NEW:
@@ -227,9 +220,7 @@ class RTEngine {
   // Creates pipeline layout and ray tracing pipeline for LSI shaders.
   // --------------------------------------------------------------------------
   void createLSIPipelineLayout();
-  void createLSIRTPipeline(const char* rgen_spv,
-                           const char* rint_spv,
-                           const char* rmiss_spv);
+  void createLSIRTPipeline(const char *rgen_spv, const char *rint_spv, const char *rmiss_spv);
 
   // --------------------------------------------------------------------------
   // NEW:
@@ -249,8 +240,8 @@ class RTEngine {
   // Uploads CPU-side launch params into lsi_params_buf_.
   // Vulkan equivalent of OptiX CopyLaunchParams().
   // --------------------------------------------------------------------------
-  template <typename T>
-  void uploadLSIParams(const T& params) {
+  template<typename T>
+  void uploadLSIParams(const T &params) {
     if (lsi_params_buf_.Buf() == VK_NULL_HANDLE) {
       lsi_params_buf_.Init(sizeof(T));
     }
@@ -264,7 +255,7 @@ class RTEngine {
   }
 };
 
-}  // namespace vk
-}  // namespace rayjoin
+} // namespace vk
+} // namespace rayjoin
 
 #endif

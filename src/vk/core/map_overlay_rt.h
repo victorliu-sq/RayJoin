@@ -11,7 +11,7 @@
 namespace rayjoin {
 namespace vk {
 
-template <typename CONTEXT_T>
+template<typename CONTEXT_T>
 class MapOverlayRT : public MapOverlay<CONTEXT_T> {
   using map_t = typename CONTEXT_T::map_t;
 
@@ -35,12 +35,11 @@ public:
     rt_engine_->Init();
 
     {
-      std::string rgen_spv = std::string(SHADER_DIR) + "/lsi_rgen.spv";
-      std::string rint_spv = std::string(SHADER_DIR) + "/lsi_rint.spv";
-      std::string rmiss_spv = std::string(SHADER_DIR) + "/lsi_rmiss.spv";
+      std::string rgen_spv = std::string(SHADER_DIR) + "/rt/lsi_rgen.spv";
+      std::string rint_spv = std::string(SHADER_DIR) + "/rt/lsi_rint.spv";
+      std::string rmiss_spv = std::string(SHADER_DIR) + "/rt/lsi_rmiss.spv";
 
-      rt_engine_->InitLSIPipeline(rgen_spv.c_str(), rint_spv.c_str(),
-                                  rmiss_spv.c_str());
+      rt_engine_->InitLSIPipeline(rgen_spv.c_str(), rint_spv.c_str(), rmiss_spv.c_str());
     }
     // -------------------------------
     // Scan maps
@@ -103,18 +102,21 @@ public:
 
       std::string spvPath = std::string(SHADER_DIR) + "/fill_primitives.spv";
 
-      fill_primitives_pass_ = std::make_unique<FillPrimitives>(
-          spvPath.c_str(), map->getPointsBuffer(), map->getEdgesBuffer(),
-          map->getScalingBuffer(), // ← NEW
-          aabbs_buf_, eid_range_buf_[im], map_edge_count_[im], ag_iter,
-          area_enlarge);
+      fill_primitives_pass_ = std::make_unique<FillPrimitives>(spvPath.c_str(),
+                                                               map->getPointsBuffer(),
+                                                               map->getEdgesBuffer(),
+                                                               map->getScalingBuffer(), // ← NEW
+                                                               aabbs_buf_,
+                                                               eid_range_buf_[im],
+                                                               map_edge_count_[im],
+                                                               ag_iter,
+                                                               area_enlarge);
 
       fill_primitives_pass_->run();
 
       DebugPrintAABBs(map, aabbs_buf_, eid_range_buf_[im], map_edge_count_[im]);
 
-      traverse_handles_[im] =
-          rt_engine_->BuildAccelCustom(aabbs_buf_, map_edge_count_[im]);
+      traverse_handles_[im] = rt_engine_->BuildAccelCustom(aabbs_buf_, map_edge_count_[im]);
 
       // if (config_.fau) {
       //   clearBuffer(aabbs_buf_);
@@ -171,28 +173,20 @@ private:
   VkAccelerationStructureKHR traverse_handles_[2];
   // Queue<xsect_t> xsect_queue_;
 
-  void DebugPrintAABBs(std::shared_ptr<map_t> map, const VkDeviceBuf &aabbBuf,
-                       const VkDeviceBuf &eidRangeBuf,
-                       uint32_t edge_count) const {
+  void DebugPrintAABBs(std::shared_ptr<map_t> map, const VkDeviceBuf &aabbBuf, const VkDeviceBuf &eidRangeBuf, uint32_t edge_count) const {
     uint32_t checkCount = std::min<uint32_t>(edge_count, 10);
 
-    auto gpuAABBs =
-        readBackStorageBuffer<VkAabbPositionsKHR>(aabbBuf, checkCount);
+    auto gpuAABBs = readBackStorageBuffer<VkAabbPositionsKHR>(aabbBuf, checkCount);
 
-    auto gpuRanges = readBackStorageBuffer<std::pair<uint32_t, uint32_t>>(
-        eidRangeBuf, checkCount);
+    auto gpuRanges = readBackStorageBuffer<std::pair<uint32_t, uint32_t>>(eidRangeBuf, checkCount);
 
-    auto gpuEdges =
-        readBackStorageBuffer<Edge>(map->getEdgesBuffer(), edge_count);
+    auto gpuEdges = readBackStorageBuffer<Edge>(map->getEdgesBuffer(), edge_count);
 
-    auto gpuPts = readBackStorageBuffer<DstPointI64>(map->getPointsBuffer(),
-                                                     map->get_points_num());
+    auto gpuPts = readBackStorageBuffer<DstPointI64>(map->getPointsBuffer(), map->get_points_num());
 
-    auto scaling = readBackStorageBuffer<Scaling<double, int64_t>>(
-        map->getScalingBuffer(), 1)[0];
+    auto scaling = readBackStorageBuffer<Scaling<double, int64_t>>(map->getScalingBuffer(), 1)[0];
 
-    LOG(INFO) << "Debug AABB validation (first " << checkCount
-              << " primitives):";
+    LOG(INFO) << "Debug AABB validation (first " << checkCount << " primitives):";
 
     for (uint32_t i = 0; i < checkCount; i++) {
       const auto &aabb = gpuAABBs[i];
@@ -216,13 +210,10 @@ private:
       double miny = std::min(y1, y2);
       double maxy = std::max(y1, y2);
 
-      bool inside = (minx >= aabb.minX && maxx <= aabb.maxX &&
-                     miny >= aabb.minY && maxy <= aabb.maxY);
+      bool inside = (minx >= aabb.minX && maxx <= aabb.maxX && miny >= aabb.minY && maxy <= aabb.maxY);
 
-      LOG(INFO) << "eid=" << eid << " edge=(" << x1 << "," << y1 << ") -> ("
-                << x2 << "," << y2 << ")"
-                << " AABB=[(" << aabb.minX << "," << aabb.minY << ") ("
-                << aabb.maxX << "," << aabb.maxY << ")]"
+      LOG(INFO) << "eid=" << eid << " edge=(" << x1 << "," << y1 << ") -> (" << x2 << "," << y2 << ")"
+                << " AABB=[(" << aabb.minX << "," << aabb.minY << ") (" << aabb.maxX << "," << aabb.maxY << ")]"
                 << " contains=" << (inside ? "YES" : "NO");
     }
   }
