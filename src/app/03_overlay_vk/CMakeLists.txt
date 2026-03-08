@@ -94,7 +94,7 @@ set(RT_SHADER ${SHADER_DIR}/rt/lsi_rt.slang)
 set(RT_SPV_DIR ${SPV_OUTPUT_DIR}/rt)
 
 set(LSI_RGEN_SPV ${RT_SPV_DIR}/lsi_rgen.spv)
-set(LSI_MISS_SPV ${RT_SPV_DIR}/lsi_miss.spv)
+set(LSI_MISS_SPV ${RT_SPV_DIR}/lsi_rmiss.spv)
 set(LSI_RINT_SPV ${RT_SPV_DIR}/lsi_rint.spv)
 
 add_custom_command(

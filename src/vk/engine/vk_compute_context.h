@@ -265,8 +265,8 @@ inline VkInstance initVkComputeContext(VkComputeContext& ctx) {
       static_cast<uint32_t>(extensions.size());
   dci.ppEnabledExtensionNames = extensions.data();
 
-  // dci.pNext = &features2;
-  dci.pNext = &rayFeature;
+  dci.pNext = &features2;
+  // dci.pNext = &rayFeature;
 
   VK_CHECK(vkCreateDevice(ctx.phys, &dci, nullptr, &ctx.device));
 
