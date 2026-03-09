@@ -326,10 +326,14 @@ void RTEngine::createLSIDescriptorSetLayout() {
   bindings[8].stageFlags = VK_SHADER_STAGE_INTERSECTION_BIT_KHR;
 
   // 9: test/profile counter
+  // bindings[9].binding = 9;
+  // bindings[9].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+  // bindings[9].descriptorCount = 1;
+  // bindings[9].stageFlags = VK_SHADER_STAGE_INTERSECTION_BIT_KHR;
   bindings[9].binding = 9;
   bindings[9].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
   bindings[9].descriptorCount = 1;
-  bindings[9].stageFlags = VK_SHADER_STAGE_INTERSECTION_BIT_KHR;
+  bindings[9].stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_INTERSECTION_BIT_KHR | VK_SHADER_STAGE_MISS_BIT_KHR;
 
   // 10: scaling buffer
   bindings[10].binding = 10;
@@ -400,16 +404,19 @@ void RTEngine::createLSIRTPipeline(const char *rgen_spv, const char *rint_spv, c
   stages[0].stage = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
   stages[0].module = rgen;
   stages[0].pName = "main";
+  // stages[0].pName = "raygenMain";
 
   stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
   stages[1].stage = VK_SHADER_STAGE_INTERSECTION_BIT_KHR;
   stages[1].module = rint;
   stages[1].pName = "main";
+  // stages[1].pName = "intersectionMain";
 
   stages[2].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
   stages[2].stage = VK_SHADER_STAGE_MISS_BIT_KHR;
   stages[2].module = rmiss;
   stages[2].pName = "main";
+  // stages[2].pName = "missMain";
 
   VkRayTracingShaderGroupCreateInfoKHR groups[3]{};
 
@@ -581,8 +588,13 @@ void RTEngine::updateLSIDescriptors() {
   if (lsi_params_buf_.Buf() == VK_NULL_HANDLE) {
     throw std::runtime_error("RTEngine::updateLSIDescriptors(): lsi_params_buf_ is null");
   }
+  // if (!lsi_query_.eid_range_buf || !lsi_query_.base_points_buf || !lsi_query_.base_edges_buf || !lsi_query_.query_points_buf ||
+  //     !lsi_query_.query_edges_buf || !lsi_query_.scaling_buf || !lsi_query_.xsect_buf || !lsi_query_.prof_counter_buf) {
+  //   throw std::runtime_error("RTEngine::updateLSIDescriptors(): one or more query buffers are null");
+  // }
   if (!lsi_query_.eid_range_buf || !lsi_query_.base_points_buf || !lsi_query_.base_edges_buf || !lsi_query_.query_points_buf ||
-      !lsi_query_.query_edges_buf || !lsi_query_.scaling_buf || !lsi_query_.xsect_buf || !lsi_query_.prof_counter_buf) {
+      !lsi_query_.query_edges_buf || !lsi_query_.scaling_buf || !lsi_query_.xsect_buf || !lsi_query_.xsect_counter_buf ||
+      !lsi_query_.prof_counter_buf) {
     throw std::runtime_error("RTEngine::updateLSIDescriptors(): one or more query buffers are null");
   }
 
@@ -630,7 +642,8 @@ void RTEngine::updateLSIDescriptors() {
   // For now reuse prof_counter_buf if you do not yet have a dedicated counter.
   // Better: create a dedicated xsect counter buffer later.
   VkDescriptorBufferInfo xsectCounterInfo{};
-  xsectCounterInfo.buffer = lsi_query_.prof_counter_buf->Buf();
+  // xsectCounterInfo.buffer = lsi_query_.prof_counter_buf->Buf();
+  xsectCounterInfo.buffer = lsi_query_.xsect_counter_buf->Buf();
   xsectCounterInfo.offset = 0;
   xsectCounterInfo.range = sizeof(uint32_t);
 

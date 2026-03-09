@@ -253,6 +253,14 @@ private:
     LOG(INFO) << "DebugPrintIntersections: query_map_id=" << query_map_id << ", base_map_id=" << base_map_id
               << ", gpu intersection count=" << n_xsects;
 
+    auto dbg = readBackStorageBuffer<uint32_t>(lsi->get_prof_counter_buffer(), 8);
+    if (!dbg.empty()) {
+      LOG(INFO) << "LSI DBG:"
+                << " raygen=" << dbg[0] << " miss=" << (dbg.size() > 1 ? dbg[1] : 0) << " inter=" << (dbg.size() > 2 ? dbg[2] : 0)
+                << " writes=" << (dbg.size() > 3 ? dbg[3] : 0) << " last_eid=" << (dbg.size() > 4 ? dbg[4] : 0)
+                << " last_prim=" << (dbg.size() > 5 ? dbg[5] : 0);
+    }
+
     if (n_xsects == 0) {
       LOG(INFO) << "DebugPrintIntersections: no intersections reported";
       return;

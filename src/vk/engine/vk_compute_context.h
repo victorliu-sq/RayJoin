@@ -286,7 +286,6 @@ inline VkInstance initVkComputeContext(VkComputeContext& ctx) {
   //////////////////////////////////////////////////////
   // VMA allocator
   //////////////////////////////////////////////////////
-
   VmaAllocatorCreateInfo vaci{};
   vaci.instance = ctx.instance;
   vaci.physicalDevice = ctx.phys;
