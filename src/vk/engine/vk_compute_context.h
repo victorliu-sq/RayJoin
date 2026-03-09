@@ -1,13 +1,12 @@
 #ifndef RAYJOIN_VK_CONTEXT_H
 #define RAYJOIN_VK_CONTEXT_H
 
-#include <glog/logging.h>
-#include <vulkan/vulkan.h>
-
 #include <cstring>
+#include <glog/logging.h>
 #include <set>
 #include <stdexcept>
 #include <vector>
+#include <vulkan/vulkan.h>
 
 #include "vk_compute_context.h"
 #include "vk_helpers.h"
@@ -40,8 +39,7 @@ inline uint32_t findComputeQueueFamily(VkPhysicalDevice phys) {
 
   // Prefer compute-capabile
   for (uint32_t i = 0; i < count; ++i) {
-    if (props[i].queueFlags & VK_QUEUE_COMPUTE_BIT)
-      return i;
+    if (props[i].queueFlags & VK_QUEUE_COMPUTE_BIT) return i;
   }
   throw std::runtime_error("No compute queue family found");
 }
@@ -61,8 +59,7 @@ inline VkPhysicalDevice findDiscretePhysicalDevice(VkInstance instance) {
   while (i < devices.size() && selected == VK_NULL_HANDLE) {
     VkPhysicalDevice dev = devices[i];
 
-    VkPhysicalDeviceProperties2 props{
-        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
+    VkPhysicalDeviceProperties2 props{VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
 
     vkGetPhysicalDeviceProperties2(dev, &props);
 
@@ -91,9 +88,7 @@ inline VkInstance createInstanceMinimal() {
       .apiVersion = VK_API_VERSION_1_3,
   };
 
-  VkInstanceCreateInfo instance_create_info{
-      .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-      .pApplicationInfo = &app};
+  VkInstanceCreateInfo instance_create_info{.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO, .pApplicationInfo = &app};
 
   VkInstance instance = VK_NULL_HANDLE;
   vkCheck(vkCreateInstance(&instance_create_info, nullptr, &instance));
@@ -170,7 +165,6 @@ inline VkDescriptorPool createDescriptorPoolSimple(VkDevice device) {
 // }
 
 inline VkInstance initVkComputeContext(VkComputeContext& ctx) {
-
   ctx.instance = createInstanceMinimal();
 
   ctx.phys = findDiscretePhysicalDevice(ctx.instance);
@@ -193,12 +187,10 @@ inline VkInstance initVkComputeContext(VkComputeContext& ctx) {
   vkEnumerateDeviceExtensionProperties(ctx.phys, nullptr, &extCount, nullptr);
 
   std::vector<VkExtensionProperties> extProps(extCount);
-  vkEnumerateDeviceExtensionProperties(
-      ctx.phys, nullptr, &extCount, extProps.data());
+  vkEnumerateDeviceExtensionProperties(ctx.phys, nullptr, &extCount, extProps.data());
 
   std::set<std::string> supported;
-  for (auto& e : extProps)
-    supported.insert(e.extensionName);
+  for (auto& e: extProps) supported.insert(e.extensionName);
 
   size_t num_supported = supported.size();
   //////////////////////////////////////////////////////
@@ -206,17 +198,13 @@ inline VkInstance initVkComputeContext(VkComputeContext& ctx) {
   //////////////////////////////////////////////////////
   std::vector<const char*> extensions;
 
-  if (supported.count(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME))
-    extensions.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
+  if (supported.count(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME)) extensions.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
 
-  if (supported.count(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME))
-    extensions.push_back(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
+  if (supported.count(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME)) extensions.push_back(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
 
-  if (supported.count(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME))
-    extensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
+  if (supported.count(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME)) extensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
 
-  if (supported.count(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME))
-    extensions.push_back(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
+  if (supported.count(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME)) extensions.push_back(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
 
 
   size_t num_extensions = extensions.size();
@@ -225,16 +213,13 @@ inline VkInstance initVkComputeContext(VkComputeContext& ctx) {
   //////////////////////////////////////////////////////
 
   VkPhysicalDeviceBufferDeviceAddressFeatures bufferAddress{};
-  bufferAddress.sType =
-      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
+  bufferAddress.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
 
   VkPhysicalDeviceAccelerationStructureFeaturesKHR accelFeature{};
-  accelFeature.sType =
-      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+  accelFeature.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
 
   VkPhysicalDeviceRayTracingPipelineFeaturesKHR rayFeature{};
-  rayFeature.sType =
-      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+  rayFeature.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
 
   rayFeature.pNext = &accelFeature;
   accelFeature.pNext = &bufferAddress;
@@ -261,8 +246,7 @@ inline VkInstance initVkComputeContext(VkComputeContext& ctx) {
   dci.queueCreateInfoCount = 1;
   dci.pQueueCreateInfos = &qci;
 
-  dci.enabledExtensionCount =
-      static_cast<uint32_t>(extensions.size());
+  dci.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
   dci.ppEnabledExtensionNames = extensions.data();
 
   dci.pNext = &features2;
@@ -303,10 +287,8 @@ inline VkInstance initVkComputeContext(VkComputeContext& ctx) {
 inline void destroyVkComputeContext(VkComputeContext& ctx) {
   if (ctx.device) {
     vkDeviceWaitIdle(ctx.device);
-    if (ctx.vma)
-      vmaDestroyAllocator(ctx.vma);
-    if (ctx.cmdPool)
-      vkDestroyCommandPool(ctx.device, ctx.cmdPool, nullptr);
+    if (ctx.vma) vmaDestroyAllocator(ctx.vma);
+    if (ctx.cmdPool) vkDestroyCommandPool(ctx.device, ctx.cmdPool, nullptr);
     vkDestroyDevice(ctx.device, nullptr);
   }
   ctx = {};

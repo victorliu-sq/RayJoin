@@ -15,7 +15,7 @@ template<typename CONTEXT_T>
 class MapOverlayRT : public MapOverlay<CONTEXT_T> {
   using map_t = typename CONTEXT_T::map_t;
 
-public:
+ public:
   explicit MapOverlayRT(CONTEXT_T &ctx) : MapOverlay<CONTEXT_T>(ctx) {
     rt_engine_ = std::make_shared<RTEngine>();
     this->lsi_ = std::make_shared<LSIRT<CONTEXT_T>>(ctx, rt_engine_);
@@ -105,7 +105,7 @@ public:
       fill_primitives_pass_ = std::make_unique<FillPrimitives>(spvPath.c_str(),
                                                                map->getPointsBuffer(),
                                                                map->getEdgesBuffer(),
-                                                               map->getScalingBuffer(), // ← NEW
+                                                               map->getScalingBuffer(),  // ← NEW
                                                                aabbs_buf_,
                                                                eid_range_buf_[im],
                                                                map_edge_count_[im],
@@ -143,7 +143,7 @@ public:
 
   void WriteResult(const char *path) override {}
 
-private:
+ private:
   std::shared_ptr<RTEngine> rt_engine_;
   QueryConfigRT config_;
 
@@ -214,9 +214,8 @@ private:
 
       bool inside = (minx >= aabb.minX && maxx <= aabb.maxX && miny >= aabb.minY && maxy <= aabb.maxY);
 
-      LOG(INFO) << "AABB=[("
-          << aabb.minX << "," << aabb.minY << "," << aabb.minZ << ") ("
-          << aabb.maxX << "," << aabb.maxY << "," << aabb.maxZ << ")]";
+      LOG(INFO) << "AABB=[(" << aabb.minX << "," << aabb.minY << "," << aabb.minZ << ") (" << aabb.maxX << "," << aabb.maxY << "," << aabb.maxZ
+                << ")]";
 
       LOG(INFO) << "eid=" << eid << " edge=(" << x1 << "," << y1 << ") -> (" << x2 << "," << y2 << ")"
                 << " AABB=[(" << aabb.minX << "," << aabb.minY << ") (" << aabb.maxX << "," << aabb.maxY << ")]"
@@ -224,7 +223,7 @@ private:
     }
   }
 
-private:
+ private:
   void DebugPrintIntersections(int query_map_id, uint32_t max_print = 20) const {
     using lsi_t = LSIRT<CONTEXT_T>;
 
@@ -310,37 +309,25 @@ private:
       auto e1_p1_agst_e2 = subedge(e1_p1, e2);
       auto e1_p2_agst_e2 = subedge(e1_p2, e2);
 
-      if (e1_p1_agst_e2 == 0)
-        e1_p1_agst_e2 = -e2.a;
-      if (e1_p1_agst_e2 == 0)
-        e1_p1_agst_e2 = -e2.b;
-      if (e1_p1_agst_e2 == 0)
-        return false;
+      if (e1_p1_agst_e2 == 0) e1_p1_agst_e2 = -e2.a;
+      if (e1_p1_agst_e2 == 0) e1_p1_agst_e2 = -e2.b;
+      if (e1_p1_agst_e2 == 0) return false;
 
-      if (e1_p2_agst_e2 == 0)
-        e1_p2_agst_e2 = -e2.a;
-      if (e1_p2_agst_e2 == 0)
-        e1_p2_agst_e2 = -e2.b;
-      if (e1_p2_agst_e2 == 0)
-        return false;
+      if (e1_p2_agst_e2 == 0) e1_p2_agst_e2 = -e2.a;
+      if (e1_p2_agst_e2 == 0) e1_p2_agst_e2 = -e2.b;
+      if (e1_p2_agst_e2 == 0) return false;
 
       if ((e1_p1_agst_e2 > 0 && e1_p2_agst_e2 > 0) || (e1_p1_agst_e2 < 0 && e1_p2_agst_e2 < 0)) {
         return false;
       }
 
-      if (e2_p1_agst_e1 == 0)
-        e2_p1_agst_e1 = e1.a;
-      if (e2_p1_agst_e1 == 0)
-        e2_p1_agst_e1 = e1.b;
-      if (e2_p1_agst_e1 == 0)
-        return false;
+      if (e2_p1_agst_e1 == 0) e2_p1_agst_e1 = e1.a;
+      if (e2_p1_agst_e1 == 0) e2_p1_agst_e1 = e1.b;
+      if (e2_p1_agst_e1 == 0) return false;
 
-      if (e2_p2_agst_e1 == 0)
-        e2_p2_agst_e1 = e1.a;
-      if (e2_p2_agst_e1 == 0)
-        e2_p2_agst_e1 = e1.b;
-      if (e2_p2_agst_e1 == 0)
-        return false;
+      if (e2_p2_agst_e1 == 0) e2_p2_agst_e1 = e1.a;
+      if (e2_p2_agst_e1 == 0) e2_p2_agst_e1 = e1.b;
+      if (e2_p2_agst_e1 == 0) return false;
 
       if ((e2_p1_agst_e1 > 0 && e2_p2_agst_e1 > 0) || (e2_p1_agst_e1 < 0 && e2_p2_agst_e1 < 0)) {
         return false;
@@ -350,8 +337,7 @@ private:
 
       bool opp_dir = (e1_p1.x == e2_p2.x && e1_p1.y == e2_p2.y && e1_p2.x == e2_p1.x && e1_p2.y == e2_p1.y);
 
-      if (same_dir || opp_dir)
-        return false;
+      if (same_dir || opp_dir) return false;
 
       return true;
     };
@@ -406,6 +392,6 @@ private:
   }
 };
 
-} // namespace vk
-} // namespace rayjoin
-#endif // RAYJOIN_MAP_OVERLAY_RT_H
+}  // namespace vk
+}  // namespace rayjoin
+#endif  // RAYJOIN_MAP_OVERLAY_RT_H

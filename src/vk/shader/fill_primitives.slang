@@ -22,7 +22,7 @@ struct Range {
 };
 
 float next_float_from_double(double v, int dir, int iter) {
-  float fv = (float) v;
+  float fv = (float)v;
 
   if (fv == 0.0f)
     return 0.0f;

@@ -35,24 +35,24 @@ struct Push {
 [[vk::push_constant]]
 Push pc;
 
-PointI64* gPoints() {
-  return (PointI64*) pc.pointsAddr;
+PointI64 *gPoints() {
+  return (PointI64 *)pc.pointsAddr;
 }
-Chain* gChains() {
-  return (Chain*) pc.chainsAddr;
+Chain *gChains() {
+  return (Chain *)pc.chainsAddr;
 }
-uint* gRowIdx() {
-  return (uint*) pc.rowIdxAddr;
+uint *gRowIdx() {
+  return (uint *)pc.rowIdxAddr;
 }
-Edge* gEdges() {
-  return (Edge*) pc.edgesAddr;
+Edge *gEdges() {
+  return (Edge *)pc.edgesAddr;
 }
 
 uint findChain(uint pIdx) {
   uint lo = 0;
   uint hi = pc.numChains;
 
-  uint* row = gRowIdx();
+  uint *row = gRowIdx();
 
   while (lo + 1 < hi) {
     uint mid = (lo + hi) >> 1;
@@ -73,10 +73,10 @@ void main(uint3 tid: SV_DispatchThreadID) {
   if (pIdx >= pc.numPoints)
     return;
 
-  PointI64* points = gPoints();
-  Chain* chains = gChains();
-  uint* row = gRowIdx();
-  Edge* edges = gEdges();
+  PointI64 *points = gPoints();
+  Chain *chains = gChains();
+  uint *row = gRowIdx();
+  Edge *edges = gEdges();
 
   uint chainId = findChain(pIdx);
 

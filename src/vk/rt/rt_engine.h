@@ -5,7 +5,6 @@
 #include <memory>
 #include <stdexcept>
 #include <vector>
-
 #include <vulkan/vulkan.h>
 
 #include "vk/engine/vk_buffer.h"
@@ -13,7 +12,7 @@
 namespace rayjoin {
 namespace vk {
 class RTEngine {
-public:
+ public:
   RTEngine();
   ~RTEngine();
 
@@ -61,7 +60,7 @@ public:
                    const VkDeviceBuf &query_edges_buf,
                    const VkDeviceBuf &scaling_buf,
                    const VkDeviceBuf &xsect_buf,
-                   const VkDeviceBuf &xsect_counter_buf, // NEW
+                   const VkDeviceBuf &xsect_counter_buf,  // NEW
                    const VkDeviceBuf &prof_counter_buf,
                    uint32_t xsect_capacity,
                    int query_map_id,
@@ -74,7 +73,7 @@ public:
   // --------------------------------------------------------------------------
   void RunLSI();
 
-private:
+ private:
   // --------------------------------------------------------------------------
   // EXISTING:
   // Tracks BLAS handles and their backing buffers so they can be destroyed
@@ -85,13 +84,13 @@ private:
   //   VkDeviceBuf buffer;
   // };
   struct AccelEntry {
-    VkAccelerationStructureKHR accel = VK_NULL_HANDLE; // TLAS
-    VkDeviceBuf buffer; // TLAS buffer
+    VkAccelerationStructureKHR accel = VK_NULL_HANDLE;  // TLAS
+    VkDeviceBuf buffer;  // TLAS buffer
 
-    VkAccelerationStructureKHR blas = VK_NULL_HANDLE; // BLAS
-    VkDeviceBuf blasBuffer; // BLAS buffer
+    VkAccelerationStructureKHR blas = VK_NULL_HANDLE;  // BLAS
+    VkDeviceBuf blasBuffer;  // BLAS buffer
 
-    VkDeviceBuf instanceBuffer; // TLAS instance data
+    VkDeviceBuf instanceBuffer;  // TLAS instance data
   };
 
   // ==========================================================================
@@ -152,7 +151,7 @@ private:
   // --------------------------------------------------------------------------
   LSIQueryState lsi_query_{};
 
-private:
+ private:
   // --------------------------------------------------------------------------
   // EXISTING:
   // BLAS storage.
@@ -191,7 +190,7 @@ private:
 
   PFN_vkCmdTraceRaysKHR fpCmdTraceRaysKHR = nullptr;
 
-private:
+ private:
   // --------------------------------------------------------------------------
   // EXISTING + EXTENDED:
   // Loads Vulkan function pointers.
@@ -264,7 +263,7 @@ private:
   }
 };
 
-} // namespace vk
-} // namespace rayjoin
+}  // namespace vk
+}  // namespace rayjoin
 
 #endif

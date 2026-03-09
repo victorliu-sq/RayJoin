@@ -6,7 +6,7 @@ namespace vk {
 
 template<typename CONTEXT_T>
 class LSIRT : public LSI<CONTEXT_T> {
-public:
+ public:
   // super class
   using lsi = LSI<CONTEXT_T>;
 
@@ -48,7 +48,7 @@ public:
                             base_map->getEdgesBuffer(),
                             query_map->getPointsBuffer(),
                             query_map->getEdgesBuffer(),
-                            query_map->getScalingBuffer(), // NEW
+                            query_map->getScalingBuffer(),  // NEW
                             this->get_xsect_buffer(),
                             this->get_xsect_counter_buffer(),
                             this->get_prof_counter_buffer(),
@@ -61,12 +61,12 @@ public:
 
   void set_config(QueryConfigRT config) { config_ = std::move(config); }
 
-private:
+ private:
   std::shared_ptr<RTEngine> rt_engine_;
   QueryConfigRT config_;
   // SharedValue<uint32_t> n_tests_;
 };
-} // namespace vk
-} // namespace rayjoin
+}  // namespace vk
+}  // namespace rayjoin
 
-#endif // RAYJOIN_LSI_RT_H
+#endif  // RAYJOIN_LSI_RT_H
