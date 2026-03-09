@@ -1,6 +1,7 @@
 module lsi_rt;
 
 import scaling;
+import edge;
 
 // ============================================================================
 // lsi_rt_debug.slang
@@ -24,14 +25,6 @@ import scaling;
 //   That matches your C++ side, which binds binding 1 as STORAGE_BUFFER.
 // ============================================================================
 
-struct Edge {
-  uint p1_idx;
-  uint p2_idx;
-  int a;
-  int b;
-  int64_t c;
-};
-
 struct Point {
   int64_t x;
   int64_t y;
@@ -43,16 +36,17 @@ struct EidRange {
 };
 
 struct Intersection {
-  int64_t x_num;
-  int64_t x_den;
-  int64_t y_num;
-  int64_t y_den;
+  int64_t x;
+  int64_t y;
 
-  uint eid0;
-  uint eid1;
+  uint64_t eid0;
+  uint64_t eid1;
 
-  int mid_point_polygon_id;
-  int _pad0;
+  uint mid_point_polygon_id;
+  uint _pad0;
+  uint64_t _pad1;
+  uint64_t _pad2;
+  uint64_t _pad3;
 };
 
 struct LaunchParamsLSI {
@@ -427,10 +421,152 @@ bool intersect_test(Edge e1, Point e1_p1, Point e1_p2, Edge e2, Point e2_p1, Poi
   return true;
 }
 
+// [shader("intersection")]
+// void intersectionMain(inout Payload payload) {
+//   uint prim_idx = PrimitiveIndex();
+//   uint query_eid = payload.queryEid;
+
+//   // Debug: count intersection-program invocations
+//   uint old2;
+//   InterlockedAdd(gTestCounter[2], 1, old2);
+//   gTestCounter[5] = prim_idx;
+
+//   LaunchParamsLSI params = gParamsBuf[0];
+//   uint query_map_id = (uint)params.query_map_id;
+
+//   Edge query_e = gQueryEdges[query_eid];
+//   Point query_e_p1 = gQueryPoints[query_e.p1_idx];
+//   Point query_e_p2 = gQueryPoints[query_e.p2_idx];
+
+//   EidRange range = gEidRanges[prim_idx];
+//   uint begin_eid = range.first;
+//   uint end_eid = range.second;
+
+//   for (uint base_eid = begin_eid; base_eid < end_eid; ++base_eid) {
+//     Edge base_e = gBaseEdges[base_eid];
+//     Point base_e_p1 = gBasePoints[base_e.p1_idx];
+//     Point base_e_p2 = gBasePoints[base_e.p2_idx];
+
+//     if (intersect_test(query_e, query_e_p1, query_e_p2, base_e, base_e_p1, base_e_p2)) {
+//       // Get Stuck Here
+//       // uint outIdx;
+//       // InterlockedAdd(gXsectCounter[0], 1, outIdx);
+
+//       // Debug: count successful append attempts
+//       // uint old3;
+//       // InterlockedAdd(gTestCounter[3], 1, old3);
+
+//       // if (outIdx < params.xsect_capacity) {
+//       //   Intersection x;
+//       //   x.x_num = 0;
+//       //   x.x_den = 1;
+//       //   x.y_num = 0;
+//       //   x.y_den = 1;
+
+//       //   // Match OptiX:
+//       //   // xsect.eid[query_map_id]     = query_eid;
+//       //   // xsect.eid[1 - query_map_id] = base_eid;
+//       //   if (query_map_id == 0) {
+//       //     x.eid0 = query_eid;
+//       //     x.eid1 = base_eid;
+//       //   } else {
+//       //     x.eid0 = base_eid;
+//       //     x.eid1 = query_eid;
+//       //   }
+
+//       //   x.mid_point_polygon_id = -1;  // DONTKNOW equivalent
+//       //   x._pad0 = 0;
+
+//       //   gXsects[outIdx] = x;
+//       // }
+//     }
+//   }
+
+//   // Debug: count number of tested base edges for this primitive
+//   uint nTests = end_eid - begin_eid;
+//   uint old6;
+//   InterlockedAdd(gTestCounter[6], nTests, old6);
+// }
+
+// [shader("intersection")]
+// void intersectionMain(inout Payload payload) {
+//   uint prim_idx = PrimitiveIndex();
+//   uint query_edge_index = payload.queryEid;
+
+//   // Debug: count intersection-program invocations
+//   uint old2;
+//   InterlockedAdd(gTestCounter[2], 1, old2);
+//   gTestCounter[5] = prim_idx;
+
+//   LaunchParamsLSI params = gParamsBuf[0];
+//   uint query_map_id = (uint)params.query_map_id;
+
+//   Edge query_e = gQueryEdges[query_edge_index];
+//   Point query_e_p1 = gQueryPoints[uint(query_e.p1_idx)];
+//   Point query_e_p2 = gQueryPoints[uint(query_e.p2_idx)];
+
+//   EidRange range = gEidRanges[prim_idx];
+//   uint begin_eid = range.first;
+//   uint end_eid = range.second;
+
+//   // for (uint base_edge_index = begin_eid; base_edge_index < end_eid; ++base_edge_index) {
+//   // Edge base_e = gBaseEdges[base_edge_index];
+//   Edge base_e = gBaseEdges[begin_eid];
+//   Point base_e_p1 = gBasePoints[uint(base_e.p1_idx)];
+//   Point base_e_p2 = gBasePoints[uint(base_e.p2_idx)];
+
+//   Rational64 xsect_x;
+//   Rational64 xsect_y;
+
+//   // if (intersect_test(query_e, query_e_p1, query_e_p2, base_e, base_e_p1, base_e_p2, xsect_x,
+//   //                    xsect_y)) {
+//   uint outIdx;
+//   InterlockedAdd(gXsectCounter[0], 1, outIdx);
+
+//   // Debug: count successful append attempts
+//   uint old3;
+//   InterlockedAdd(gTestCounter[3], 1, old3);
+
+//   if (outIdx < params.xsect_capacity) {
+//     Intersection x;
+
+//     // CPU-side Intersection stores int64 x/y, not rational pairs.
+//     // Current drop-in behavior:
+//     //   - if exact integer, store exact value
+//     //   - otherwise use integer division truncation
+//     //
+//     // If you want floor/round instead, change this policy here.
+//     x.x = xsect_x.num / xsect_x.den;
+//     x.y = xsect_y.num / xsect_y.den;
+
+//     // Store true 64-bit edge IDs, not array indices.
+//     if (query_map_id == 0) {
+//       x.eid0 = query_e.eid;
+//       x.eid1 = base_e.eid;
+//     } else {
+//       x.eid0 = base_e.eid;
+//       x.eid1 = query_e.eid;
+//     }
+
+//     // Unsigned DONTKNOW sentinel
+//     x.mid_point_polygon_id = 0xFFFFFFFFu;
+//     x._pad0 = 0;
+
+//     gXsects[outIdx] = x;
+//   }
+//   // }
+//   // }
+
+//   // Debug: count number of tested base edges for this primitive
+//   uint nTests = end_eid - begin_eid;
+//   uint old6;
+//   InterlockedAdd(gTestCounter[6], nTests, old6);
+// }
+
 [shader("intersection")]
 void intersectionMain(inout Payload payload) {
   uint prim_idx = PrimitiveIndex();
-  uint query_eid = payload.queryEid;
+  uint query_edge_index = payload.queryEid;
 
   // Debug: count intersection-program invocations
   uint old2;
@@ -440,52 +576,56 @@ void intersectionMain(inout Payload payload) {
   LaunchParamsLSI params = gParamsBuf[0];
   uint query_map_id = (uint)params.query_map_id;
 
-  Edge query_e = gQueryEdges[query_eid];
-  Point query_e_p1 = gQueryPoints[query_e.p1_idx];
-  Point query_e_p2 = gQueryPoints[query_e.p2_idx];
+  Edge query_e = gQueryEdges[query_edge_index];
+  Point query_e_p1 = gQueryPoints[uint(query_e.p1_idx)];
+  Point query_e_p2 = gQueryPoints[uint(query_e.p2_idx)];
 
   EidRange range = gEidRanges[prim_idx];
   uint begin_eid = range.first;
   uint end_eid = range.second;
 
-  for (uint base_eid = begin_eid; base_eid < end_eid; ++base_eid) {
-    Edge base_e = gBaseEdges[base_eid];
-    Point base_e_p1 = gBasePoints[base_e.p1_idx];
-    Point base_e_p2 = gBasePoints[base_e.p2_idx];
+  // for (uint base_edge_index = begin_eid; base_edge_index < end_eid; ++base_edge_index) {
+  // Edge base_e = gBaseEdges[base_edge_index];
+  Edge base_e = gBaseEdges[begin_eid];
+  Point base_e_p1 = gBasePoints[uint(base_e.p1_idx)];
+  Point base_e_p2 = gBasePoints[uint(base_e.p2_idx)];
 
-    if (intersect_test(query_e, query_e_p1, query_e_p2, base_e, base_e_p1, base_e_p2)) {
-      // Get Stuck Here
-      uint outIdx;
-      InterlockedAdd(gXsectCounter[0], 1, outIdx);
+  Rational64 xsect_x;
+  Rational64 xsect_y;
 
-      // Debug: count successful append attempts
-      uint old3;
-      InterlockedAdd(gTestCounter[3], 1, old3);
+  uint outIdx;
+  InterlockedAdd(gXsectCounter[0], 1, outIdx);
 
-      if (outIdx < params.xsect_capacity) {
-        Intersection x;
-        x.x_num = 0;
-        x.x_den = 1;
-        x.y_num = 0;
-        x.y_den = 1;
+  if (outIdx < params.xsect_capacity) {
+    Intersection x;
 
-        // Match OptiX:
-        // xsect.eid[query_map_id]     = query_eid;
-        // xsect.eid[1 - query_map_id] = base_eid;
-        if (query_map_id == 0) {
-          x.eid0 = query_eid;
-          x.eid1 = base_eid;
-        } else {
-          x.eid0 = base_eid;
-          x.eid1 = query_eid;
-        }
+    // Debug: count successful append attempts
+    uint old3;
+    InterlockedAdd(gTestCounter[3], 1, old3);
 
-        x.mid_point_polygon_id = -1;  // DONTKNOW equivalent
-        x._pad0 = 0;
+    // CPU-side Intersection stores int64 x/y, not rational pairs.
+    // Current drop-in behavior:
+    //   - if exact integer, store exact value
+    //   - otherwise use integer division truncation
+    //
+    // If you want floor/round instead, change this policy here.
+    x.x = xsect_x.num / xsect_x.den;
+    x.y = xsect_y.num / xsect_y.den;
 
-        gXsects[outIdx] = x;
-      }
+    // Store true 64-bit edge IDs, not array indices.
+    if (query_map_id == 0) {
+      x.eid0 = query_e.eid;
+      x.eid1 = base_e.eid;
+    } else {
+      x.eid0 = base_e.eid;
+      x.eid1 = query_e.eid;
     }
+
+    // Unsigned DONTKNOW sentinel
+    x.mid_point_polygon_id = 0xFFFFFFFFu;
+    x._pad0 = 0;
+
+    gXsects[outIdx] = x;
   }
 
   // Debug: count number of tested base edges for this primitive

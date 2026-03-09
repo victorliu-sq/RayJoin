@@ -23,6 +23,7 @@ template <>
 struct internal_coord<double> {
   using type = int64_t;
   constexpr static int shift = 17;
+  // constexpr static int shift = 32;
 };
 }  // namespace detail
 

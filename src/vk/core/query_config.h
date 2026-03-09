@@ -14,7 +14,7 @@ struct QueryConfigRT {
   // algorithm knobs
   bool profile = false;
   bool fau = true;
-  float xsect_factor = 1.5f;
+  float xsect_factor = 2.5f;
   int win = 0;
   int ag_iter = 0;
   float enlarge = 0.0f;
