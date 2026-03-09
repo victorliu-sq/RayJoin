@@ -212,15 +212,15 @@ void raygenMain()
     }
 
     RayDesc ray;
-    // ray.Origin = float3((float)x1, (float)y1, 0.0);
-    // ray.Direction = float3((float)(x2 - x1), (float)(y2 - y1), 0.0);
-    // ray.TMin = 0.0;
-    // ray.TMax = 1.0;
-
-    ray.Origin = float3(-100.0, -3.0, 0.0);
-    ray.Direction = float3(1.0, 0.0, 0.0);
+    ray.Origin = float3((float)x1, (float)y1, 0.0);
+    ray.Direction = float3((float)(x2 - x1), (float)(y2 - y1), 0.0);
     ray.TMin = 0.0;
-    ray.TMax = 1000.0;
+    ray.TMax = 1.0;
+
+    // ray.Origin = float3(-100.0, -3.0, 0.0);
+    // ray.Direction = float3(1.0, 0.0, 0.0);
+    // ray.TMin = 0.0;
+    // ray.TMax = 1000.0;
 
     Payload payload;
     payload.queryEid = eid;
@@ -490,51 +490,53 @@ void intersectionMain(inout Payload payload)
     uint begin_eid = range.first;
     uint end_eid = range.second;
 
-    // for (uint base_eid = begin_eid; base_eid < end_eid; ++base_eid)
-    // {
-    //     Edge base_e = gBaseEdges[base_eid];
-    //     Point base_e_p1 = gBasePoints[base_e.p1_idx];
-    //     Point base_e_p2 = gBasePoints[base_e.p2_idx];
+    for (uint base_eid = begin_eid; base_eid < end_eid; ++base_eid)
+    {
+        Edge base_e = gBaseEdges[base_eid];
+        Point base_e_p1 = gBasePoints[base_e.p1_idx];
+        Point base_e_p2 = gBasePoints[base_e.p2_idx];
 
-    //     if (intersect_test(query_e, query_e_p1, query_e_p2,
-    //                        base_e,  base_e_p1,  base_e_p2))
-    //     {
-    //         uint outIdx;
-    //         InterlockedAdd(gXsectCounter[0], 1, outIdx);
+        // if (intersect_test(query_e, query_e_p1, query_e_p2,
+        //                    base_e,  base_e_p1,  base_e_p2))
+        // {
 
-    //         // Debug: count successful append attempts
-    //         uint old3;
-    //         InterlockedAdd(gTestCounter[3], 1, old3);
+        //     // Get Stuck Here
+        //     uint outIdx;
+        //     InterlockedAdd(gXsectCounter[0], 1, outIdx);
 
-    //         if (outIdx < params.xsect_capacity)
-    //         {
-    //             Intersection x;
-    //             x.x_num = 0;
-    //             x.x_den = 1;
-    //             x.y_num = 0;
-    //             x.y_den = 1;
+        //     // Debug: count successful append attempts
+        //     uint old3;
+        //     InterlockedAdd(gTestCounter[3], 1, old3);
 
-    //             // Match OptiX:
-    //             // xsect.eid[query_map_id]     = query_eid;
-    //             // xsect.eid[1 - query_map_id] = base_eid;
-    //             if (query_map_id == 0)
-    //             {
-    //                 x.eid0 = query_eid;
-    //                 x.eid1 = base_eid;
-    //             }
-    //             else
-    //             {
-    //                 x.eid0 = base_eid;
-    //                 x.eid1 = query_eid;
-    //             }
+        //     if (outIdx < params.xsect_capacity)
+        //     {
+        //         Intersection x;
+        //         x.x_num = 0;
+        //         x.x_den = 1;
+        //         x.y_num = 0;
+        //         x.y_den = 1;
 
-    //             x.mid_point_polygon_id = -1; // DONTKNOW equivalent
-    //             x._pad0 = 0;
+        //         // Match OptiX:
+        //         // xsect.eid[query_map_id]     = query_eid;
+        //         // xsect.eid[1 - query_map_id] = base_eid;
+        //         if (query_map_id == 0)
+        //         {
+        //             x.eid0 = query_eid;
+        //             x.eid1 = base_eid;
+        //         }
+        //         else
+        //         {
+        //             x.eid0 = base_eid;
+        //             x.eid1 = query_eid;
+        //         }
 
-    //             gXsects[outIdx] = x;
-    //         }
-    //     }
-    // }
+        //         x.mid_point_polygon_id = -1; // DONTKNOW equivalent
+        //         x._pad0 = 0;
+
+        //         gXsects[outIdx] = x;
+        //     }
+        // }
+    }
 
     // Debug: count number of tested base edges for this primitive
     uint nTests = end_eid - begin_eid;

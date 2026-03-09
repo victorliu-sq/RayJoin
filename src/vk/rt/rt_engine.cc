@@ -1171,17 +1171,6 @@ void RTEngine::RunLSI() {
       1,
       1);
 
-
-  // fpCmdTraceRaysKHR(
-  //     cmd,
-  //     &rgen,
-  //     &miss,
-  //     &hit,
-  //     &call,
-  //     1,
-  //     1,
-  //     1);
-
   endSubmitWait(device_, ctx_->queue, ctx_->cmdPool, cmd);
 }
 
