@@ -65,8 +65,15 @@ RTEngine::~RTEngine() {
     return;
 
   for (auto &e: accels_) {
+    // if (e.accel != VK_NULL_HANDLE) {
+    //   fpDestroyAccelerationStructureKHR(device_, e.accel, nullptr);
+    // }
+
     if (e.accel != VK_NULL_HANDLE) {
       fpDestroyAccelerationStructureKHR(device_, e.accel, nullptr);
+    }
+    if (e.blas != VK_NULL_HANDLE) {
+      fpDestroyAccelerationStructureKHR(device_, e.blas, nullptr);
     }
   }
 }
@@ -128,127 +135,387 @@ void RTEngine::loadFunctionPointers() {
 // EXISTING BLAS BUILD CODE
 // ============================================================================
 
+// VkAccelerationStructureKHR RTEngine::BuildAccelCustom(const VkDeviceBuf &aabb_buf, uint32_t primitive_count) {
+//   auto &ctx = *ctx_;
+//
+//   VkAccelerationStructureGeometryKHR geometry{};
+//   geometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
+//   geometry.geometryType = VK_GEOMETRY_TYPE_AABBS_KHR;
+//   geometry.flags = VK_GEOMETRY_OPAQUE_BIT_KHR;
+//
+//   geometry.geometry.aabbs.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_AABBS_DATA_KHR;
+//   geometry.geometry.aabbs.data.deviceAddress = aabb_buf.DeviceAddress();
+//   geometry.geometry.aabbs.stride = sizeof(VkAabbPositionsKHR);
+//
+//   VkAccelerationStructureBuildRangeInfoKHR range{};
+//   range.primitiveCount = primitive_count;
+//   const VkAccelerationStructureBuildRangeInfoKHR *rangePtr = &range;
+//
+//   VkAccelerationStructureBuildGeometryInfoKHR buildInfo{};
+//   buildInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
+//   buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+//   buildInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR | VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR;
+//   buildInfo.geometryCount = 1;
+//   buildInfo.pGeometries = &geometry;
+//
+//   uint32_t primCounts[] = {primitive_count};
+//
+//   VkAccelerationStructureBuildSizesInfoKHR sizeInfo{};
+//   sizeInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
+//
+//   fpGetAccelerationStructureBuildSizesKHR(device_, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &buildInfo, primCounts, &sizeInfo);
+//
+//   VkDeviceBuf asBuffer;
+//   asBuffer.InitAS(sizeInfo.accelerationStructureSize);
+//
+//   VkAccelerationStructureCreateInfoKHR createInfo{};
+//   createInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
+//   createInfo.buffer = asBuffer.Buf();
+//   createInfo.size = sizeInfo.accelerationStructureSize;
+//   createInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+//
+//   VkAccelerationStructureKHR accel = VK_NULL_HANDLE;
+//   fpCreateAccelerationStructureKHR(device_, &createInfo, nullptr, &accel);
+//
+//   VkDeviceBuf scratch;
+//   scratch.Init(sizeInfo.buildScratchSize);
+//
+//   buildInfo.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
+//   buildInfo.dstAccelerationStructure = accel;
+//   buildInfo.scratchData.deviceAddress = scratch.DeviceAddress();
+//
+//   VkQueryPool queryPool;
+//   VkQueryPoolCreateInfo qp{};
+//   qp.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
+//   qp.queryType = VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR;
+//   qp.queryCount = 1;
+//
+//   vkCreateQueryPool(device_, &qp, nullptr, &queryPool);
+//   vkResetQueryPool(device_, queryPool, 0, 1);
+//
+//   VkCommandBuffer cmd = beginOneTime(ctx.device, ctx.cmdPool);
+//
+//   fpCmdBuildAccelerationStructuresKHR(cmd, 1, &buildInfo, &rangePtr);
+//
+//   VkMemoryBarrier barrier{};
+//   barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+//   barrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
+//   barrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
+//
+//   vkCmdPipelineBarrier(cmd,
+//                        VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+//                        VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+//                        0,
+//                        1,
+//                        &barrier,
+//                        0,
+//                        nullptr,
+//                        0,
+//                        nullptr);
+//
+//   fpCmdWriteAccelerationStructuresPropertiesKHR(cmd, 1, &accel, VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR, queryPool, 0);
+//
+//   endSubmitWait(ctx.device, ctx.queue, ctx.cmdPool, cmd);
+//
+//   VkDeviceSize compactSize = 0;
+//   vkGetQueryPoolResults(
+//       device_, queryPool, 0, 1, sizeof(VkDeviceSize), &compactSize, sizeof(VkDeviceSize), VK_QUERY_RESULT_WAIT_BIT | VK_QUERY_RESULT_64_BIT);
+//
+//   vkDestroyQueryPool(device_, queryPool, nullptr);
+//
+//   LOG(INFO) << "Original AS size: " << sizeInfo.accelerationStructureSize;
+//   LOG(INFO) << "Compacted size: " << compactSize;
+//
+//   if (compactSize == 0 || compactSize > sizeInfo.accelerationStructureSize) {
+//     compactSize = sizeInfo.accelerationStructureSize;
+//   }
+//
+//   VkDeviceBuf compactBuffer;
+//   compactBuffer.InitAS(compactSize);
+//
+//   VkAccelerationStructureCreateInfoKHR compactInfo{};
+//   compactInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
+//   compactInfo.buffer = compactBuffer.Buf();
+//   compactInfo.size = compactSize;
+//   compactInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+//
+//   VkAccelerationStructureKHR compactAccel = VK_NULL_HANDLE;
+//   fpCreateAccelerationStructureKHR(device_, &compactInfo, nullptr, &compactAccel);
+//
+//   VkCopyAccelerationStructureInfoKHR copyInfo{};
+//   copyInfo.sType = VK_STRUCTURE_TYPE_COPY_ACCELERATION_STRUCTURE_INFO_KHR;
+//   copyInfo.src = accel;
+//   copyInfo.dst = compactAccel;
+//   copyInfo.mode = VK_COPY_ACCELERATION_STRUCTURE_MODE_COMPACT_KHR;
+//
+//   cmd = beginOneTime(ctx.device, ctx.cmdPool);
+//   fpCmdCopyAccelerationStructureKHR(cmd, &copyInfo);
+//   endSubmitWait(ctx.device, ctx.queue, ctx.cmdPool, cmd);
+//
+//   fpDestroyAccelerationStructureKHR(device_, accel, nullptr);
+//
+//   accels_.push_back({compactAccel, std::move(compactBuffer)});
+//   return compactAccel;
+// }
+
 VkAccelerationStructureKHR RTEngine::BuildAccelCustom(const VkDeviceBuf &aabb_buf, uint32_t primitive_count) {
   auto &ctx = *ctx_;
 
-  VkAccelerationStructureGeometryKHR geometry{};
-  geometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
-  geometry.geometryType = VK_GEOMETRY_TYPE_AABBS_KHR;
-  geometry.flags = VK_GEOMETRY_OPAQUE_BIT_KHR;
+  // ==========================================================================
+  // 1) Build BLAS from AABBs
+  // ==========================================================================
+  VkAccelerationStructureGeometryKHR blasGeometry{};
+  blasGeometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
+  blasGeometry.geometryType = VK_GEOMETRY_TYPE_AABBS_KHR;
+  blasGeometry.flags = VK_GEOMETRY_OPAQUE_BIT_KHR;
 
-  geometry.geometry.aabbs.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_AABBS_DATA_KHR;
-  geometry.geometry.aabbs.data.deviceAddress = aabb_buf.DeviceAddress();
-  geometry.geometry.aabbs.stride = sizeof(VkAabbPositionsKHR);
+  blasGeometry.geometry.aabbs.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_AABBS_DATA_KHR;
+  blasGeometry.geometry.aabbs.data.deviceAddress = aabb_buf.DeviceAddress();
+  blasGeometry.geometry.aabbs.stride = sizeof(VkAabbPositionsKHR);
 
-  VkAccelerationStructureBuildRangeInfoKHR range{};
-  range.primitiveCount = primitive_count;
-  const VkAccelerationStructureBuildRangeInfoKHR *rangePtr = &range;
+  VkAccelerationStructureBuildRangeInfoKHR blasRange{};
+  blasRange.primitiveCount = primitive_count;
+  const VkAccelerationStructureBuildRangeInfoKHR *blasRangePtr = &blasRange;
 
-  VkAccelerationStructureBuildGeometryInfoKHR buildInfo{};
-  buildInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
-  buildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
-  buildInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR | VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR;
-  buildInfo.geometryCount = 1;
-  buildInfo.pGeometries = &geometry;
+  VkAccelerationStructureBuildGeometryInfoKHR blasBuildInfo{};
+  blasBuildInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
+  blasBuildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+  blasBuildInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR | VK_BUILD_ACCELERATION_STRUCTURE_ALLOW_COMPACTION_BIT_KHR;
+  blasBuildInfo.geometryCount = 1;
+  blasBuildInfo.pGeometries = &blasGeometry;
 
-  uint32_t primCounts[] = {primitive_count};
+  uint32_t blasPrimCounts[] = {primitive_count};
 
-  VkAccelerationStructureBuildSizesInfoKHR sizeInfo{};
-  sizeInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
+  VkAccelerationStructureBuildSizesInfoKHR blasSizeInfo{};
+  blasSizeInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
 
-  fpGetAccelerationStructureBuildSizesKHR(device_, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &buildInfo, primCounts, &sizeInfo);
+  fpGetAccelerationStructureBuildSizesKHR(device_, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &blasBuildInfo, blasPrimCounts, &blasSizeInfo);
 
-  VkDeviceBuf asBuffer;
-  asBuffer.InitAS(sizeInfo.accelerationStructureSize);
+  VkDeviceBuf blasBuffer;
+  blasBuffer.InitAS(blasSizeInfo.accelerationStructureSize);
 
-  VkAccelerationStructureCreateInfoKHR createInfo{};
-  createInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
-  createInfo.buffer = asBuffer.Buf();
-  createInfo.size = sizeInfo.accelerationStructureSize;
-  createInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+  VkAccelerationStructureCreateInfoKHR blasCreateInfo{};
+  blasCreateInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
+  blasCreateInfo.buffer = blasBuffer.Buf();
+  blasCreateInfo.size = blasSizeInfo.accelerationStructureSize;
+  blasCreateInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
 
-  VkAccelerationStructureKHR accel = VK_NULL_HANDLE;
-  fpCreateAccelerationStructureKHR(device_, &createInfo, nullptr, &accel);
+  VkAccelerationStructureKHR blas = VK_NULL_HANDLE;
+  VK_CHECK(fpCreateAccelerationStructureKHR(device_, &blasCreateInfo, nullptr, &blas));
 
-  VkDeviceBuf scratch;
-  scratch.Init(sizeInfo.buildScratchSize);
+  VkDeviceBuf blasScratch;
+  blasScratch.Init(blasSizeInfo.buildScratchSize);
 
-  buildInfo.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
-  buildInfo.dstAccelerationStructure = accel;
-  buildInfo.scratchData.deviceAddress = scratch.DeviceAddress();
+  blasBuildInfo.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
+  blasBuildInfo.dstAccelerationStructure = blas;
+  blasBuildInfo.scratchData.deviceAddress = blasScratch.DeviceAddress();
 
-  VkQueryPool queryPool;
+  VkQueryPool queryPool = VK_NULL_HANDLE;
   VkQueryPoolCreateInfo qp{};
   qp.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
   qp.queryType = VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR;
   qp.queryCount = 1;
-
-  vkCreateQueryPool(device_, &qp, nullptr, &queryPool);
+  VK_CHECK(vkCreateQueryPool(device_, &qp, nullptr, &queryPool));
   vkResetQueryPool(device_, queryPool, 0, 1);
 
   VkCommandBuffer cmd = beginOneTime(ctx.device, ctx.cmdPool);
 
-  fpCmdBuildAccelerationStructuresKHR(cmd, 1, &buildInfo, &rangePtr);
+  fpCmdBuildAccelerationStructuresKHR(cmd, 1, &blasBuildInfo, &blasRangePtr);
 
-  VkMemoryBarrier barrier{};
-  barrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
-  barrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
-  barrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
+  VkMemoryBarrier blasBarrier{};
+  blasBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+  blasBarrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
+  blasBarrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
 
   vkCmdPipelineBarrier(cmd,
                        VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
                        VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
                        0,
                        1,
-                       &barrier,
+                       &blasBarrier,
                        0,
                        nullptr,
                        0,
                        nullptr);
 
-  fpCmdWriteAccelerationStructuresPropertiesKHR(cmd, 1, &accel, VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR, queryPool, 0);
+  fpCmdWriteAccelerationStructuresPropertiesKHR(cmd, 1, &blas, VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR, queryPool, 0);
 
   endSubmitWait(ctx.device, ctx.queue, ctx.cmdPool, cmd);
 
   VkDeviceSize compactSize = 0;
-  vkGetQueryPoolResults(
-      device_, queryPool, 0, 1, sizeof(VkDeviceSize), &compactSize, sizeof(VkDeviceSize), VK_QUERY_RESULT_WAIT_BIT | VK_QUERY_RESULT_64_BIT);
+  VK_CHECK(vkGetQueryPoolResults(
+      device_, queryPool, 0, 1, sizeof(VkDeviceSize), &compactSize, sizeof(VkDeviceSize), VK_QUERY_RESULT_WAIT_BIT | VK_QUERY_RESULT_64_BIT));
 
   vkDestroyQueryPool(device_, queryPool, nullptr);
 
-  LOG(INFO) << "Original AS size: " << sizeInfo.accelerationStructureSize;
+  LOG(INFO) << "Original AS size: " << blasSizeInfo.accelerationStructureSize;
   LOG(INFO) << "Compacted size: " << compactSize;
 
-  if (compactSize == 0 || compactSize > sizeInfo.accelerationStructureSize) {
-    compactSize = sizeInfo.accelerationStructureSize;
+  if (compactSize == 0 || compactSize > blasSizeInfo.accelerationStructureSize) {
+    compactSize = blasSizeInfo.accelerationStructureSize;
   }
 
-  VkDeviceBuf compactBuffer;
-  compactBuffer.InitAS(compactSize);
+  VkDeviceBuf compactBlasBuffer;
+  compactBlasBuffer.InitAS(compactSize);
 
-  VkAccelerationStructureCreateInfoKHR compactInfo{};
-  compactInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
-  compactInfo.buffer = compactBuffer.Buf();
-  compactInfo.size = compactSize;
-  compactInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
+  VkAccelerationStructureCreateInfoKHR compactBlasCreateInfo{};
+  compactBlasCreateInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
+  compactBlasCreateInfo.buffer = compactBlasBuffer.Buf();
+  compactBlasCreateInfo.size = compactSize;
+  compactBlasCreateInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
 
-  VkAccelerationStructureKHR compactAccel = VK_NULL_HANDLE;
-  fpCreateAccelerationStructureKHR(device_, &compactInfo, nullptr, &compactAccel);
+  VkAccelerationStructureKHR compactBlas = VK_NULL_HANDLE;
+  VK_CHECK(fpCreateAccelerationStructureKHR(device_, &compactBlasCreateInfo, nullptr, &compactBlas));
 
   VkCopyAccelerationStructureInfoKHR copyInfo{};
   copyInfo.sType = VK_STRUCTURE_TYPE_COPY_ACCELERATION_STRUCTURE_INFO_KHR;
-  copyInfo.src = accel;
-  copyInfo.dst = compactAccel;
+  copyInfo.src = blas;
+  copyInfo.dst = compactBlas;
   copyInfo.mode = VK_COPY_ACCELERATION_STRUCTURE_MODE_COMPACT_KHR;
 
   cmd = beginOneTime(ctx.device, ctx.cmdPool);
   fpCmdCopyAccelerationStructureKHR(cmd, &copyInfo);
   endSubmitWait(ctx.device, ctx.queue, ctx.cmdPool, cmd);
 
-  fpDestroyAccelerationStructureKHR(device_, accel, nullptr);
+  fpDestroyAccelerationStructureKHR(device_, blas, nullptr);
+  blas = VK_NULL_HANDLE;
 
-  accels_.push_back({compactAccel, std::move(compactBuffer)});
-  return compactAccel;
+  // ==========================================================================
+  // 2) Create one instance referencing the BLAS
+  // ==========================================================================
+  VkAccelerationStructureDeviceAddressInfoKHR blasAddrInfo{};
+  blasAddrInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
+  blasAddrInfo.accelerationStructure = compactBlas;
+
+  VkDeviceAddress blasDeviceAddress = fpGetAccelerationStructureDeviceAddressKHR(device_, &blasAddrInfo);
+
+  VkTransformMatrixKHR identityTransform = {{
+      1.0f,
+      0.0f,
+      0.0f,
+      0.0f,
+      0.0f,
+      1.0f,
+      0.0f,
+      0.0f,
+      0.0f,
+      0.0f,
+      1.0f,
+      0.0f,
+  }};
+
+  VkAccelerationStructureInstanceKHR instance{};
+  instance.transform = identityTransform;
+  instance.instanceCustomIndex = 0;
+  instance.mask = 0xFF;
+  instance.instanceShaderBindingTableRecordOffset = 0;
+  instance.flags = VK_GEOMETRY_INSTANCE_FORCE_OPAQUE_BIT_KHR;
+  instance.accelerationStructureReference = blasDeviceAddress;
+
+  VkDeviceBuf instanceBuffer;
+  instanceBuffer.Init(sizeof(VkAccelerationStructureInstanceKHR));
+
+  {
+    VkStagingBuf staging(sizeof(VkAccelerationStructureInstanceKHR));
+    std::vector<VkAccelerationStructureInstanceKHR> tmp = {instance};
+    staging.Host2Stage(tmp);
+    staging.Stage2Device(instanceBuffer, sizeof(VkAccelerationStructureInstanceKHR));
+  }
+
+  // ==========================================================================
+  // 3) Build TLAS over that one instance
+  // ==========================================================================
+  VkAccelerationStructureGeometryInstancesDataKHR instancesData{};
+  instancesData.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
+  instancesData.arrayOfPointers = VK_FALSE;
+  instancesData.data.deviceAddress = instanceBuffer.DeviceAddress();
+
+  VkAccelerationStructureGeometryKHR tlasGeometry{};
+  tlasGeometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
+  tlasGeometry.geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
+  tlasGeometry.flags = VK_GEOMETRY_OPAQUE_BIT_KHR;
+  tlasGeometry.geometry.instances = instancesData;
+
+  VkAccelerationStructureBuildRangeInfoKHR tlasRange{};
+  tlasRange.primitiveCount = 1;
+  const VkAccelerationStructureBuildRangeInfoKHR *tlasRangePtr = &tlasRange;
+
+  VkAccelerationStructureBuildGeometryInfoKHR tlasBuildInfo{};
+  tlasBuildInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
+  tlasBuildInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
+  tlasBuildInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
+  tlasBuildInfo.geometryCount = 1;
+  tlasBuildInfo.pGeometries = &tlasGeometry;
+
+  uint32_t tlasPrimCounts[] = {1};
+
+  VkAccelerationStructureBuildSizesInfoKHR tlasSizeInfo{};
+  tlasSizeInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
+
+  fpGetAccelerationStructureBuildSizesKHR(device_, VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR, &tlasBuildInfo, tlasPrimCounts, &tlasSizeInfo);
+
+  VkDeviceBuf tlasBuffer;
+  tlasBuffer.InitAS(tlasSizeInfo.accelerationStructureSize);
+
+  VkAccelerationStructureCreateInfoKHR tlasCreateInfo{};
+  tlasCreateInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_CREATE_INFO_KHR;
+  tlasCreateInfo.buffer = tlasBuffer.Buf();
+  tlasCreateInfo.size = tlasSizeInfo.accelerationStructureSize;
+  tlasCreateInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
+
+  VkAccelerationStructureKHR tlas = VK_NULL_HANDLE;
+  VK_CHECK(fpCreateAccelerationStructureKHR(device_, &tlasCreateInfo, nullptr, &tlas));
+
+  VkDeviceBuf tlasScratch;
+  tlasScratch.Init(tlasSizeInfo.buildScratchSize);
+
+  tlasBuildInfo.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
+  tlasBuildInfo.dstAccelerationStructure = tlas;
+  tlasBuildInfo.scratchData.deviceAddress = tlasScratch.DeviceAddress();
+
+  cmd = beginOneTime(ctx.device, ctx.cmdPool);
+
+  fpCmdBuildAccelerationStructuresKHR(cmd, 1, &tlasBuildInfo, &tlasRangePtr);
+
+  VkMemoryBarrier tlasBarrier{};
+  tlasBarrier.sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
+  tlasBarrier.srcAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
+  tlasBarrier.dstAccessMask = VK_ACCESS_ACCELERATION_STRUCTURE_READ_BIT_KHR;
+
+  vkCmdPipelineBarrier(cmd,
+                       VK_PIPELINE_STAGE_ACCELERATION_STRUCTURE_BUILD_BIT_KHR,
+                       VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR,
+                       0,
+                       1,
+                       &tlasBarrier,
+                       0,
+                       nullptr,
+                       0,
+                       nullptr);
+
+  endSubmitWait(ctx.device, ctx.queue, ctx.cmdPool, cmd);
+
+  // ==========================================================================
+  // 4) Keep buffers alive and return TLAS
+  // ==========================================================================
+  // You need accels_ to retain *all* resources backing the returned TLAS scene:
+  // - compact BLAS handle + buffer
+  // - TLAS handle + buffer
+  // - instance buffer
+  //
+  // Example struct:
+  // struct AccelEntry {
+  //   VkAccelerationStructureKHR accel;
+  //   VkDeviceBuf buffer;
+  //   VkAccelerationStructureKHR blas;
+  //   VkDeviceBuf blasBuffer;
+  //   VkDeviceBuf instanceBuffer;
+  // };
+  //
+  // Then store:
+  accels_.push_back({tlas, std::move(tlasBuffer), compactBlas, std::move(compactBlasBuffer), std::move(instanceBuffer)});
+
+  return tlas;
 }
 
 // ============================================================================
@@ -462,11 +729,43 @@ void RTEngine::createLSIRTPipeline(const char *rgen_spv, const char *rint_spv, c
   buildLSISBT(3);
 }
 
+// void RTEngine::buildLSISBT(uint32_t group_count) {
+//   // --------------------------------------------------------------------------
+//   // NEW:
+//   // Reads shader group handles from the RT pipeline and builds one SBT buffer.
+//   // --------------------------------------------------------------------------
+//   VkPhysicalDeviceRayTracingPipelinePropertiesKHR rtProps{};
+//   rtProps.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR;
+//
+//   VkPhysicalDeviceProperties2 props2{};
+//   props2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+//   props2.pNext = &rtProps;
+//
+//   vkGetPhysicalDeviceProperties2(ctx_->phys, &props2);
+//
+//   uint32_t handleSize = rtProps.shaderGroupHandleSize;
+//   uint32_t handleAlign = rtProps.shaderGroupHandleAlignment;
+//   uint32_t baseAlign = rtProps.shaderGroupBaseAlignment;
+//
+//   lsi_sbt_stride_ = AlignUp(handleSize, handleAlign);
+//   uint32_t sbtSize = AlignUp(group_count * lsi_sbt_stride_, baseAlign);
+//
+//   std::vector<unsigned char> handles(group_count * handleSize);
+//   VK_CHECK(fpGetRayTracingShaderGroupHandlesKHR(device_, lsi_pipeline_, 0, group_count, static_cast<uint32_t>(handles.size()), handles.data()));
+//
+//   std::vector<unsigned char> sbt(sbtSize, 0);
+//   for (uint32_t i = 0; i < group_count; ++i) {
+//     std::memcpy(sbt.data() + i * lsi_sbt_stride_, handles.data() + i * handleSize, handleSize);
+//   }
+//
+//   lsi_sbt_buf_.Init(sbtSize);
+//
+//   VkStagingBuf staging(sbtSize);
+//   staging.Host2Stage(sbt);
+//   staging.Stage2Device(lsi_sbt_buf_, sbtSize);
+// }
+
 void RTEngine::buildLSISBT(uint32_t group_count) {
-  // --------------------------------------------------------------------------
-  // NEW:
-  // Reads shader group handles from the RT pipeline and builds one SBT buffer.
-  // --------------------------------------------------------------------------
   VkPhysicalDeviceRayTracingPipelinePropertiesKHR rtProps{};
   rtProps.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR;
 
@@ -476,19 +775,23 @@ void RTEngine::buildLSISBT(uint32_t group_count) {
 
   vkGetPhysicalDeviceProperties2(ctx_->phys, &props2);
 
-  uint32_t handleSize = rtProps.shaderGroupHandleSize;
-  uint32_t handleAlign = rtProps.shaderGroupHandleAlignment;
-  uint32_t baseAlign = rtProps.shaderGroupBaseAlignment;
+  const uint32_t handleSize = rtProps.shaderGroupHandleSize;
+  const uint32_t handleAlign = rtProps.shaderGroupHandleAlignment;
+  const uint32_t baseAlign = rtProps.shaderGroupBaseAlignment;
 
-  lsi_sbt_stride_ = AlignUp(handleSize, handleAlign);
-  uint32_t sbtSize = AlignUp(group_count * lsi_sbt_stride_, baseAlign);
+  const uint32_t handleSizeAligned = AlignUp(handleSize, handleAlign);
+  const uint32_t recordSize = AlignUp(handleSizeAligned, baseAlign);
+
+  lsi_sbt_stride_ = recordSize;
+
+  const uint32_t sbtSize = group_count * recordSize;
 
   std::vector<unsigned char> handles(group_count * handleSize);
   VK_CHECK(fpGetRayTracingShaderGroupHandlesKHR(device_, lsi_pipeline_, 0, group_count, static_cast<uint32_t>(handles.size()), handles.data()));
 
   std::vector<unsigned char> sbt(sbtSize, 0);
   for (uint32_t i = 0; i < group_count; ++i) {
-    std::memcpy(sbt.data() + i * lsi_sbt_stride_, handles.data() + i * handleSize, handleSize);
+    std::memcpy(sbt.data() + i * recordSize, handles.data() + i * handleSize, handleSize);
   }
 
   lsi_sbt_buf_.Init(sbtSize);
@@ -496,6 +799,10 @@ void RTEngine::buildLSISBT(uint32_t group_count) {
   VkStagingBuf staging(sbtSize);
   staging.Host2Stage(sbt);
   staging.Stage2Device(lsi_sbt_buf_, sbtSize);
+
+  LOG(INFO) << "SBT props:"
+            << " handleSize=" << handleSize << " handleAlign=" << handleAlign << " baseAlign=" << baseAlign
+            << " handleSizeAligned=" << handleSizeAligned << " recordSize=" << recordSize << " sbtSize=" << sbtSize;
 }
 
 void RTEngine::InitLSIPipeline(const char *rgen_spv, const char *rint_spv, const char *rmiss_spv) {
@@ -751,15 +1058,58 @@ void RTEngine::updateLSIDescriptors() {
   vkUpdateDescriptorSets(device_, 11, writes, 0, nullptr);
 }
 
+// void RTEngine::RunLSI() {
+//   // --------------------------------------------------------------------------
+//   // NEW:
+//   // Executes the LSI RT pipeline using the SBT and query state prepared
+//   // earlier.
+//   //
+//   // This is the Vulkan equivalent of:
+//   //   optixLaunch(..., num_query_edges, 1, 1)
+//   // --------------------------------------------------------------------------
+//   if (lsi_pipeline_ == VK_NULL_HANDLE) {
+//     throw std::runtime_error("RunLSI(): LSI pipeline not initialized");
+//   }
+//
+//   if (lsi_query_.handle == VK_NULL_HANDLE) {
+//     throw std::runtime_error("RunLSI(): no AS handle set");
+//   }
+//
+//   VkCommandBuffer cmd = beginOneTime(device_, ctx_->cmdPool);
+//
+//   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, lsi_pipeline_);
+//
+//   vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, lsi_pipeline_layout_, 0, 1, &lsi_desc_set_, 0, nullptr);
+//
+//   VkStridedDeviceAddressRegionKHR rgen{};
+//   VkStridedDeviceAddressRegionKHR miss{};
+//   VkStridedDeviceAddressRegionKHR hit{};
+//   VkStridedDeviceAddressRegionKHR call{};
+//
+//   VkDeviceAddress sbtAddr = lsi_sbt_buf_.DeviceAddress();
+//
+//   rgen.deviceAddress = sbtAddr + 0 * lsi_sbt_stride_;
+//   rgen.stride = lsi_sbt_stride_;
+//   rgen.size = lsi_sbt_stride_;
+//
+//   hit.deviceAddress = sbtAddr + 1 * lsi_sbt_stride_;
+//   hit.stride = lsi_sbt_stride_;
+//   hit.size = lsi_sbt_stride_;
+//
+//   miss.deviceAddress = sbtAddr + 2 * lsi_sbt_stride_;
+//   miss.stride = lsi_sbt_stride_;
+//   miss.size = lsi_sbt_stride_;
+//
+//   call.deviceAddress = 0;
+//   call.stride = 0;
+//   call.size = 0;
+//
+//   fpCmdTraceRaysKHR(cmd, &rgen, &miss, &hit, &call, lsi_query_.query_edge_count, 1, 1);
+//
+//   endSubmitWait(device_, ctx_->queue, ctx_->cmdPool, cmd);
+// }
+
 void RTEngine::RunLSI() {
-  // --------------------------------------------------------------------------
-  // NEW:
-  // Executes the LSI RT pipeline using the SBT and query state prepared
-  // earlier.
-  //
-  // This is the Vulkan equivalent of:
-  //   optixLaunch(..., num_query_edges, 1, 1)
-  // --------------------------------------------------------------------------
   if (lsi_pipeline_ == VK_NULL_HANDLE) {
     throw std::runtime_error("RunLSI(): LSI pipeline not initialized");
   }
@@ -771,8 +1121,15 @@ void RTEngine::RunLSI() {
   VkCommandBuffer cmd = beginOneTime(device_, ctx_->cmdPool);
 
   vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, lsi_pipeline_);
-
-  vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, lsi_pipeline_layout_, 0, 1, &lsi_desc_set_, 0, nullptr);
+  vkCmdBindDescriptorSets(
+      cmd,
+      VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
+      lsi_pipeline_layout_,
+      0,
+      1,
+      &lsi_desc_set_,
+      0,
+      nullptr);
 
   VkStridedDeviceAddressRegionKHR rgen{};
   VkStridedDeviceAddressRegionKHR miss{};
@@ -782,22 +1139,48 @@ void RTEngine::RunLSI() {
   VkDeviceAddress sbtAddr = lsi_sbt_buf_.DeviceAddress();
 
   rgen.deviceAddress = sbtAddr + 0 * lsi_sbt_stride_;
-  rgen.stride = lsi_sbt_stride_;
-  rgen.size = lsi_sbt_stride_;
+  rgen.stride        = lsi_sbt_stride_;
+  rgen.size          = lsi_sbt_stride_;
 
-  hit.deviceAddress = sbtAddr + 1 * lsi_sbt_stride_;
-  hit.stride = lsi_sbt_stride_;
-  hit.size = lsi_sbt_stride_;
+  hit.deviceAddress  = sbtAddr + 1 * lsi_sbt_stride_;
+  hit.stride         = lsi_sbt_stride_;
+  hit.size           = lsi_sbt_stride_;
 
   miss.deviceAddress = sbtAddr + 2 * lsi_sbt_stride_;
-  miss.stride = lsi_sbt_stride_;
-  miss.size = lsi_sbt_stride_;
+  miss.stride        = lsi_sbt_stride_;
+  miss.size          = lsi_sbt_stride_;
 
   call.deviceAddress = 0;
-  call.stride = 0;
-  call.size = 0;
+  call.stride        = 0;
+  call.size          = 0;
 
-  fpCmdTraceRaysKHR(cmd, &rgen, &miss, &hit, &call, lsi_query_.query_edge_count, 1, 1);
+  LOG(INFO) << "SBT addrs:"
+            << " base=" << sbtAddr
+            << " rgen=" << rgen.deviceAddress
+            << " hit=" << hit.deviceAddress
+            << " miss=" << miss.deviceAddress
+            << " stride=" << lsi_sbt_stride_;
+
+  fpCmdTraceRaysKHR(
+      cmd,
+      &rgen,
+      &miss,
+      &hit,
+      &call,
+      lsi_query_.query_edge_count,
+      1,
+      1);
+
+
+  // fpCmdTraceRaysKHR(
+  //     cmd,
+  //     &rgen,
+  //     &miss,
+  //     &hit,
+  //     &call,
+  //     1,
+  //     1,
+  //     1);
 
   endSubmitWait(device_, ctx_->queue, ctx_->cmdPool, cmd);
 }

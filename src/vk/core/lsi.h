@@ -58,7 +58,7 @@ namespace rayjoin {
         xsect_capacity_ = max_n_xsects;
         xsect_dev_.Init(sizeof(xsect_t) * max_n_xsects);
         xsect_counter_.Init(sizeof(uint32_t)); // NEW
-        prof_counter_.Init(sizeof(uint64_t) * 1);
+        prof_counter_.Init(sizeof(uint64_t) * 10); // debug values
       }
 
       virtual void Query(int query_map_id) = 0;

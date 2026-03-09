@@ -80,9 +80,18 @@ private:
   // Tracks BLAS handles and their backing buffers so they can be destroyed
   // safely when the engine goes away.
   // --------------------------------------------------------------------------
+  // struct AccelEntry {
+  //   VkAccelerationStructureKHR accel = VK_NULL_HANDLE;
+  //   VkDeviceBuf buffer;
+  // };
   struct AccelEntry {
-    VkAccelerationStructureKHR accel = VK_NULL_HANDLE;
-    VkDeviceBuf buffer;
+    VkAccelerationStructureKHR accel = VK_NULL_HANDLE; // TLAS
+    VkDeviceBuf buffer; // TLAS buffer
+
+    VkAccelerationStructureKHR blas = VK_NULL_HANDLE; // BLAS
+    VkDeviceBuf blasBuffer; // BLAS buffer
+
+    VkDeviceBuf instanceBuffer; // TLAS instance data
   };
 
   // ==========================================================================

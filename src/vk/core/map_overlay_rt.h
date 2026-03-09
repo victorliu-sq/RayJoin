@@ -214,6 +214,10 @@ private:
 
       bool inside = (minx >= aabb.minX && maxx <= aabb.maxX && miny >= aabb.minY && maxy <= aabb.maxY);
 
+      LOG(INFO) << "AABB=[("
+          << aabb.minX << "," << aabb.minY << "," << aabb.minZ << ") ("
+          << aabb.maxX << "," << aabb.maxY << "," << aabb.maxZ << ")]";
+
       LOG(INFO) << "eid=" << eid << " edge=(" << x1 << "," << y1 << ") -> (" << x2 << "," << y2 << ")"
                 << " AABB=[(" << aabb.minX << "," << aabb.minY << ") (" << aabb.maxX << "," << aabb.maxY << ")]"
                 << " contains=" << (inside ? "YES" : "NO");
