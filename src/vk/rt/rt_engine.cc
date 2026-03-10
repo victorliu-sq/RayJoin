@@ -16,7 +16,6 @@ static std::vector<char> ReadBinaryFile(const char *path) {
   if (!f) {
     throw std::runtime_error(std::string("Failed to open shader: ") + path);
   }
-
   return std::vector<char>((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
 }
 

@@ -421,72 +421,70 @@ bool intersect_test(Edge e1, Point e1_p1, Point e1_p2, Edge e2, Point e2_p1, Poi
   return true;
 }
 
-// [shader("intersection")]
-// void intersectionMain(inout Payload payload) {
-//   uint prim_idx = PrimitiveIndex();
-//   uint query_eid = payload.queryEid;
+[shader("intersection")]
+void intersectionMain() {
+  uint prim_idx = PrimitiveIndex();
 
-//   // Debug: count intersection-program invocations
-//   uint old2;
-//   InterlockedAdd(gTestCounter[2], 1, old2);
-//   gTestCounter[5] = prim_idx;
+  uint3 ray_idx = DispatchRaysIndex();
+  uint3 ray_dim = DispatchRaysDimensions();
+  uint ray_id = ray_idx.x + ray_dim.x * (ray_idx.y + ray_dim.y * ray_idx.z);
 
-//   LaunchParamsLSI params = gParamsBuf[0];
-//   uint query_map_id = (uint)params.query_map_id;
+  uint query_eid = ray_id;
 
-//   Edge query_e = gQueryEdges[query_eid];
-//   Point query_e_p1 = gQueryPoints[query_e.p1_idx];
-//   Point query_e_p2 = gQueryPoints[query_e.p2_idx];
+  // Debug: count intersection-program invocations
+  uint old2;
+  InterlockedAdd(gTestCounter[2], 1, old2);
+  gTestCounter[5] = prim_idx;
 
-//   EidRange range = gEidRanges[prim_idx];
-//   uint begin_eid = range.first;
-//   uint end_eid = range.second;
+  LaunchParamsLSI params = gParamsBuf[0];
+  uint query_map_id = (uint)params.query_map_id;
 
-//   for (uint base_eid = begin_eid; base_eid < end_eid; ++base_eid) {
-//     Edge base_e = gBaseEdges[base_eid];
-//     Point base_e_p1 = gBasePoints[base_e.p1_idx];
-//     Point base_e_p2 = gBasePoints[base_e.p2_idx];
+  Edge query_e = gQueryEdges[query_eid];
+  Point query_e_p1 = gQueryPoints[query_e.p1_idx];
+  Point query_e_p2 = gQueryPoints[query_e.p2_idx];
 
-//     if (intersect_test(query_e, query_e_p1, query_e_p2, base_e, base_e_p1, base_e_p2)) {
-//       // Get Stuck Here
-//       // uint outIdx;
-//       // InterlockedAdd(gXsectCounter[0], 1, outIdx);
+  EidRange range = gEidRanges[prim_idx];
+  uint begin_eid = range.first;
+  uint end_eid = range.second;
 
-//       // Debug: count successful append attempts
-//       // uint old3;
-//       // InterlockedAdd(gTestCounter[3], 1, old3);
+  for (uint base_eid = begin_eid; base_eid < end_eid; ++base_eid) {
+    Edge base_e = gBaseEdges[base_eid];
+    Point base_e_p1 = gBasePoints[base_e.p1_idx];
+    Point base_e_p2 = gBasePoints[base_e.p2_idx];
 
-//       // if (outIdx < params.xsect_capacity) {
-//       //   Intersection x;
-//       //   x.x_num = 0;
-//       //   x.x_den = 1;
-//       //   x.y_num = 0;
-//       //   x.y_den = 1;
+    uint old3;
+    InterlockedAdd(gTestCounter[3], 1, old3);
 
-//       //   // Match OptiX:
-//       //   // xsect.eid[query_map_id]     = query_eid;
-//       //   // xsect.eid[1 - query_map_id] = base_eid;
-//       //   if (query_map_id == 0) {
-//       //     x.eid0 = query_eid;
-//       //     x.eid1 = base_eid;
-//       //   } else {
-//       //     x.eid0 = base_eid;
-//       //     x.eid1 = query_eid;
-//       //   }
+    if (intersect_test(query_e, query_e_p1, query_e_p2, base_e, base_e_p1, base_e_p2)) {
+      // Debug: count successful append attempts
 
-//       //   x.mid_point_polygon_id = -1;  // DONTKNOW equivalent
-//       //   x._pad0 = 0;
+      uint outIdx;
+      InterlockedAdd(gXsectCounter[0], 1, outIdx);
 
-//       //   gXsects[outIdx] = x;
-//       // }
-//     }
-//   }
+      if (outIdx < params.xsect_capacity) {
+        Intersection x;
+        // Match OptiX:
+        // xsect.eid[query_map_id]     = query_eid;
+        // xsect.eid[1 - query_map_id] = base_eid;
+        if (query_map_id == 0) {
+          x.eid0 = query_eid;
+          x.eid1 = base_eid;
+        } else {
+          x.eid0 = base_eid;
+          x.eid1 = query_eid;
+        }
+        // x.mid_point_polygon_id = -1;  // DONTKNOW equivalent
+        // x._pad0 = 0;
+        gXsects[outIdx] = x;
+      }
+    }
+  }
 
-//   // Debug: count number of tested base edges for this primitive
-//   uint nTests = end_eid - begin_eid;
-//   uint old6;
-//   InterlockedAdd(gTestCounter[6], nTests, old6);
-// }
+  // Debug: count number of tested base edges for this primitive
+  uint nTests = end_eid - begin_eid;
+  uint old6;
+  InterlockedAdd(gTestCounter[6], nTests, old6);
+}
 
 // [shader("intersection")]
 // void intersectionMain(inout Payload payload) {
@@ -580,26 +578,19 @@ void closestHitMain(inout Payload payload) {
   // Intentionally empty.
 }
 
-[shader("intersection")]
-void intersectionMain() {
-  uint prim_idx = PrimitiveIndex();
-  uint3 rayIdx = DispatchRaysIndex();
-  uint3 rayDim = DispatchRaysDimensions();
-  uint rayId = rayIdx.x + rayDim.x * (rayIdx.y + rayDim.y * rayIdx.z);
+// [shader("intersection")]
+// void intersectionMain() {
+//   uint prim_idx = PrimitiveIndex();
+//   uint3 ray_idx = DispatchRaysIndex();
+//   uint3 ray_dim = DispatchRaysDimensions();
+//   uint rayId = ray_idx.x + ray_dim.x * (ray_idx.y + ray_dim.y * ray_idx.z);
 
-  Edge e = gQueryEdges[rayId];
-  uint eid = e.eid;
-  if (prim_idx > eid) {
-    uint old2 = 0;
-    InterlockedAdd(gTestCounter[2], 1, old2);
-    gTestCounter[5] = prim_idx;
-    return;
-  }
-
-  // uint query_edge_index = payload.queryEid;
-
-  // uint query_edge_count = gParamsBuf[0].query_edge_count;
-  // if (query_edge_index >= query_edge_count) {
-  // return;
-  // }
-}
+//   Edge e = gQueryEdges[rayId];
+//   uint eid = e.eid;
+//   if (prim_idx > eid) {
+//     uint old2 = 0;
+//     InterlockedAdd(gTestCounter[2], 1, old2);
+//     gTestCounter[5] = prim_idx;
+//     return;
+//   }
+// }
