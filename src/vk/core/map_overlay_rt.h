@@ -30,17 +30,20 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     auto &vk_ctx = GetVkComputeContext();
 
     // -------------------------------
-    // TODO:: Initialize RT Engine
+    // Initialize RT Engine
     // -------------------------------
     rt_engine_->Init();
 
     {
       std::string rgen_spv = std::string(SHADER_DIR) + "/rt/lsi_rgen.spv";
       std::string rint_spv = std::string(SHADER_DIR) + "/rt/lsi_rint.spv";
+      std::string rahit_spv = std::string(SHADER_DIR) + "/rt/lsi_rahit.spv";
+      std::string rchit_spv = std::string(SHADER_DIR) + "/rt/lsi_rchit.spv";
       std::string rmiss_spv = std::string(SHADER_DIR) + "/rt/lsi_rmiss.spv";
 
-      rt_engine_->InitLSIPipeline(rgen_spv.c_str(), rint_spv.c_str(), rmiss_spv.c_str());
+      rt_engine_->InitLSIPipeline(rgen_spv.c_str(), rint_spv.c_str(), rahit_spv.c_str(), rchit_spv.c_str(), rmiss_spv.c_str());
     }
+
     // -------------------------------
     // Scan maps
     // -------------------------------
@@ -59,29 +62,28 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
 
       // closest edge id per vertex
       closest_eids_buf_[im].Init(sizeof(index_t) * np);
+
       // point -> polygon id
       point_in_polygon_buf_[im].Init(sizeof(index_t) * np);
+
       // primitive -> edge range mapping
-      // eid_range_buf_[im].Init(sizeof(std::pair<uint32_t, uint32_t>) * ne);
       eid_range_buf_[im].Init(sizeof(EidRange) * ne);
 
       max_n_points = std::max(max_n_points, np);
       max_n_edges = std::max(max_n_edges, ne);
     }
+
     // -------------------------------
     // Allocate AABB primitive buffer
     // -------------------------------
-    // aabbs_buf_ =
-    //     createStorageBuffer<VkAabbPositionsKHR>(vk_ctx.vma, max_n_edges);
-
-    // aabbs_buf_. = createStorageBuffer(vk_ctx.vma,
-    //                                  sizeof(VkAabbPositionsKHR) *
-    //                                  max_n_edges);
     aabbs_buf_.Init(sizeof(VkAabbPositionsKHR) * max_n_edges);
+
     // -------------------------------
     // Compute total edges
     // -------------------------------
     size_t n_edges = map_edge_count_[0] + map_edge_count_[1];
+    (void) n_edges;
+    (void) vk_ctx;
 
     // Initialize LSI
     lsi->Init(ctx.get_edge_num() * config_.xsect_factor);
@@ -116,6 +118,7 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
 
       DebugPrintAABBs(map, aabbs_buf_, eid_range_buf_[im], map_edge_count_[im]);
 
+      LOG(INFO) << "Map-" << im << " builds " << map_edge_count_[im] << " primtives.";
       traverse_handles_[im] = rt_engine_->BuildAccelCustom(aabbs_buf_, map_edge_count_[im]);
 
       // if (config_.fau) {

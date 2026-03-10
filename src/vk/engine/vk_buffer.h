@@ -10,7 +10,12 @@ class VkAbsBuf {
  public:
   VkAbsBuf() : vk_ctx(GetVkComputeContext()) {};
 
-  virtual ~VkAbsBuf() { vmaDestroyBuffer(vk_ctx.vma, buf, alloc); }
+  virtual ~VkAbsBuf() {
+    // vmaDestroyBuffer(vk_ctx.vma, buf, alloc);
+    if (buf != VK_NULL_HANDLE || alloc != VK_NULL_HANDLE) {
+      vmaDestroyBuffer(vk_ctx.vma, buf, alloc);
+    }
+  }
 
   VkBuffer Buf() const { return buf; }
   VmaAllocation Alloc() const { return alloc; }
@@ -35,6 +40,11 @@ class VkAbsBuf {
 
   VkAbsBuf& operator=(VkAbsBuf&& other) noexcept {
     if (this != &other) {
+      // Release current resource before taking ownership of the new one.
+      if (buf != VK_NULL_HANDLE || alloc != VK_NULL_HANDLE) {
+        vmaDestroyBuffer(vk_ctx.vma, buf, alloc);
+      }
+
       buf = other.buf;
       alloc = other.alloc;
 

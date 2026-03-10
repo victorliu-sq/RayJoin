@@ -44,7 +44,8 @@ class RTEngine {
   //
   // This is the Vulkan replacement for OptiX module/pipeline setup for LSI.
   // --------------------------------------------------------------------------
-  void InitLSIPipeline(const char *rgen_spv, const char *rint_spv, const char *rmiss_spv);
+  // void InitLSIPipeline(const char *rgen_spv, const char *rint_spv, const char *rmiss_spv);
+  void InitLSIPipeline(const char *rgen_spv, const char *rint_spv, const char *rahit_spv, const char *rchit_spv, const char *rmiss_spv);
 
   // --------------------------------------------------------------------------
   // NEW:
@@ -228,7 +229,9 @@ class RTEngine {
   // Creates pipeline layout and ray tracing pipeline for LSI shaders.
   // --------------------------------------------------------------------------
   void createLSIPipelineLayout();
-  void createLSIRTPipeline(const char *rgen_spv, const char *rint_spv, const char *rmiss_spv);
+  // void createLSIRTPipeline(const char *rgen_spv, const char *rint_spv, const char *rmiss_spv);
+  void createLSIRTPipeline(const char *rgen_spv, const char *rint_spv, const char *rahit_spv, const char *rchit_spv, const char *rmiss_spv);
+
 
   // --------------------------------------------------------------------------
   // NEW:

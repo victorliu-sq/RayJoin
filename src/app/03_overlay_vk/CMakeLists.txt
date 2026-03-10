@@ -35,7 +35,6 @@
 #        ENTRIES
 #        main compute edge_init_i64_dev_addr.spv
 #)
-
 # =========================== Shader =======================================
 
 set(SLANGC ${CMAKE_SOURCE_DIR}/deps/slang/bin/slangc)
@@ -80,7 +79,7 @@ foreach (SHADER ${COMPUTE_SHADERS})
 endforeach ()
 
 # --------------------------------------------------------------------------
-# RT shader: one source file, compiled 3 times into 3 SPIR-V files
+# RT shader: one source file, compiled 5 times into 5 SPIR-V files
 #
 # Assumes:
 #   ${SHADER_DIR}/rt/lsi_rt.slang
@@ -89,6 +88,8 @@ endforeach ()
 #   raygenMain        -> raygeneration
 #   missMain          -> miss
 #   intersectionMain  -> intersection
+#   anyHitMain        -> anyhit
+#   closestHitMain    -> closesthit
 # --------------------------------------------------------------------------
 set(RT_SHADER ${SHADER_DIR}/rt/lsi_rt.slang)
 set(RT_SPV_DIR ${SPV_OUTPUT_DIR}/rt)
@@ -96,6 +97,8 @@ set(RT_SPV_DIR ${SPV_OUTPUT_DIR}/rt)
 set(LSI_RGEN_SPV ${RT_SPV_DIR}/lsi_rgen.spv)
 set(LSI_MISS_SPV ${RT_SPV_DIR}/lsi_rmiss.spv)
 set(LSI_RINT_SPV ${RT_SPV_DIR}/lsi_rint.spv)
+set(LSI_RAHIT_SPV ${RT_SPV_DIR}/lsi_rahit.spv)
+set(LSI_RCHIT_SPV ${RT_SPV_DIR}/lsi_rchit.spv)
 
 add_custom_command(
         OUTPUT ${LSI_RGEN_SPV}
@@ -127,7 +130,7 @@ add_custom_command(
         -fvk-use-scalar-layout
         -o ${LSI_MISS_SPV}
         DEPENDS ${RT_SHADER}
-        COMMENT "Compiling RT miss shader lsi_rt.slang -> lsi_miss.spv"
+        COMMENT "Compiling RT miss shader lsi_rt.slang -> lsi_rmiss.spv"
         VERBATIM
 )
 
@@ -148,20 +151,60 @@ add_custom_command(
         VERBATIM
 )
 
+add_custom_command(
+        OUTPUT ${LSI_RAHIT_SPV}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${RT_SPV_DIR}
+        COMMAND ${SLANGC}
+        -I ${SHADER_DIR}/module
+        ${RT_SHADER}
+        -entry anyHitMain
+        -stage anyhit
+        -profile sm_6_6
+        -target spirv
+        -fvk-use-scalar-layout
+        -o ${LSI_RAHIT_SPV}
+        DEPENDS ${RT_SHADER}
+        COMMENT "Compiling RT any-hit shader lsi_rt.slang -> lsi_rahit.spv"
+        VERBATIM
+)
+
+add_custom_command(
+        OUTPUT ${LSI_RCHIT_SPV}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${RT_SPV_DIR}
+        COMMAND ${SLANGC}
+        -I ${SHADER_DIR}/module
+        ${RT_SHADER}
+        -entry closestHitMain
+        -stage closesthit
+        -profile sm_6_6
+        -target spirv
+        -fvk-use-scalar-layout
+        -o ${LSI_RCHIT_SPV}
+        DEPENDS ${RT_SHADER}
+        COMMENT "Compiling RT closest-hit shader lsi_rt.slang -> lsi_rchit.spv"
+        VERBATIM
+)
+
 add_custom_target(lsi_rt_rgen_spv DEPENDS ${LSI_RGEN_SPV})
 add_custom_target(lsi_rt_miss_spv DEPENDS ${LSI_MISS_SPV})
 add_custom_target(lsi_rt_rint_spv DEPENDS ${LSI_RINT_SPV})
+add_custom_target(lsi_rt_rahit_spv DEPENDS ${LSI_RAHIT_SPV})
+add_custom_target(lsi_rt_rchit_spv DEPENDS ${LSI_RCHIT_SPV})
 
 list(APPEND SHADER_TARGETS
         lsi_rt_rgen_spv
         lsi_rt_miss_spv
         lsi_rt_rint_spv
+        lsi_rt_rahit_spv
+        lsi_rt_rchit_spv
 )
 
 list(APPEND SPIRV_OUTPUTS
         ${LSI_RGEN_SPV}
         ${LSI_MISS_SPV}
         ${LSI_RINT_SPV}
+        ${LSI_RAHIT_SPV}
+        ${LSI_RCHIT_SPV}
 )
 
 # Optional global target

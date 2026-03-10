@@ -205,9 +205,7 @@ void raygenMain() {
   // ray.TMax = 1000.0;
 
   Payload payload;
-  // payload.queryEid = eid;
-  payload.queryEid = 0;
-  payload.queryEid = 1;
+  payload.queryEid = (uint32_t)eid;
 
   TraceRay(gScene, RAY_FLAG_NONE, 0xFF,
            0,  // rayContributionToHitGroupIndex
@@ -571,17 +569,51 @@ bool intersect_test(Edge e1, Point e1_p1, Point e1_p2, Edge e2, Point e2_p1, Poi
 //   InterlockedAdd(gTestCounter[6], nTests, old6);
 // }
 
+[shader("anyhit")]
+void anyHitMain(inout Payload payload) {
+  // Intentionally empty.
+  // Do not call IgnoreHit() or AcceptHitAndEndSearch().
+  IgnoreHit();
+}
+
+[shader("closesthit")]
+void closestHitMain(inout Payload payload) {
+  // Intentionally empty.
+}
+
+struct HitAttrs {
+  float2 uv;
+};
+
 [shader("intersection")]
 void intersectionMain(inout Payload payload) {
   uint prim_idx = PrimitiveIndex();
   uint query_edge_index = payload.queryEid;
 
   uint query_edge_count = gParamsBuf[0].query_edge_count;
-  if (query_edge_index >= query_edge_count) {
+  bool run = query_edge_index < query_edge_count;
+  if (!run) {
     return;
   }
 
   uint old2 = 0;
   InterlockedAdd(gTestCounter[2], 1, old2);
   gTestCounter[5] = prim_idx;
+
+  // // Minimal debug hit report:
+  // // Choose a t inside the ray interval [TMin, TMax].
+  // // Your raygen currently uses TMin = 0.0 and TMax = 1.0.
+  // float tHit = 0.5;
+
+  // // Extra guard in case ray setup changes later.
+  // if (tHit >= 0.0 && tHit <= RayTCurrent()) {
+  //   HitAttrs attrs;
+  //   attrs.uv = float2(0.0, 0.0);
+
+  //   bool accepted = ReportHit(tHit, /*hitKind*/ 0, attrs);
+  //   if (accepted) {
+  //     uint old3 = 0;
+  //     InterlockedAdd(gTestCounter[3], 1, old3);
+  //   }
+  // }
 }
