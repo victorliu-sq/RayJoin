@@ -1,9 +1,3 @@
-module lsi_rt;
-
-import scaling;
-import edge;
-
-// ============================================================================
 // lsi_rt_debug.slang
 //
 // Debug-first Vulkan/Slang RT shader for proving pipeline execution.
@@ -24,6 +18,8 @@ import edge;
 //   binding 1 is StructuredBuffer<LaunchParamsLSI>, not ConstantBuffer.
 //   That matches your C++ side, which binds binding 1 as STORAGE_BUFFER.
 // ============================================================================
+import scaling;
+import edge;
 
 struct Point {
   int64_t x;
@@ -36,17 +32,17 @@ struct EidRange {
 };
 
 struct Intersection {
-  int64_t x;
-  int64_t y;
+  // int64_t x;
+  // int64_t y;
 
   uint64_t eid0;
   uint64_t eid1;
 
-  uint mid_point_polygon_id;
-  uint _pad0;
-  uint64_t _pad1;
-  uint64_t _pad2;
-  uint64_t _pad3;
+  // uint mid_point_polygon_id;
+  // uint _pad0;
+  // uint64_t _pad1;
+  // uint64_t _pad2;
+  // uint64_t _pad3;
 };
 
 struct LaunchParamsLSI {
@@ -97,7 +93,9 @@ StructuredBuffer<Scaling> gScaling;
 // Payload
 // --------------------------------------------------------------------------
 struct Payload {
-  uint queryEid;
+  // uint64_t queryEid;
+  // uint64_t queryEdgeCount;
+  uint32_t queryEid;
 };
 
 // ============================================================================
@@ -159,8 +157,10 @@ void raygenMain() {
     return;
 
   Edge e = gQueryEdges[eid];
-  Point p1 = gQueryPoints[e.p1_idx];
-  Point p2 = gQueryPoints[e.p2_idx];
+  // Point p1 = gQueryPoints[e.p1_idx];
+  // Point p2 = gQueryPoints[e.p2_idx];
+  Point p1 = gQueryPoints[uint(e.p1_idx)];
+  Point p2 = gQueryPoints[uint(e.p2_idx)];
 
   double x1, y1, x2, y2;
 
@@ -205,7 +205,9 @@ void raygenMain() {
   // ray.TMax = 1000.0;
 
   Payload payload;
-  payload.queryEid = eid;
+  // payload.queryEid = eid;
+  payload.queryEid = 0;
+  payload.queryEid = 1;
 
   TraceRay(gScene, RAY_FLAG_NONE, 0xFF,
            0,  // rayContributionToHitGroupIndex
@@ -491,7 +493,12 @@ bool intersect_test(Edge e1, Point e1_p1, Point e1_p2, Edge e2, Point e2_p1, Poi
 // [shader("intersection")]
 // void intersectionMain(inout Payload payload) {
 //   uint prim_idx = PrimitiveIndex();
-//   uint query_edge_index = payload.queryEid;
+//   uint64_t query_edge_index = payload.queryEid;
+
+//   // This if statement can stall the program
+//   if (query_edge_index >= payload.queryEdgeCount) {
+//     return;
+//   }
 
 //   // Debug: count intersection-program invocations
 //   uint old2;
@@ -515,10 +522,11 @@ bool intersect_test(Edge e1, Point e1_p1, Point e1_p2, Edge e2, Point e2_p1, Poi
 //   Point base_e_p1 = gBasePoints[uint(base_e.p1_idx)];
 //   Point base_e_p2 = gBasePoints[uint(base_e.p2_idx)];
 
-//   Rational64 xsect_x;
-//   Rational64 xsect_y;
+//   // Rational64 xsect_x;
+//   // Rational64 xsect_y;
 
-//   // if (intersect_test(query_e, query_e_p1, query_e_p2, base_e, base_e_p1, base_e_p2, xsect_x,
+//   // if (intersect_test(query_e, query_e_p1, query_e_p2, base_e, base_e_p1, base_e_p2,
+// xsect_x,
 //   //                    xsect_y)) {
 //   uint outIdx;
 //   InterlockedAdd(gXsectCounter[0], 1, outIdx);
@@ -536,8 +544,8 @@ bool intersect_test(Edge e1, Point e1_p1, Point e1_p2, Edge e2, Point e2_p1, Poi
 //     //   - otherwise use integer division truncation
 //     //
 //     // If you want floor/round instead, change this policy here.
-//     x.x = xsect_x.num / xsect_x.den;
-//     x.y = xsect_y.num / xsect_y.den;
+//     // x.x = xsect_x.num / xsect_x.den;
+//     // x.y = xsect_y.num / xsect_y.den;
 
 //     // Store true 64-bit edge IDs, not array indices.
 //     if (query_map_id == 0) {
@@ -549,8 +557,8 @@ bool intersect_test(Edge e1, Point e1_p1, Point e1_p2, Edge e2, Point e2_p1, Poi
 //     }
 
 //     // Unsigned DONTKNOW sentinel
-//     x.mid_point_polygon_id = 0xFFFFFFFFu;
-//     x._pad0 = 0;
+//     // x.mid_point_polygon_id = 0xFFFFFFFFu;
+//     // x._pad0 = 0;
 
 //     gXsects[outIdx] = x;
 //   }
@@ -568,68 +576,12 @@ void intersectionMain(inout Payload payload) {
   uint prim_idx = PrimitiveIndex();
   uint query_edge_index = payload.queryEid;
 
-  // Debug: count intersection-program invocations
-  uint old2;
-  InterlockedAdd(gTestCounter[2], 1, old2);
-  gTestCounter[5] = prim_idx;
-
-  LaunchParamsLSI params = gParamsBuf[0];
-  uint query_map_id = (uint)params.query_map_id;
-
-  Edge query_e = gQueryEdges[query_edge_index];
-  Point query_e_p1 = gQueryPoints[uint(query_e.p1_idx)];
-  Point query_e_p2 = gQueryPoints[uint(query_e.p2_idx)];
-
-  EidRange range = gEidRanges[prim_idx];
-  uint begin_eid = range.first;
-  uint end_eid = range.second;
-
-  // for (uint base_edge_index = begin_eid; base_edge_index < end_eid; ++base_edge_index) {
-  // Edge base_e = gBaseEdges[base_edge_index];
-  Edge base_e = gBaseEdges[begin_eid];
-  Point base_e_p1 = gBasePoints[uint(base_e.p1_idx)];
-  Point base_e_p2 = gBasePoints[uint(base_e.p2_idx)];
-
-  Rational64 xsect_x;
-  Rational64 xsect_y;
-
-  uint outIdx;
-  InterlockedAdd(gXsectCounter[0], 1, outIdx);
-
-  if (outIdx < params.xsect_capacity) {
-    Intersection x;
-
-    // Debug: count successful append attempts
-    uint old3;
-    InterlockedAdd(gTestCounter[3], 1, old3);
-
-    // CPU-side Intersection stores int64 x/y, not rational pairs.
-    // Current drop-in behavior:
-    //   - if exact integer, store exact value
-    //   - otherwise use integer division truncation
-    //
-    // If you want floor/round instead, change this policy here.
-    x.x = xsect_x.num / xsect_x.den;
-    x.y = xsect_y.num / xsect_y.den;
-
-    // Store true 64-bit edge IDs, not array indices.
-    if (query_map_id == 0) {
-      x.eid0 = query_e.eid;
-      x.eid1 = base_e.eid;
-    } else {
-      x.eid0 = base_e.eid;
-      x.eid1 = query_e.eid;
-    }
-
-    // Unsigned DONTKNOW sentinel
-    x.mid_point_polygon_id = 0xFFFFFFFFu;
-    x._pad0 = 0;
-
-    gXsects[outIdx] = x;
+  uint query_edge_count = gParamsBuf[0].query_edge_count;
+  if (query_edge_index >= query_edge_count) {
+    return;
   }
 
-  // Debug: count number of tested base edges for this primitive
-  uint nTests = end_eid - begin_eid;
-  uint old6;
-  InterlockedAdd(gTestCounter[6], nTests, old6);
+  uint old2 = 0;
+  InterlockedAdd(gTestCounter[2], 1, old2);
+  gTestCounter[5] = prim_idx;
 }

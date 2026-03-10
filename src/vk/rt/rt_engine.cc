@@ -794,7 +794,7 @@ void RTEngine::buildLSISBT(uint32_t group_count) {
     std::memcpy(sbt.data() + i * recordSize, handles.data() + i * handleSize, handleSize);
   }
 
-  lsi_sbt_buf_.Init(sbtSize);
+  lsi_sbt_buf_.InitSBT(sbtSize);
 
   VkStagingBuf staging(sbtSize);
   staging.Host2Stage(sbt);
@@ -1161,13 +1161,24 @@ void RTEngine::RunLSI() {
             << " miss=" << miss.deviceAddress
             << " stride=" << lsi_sbt_stride_;
 
+  // fpCmdTraceRaysKHR(
+  //     cmd,
+  //     &rgen,
+  //     &miss,
+  //     &hit,
+  //     &call,
+  //     lsi_query_.query_edge_count,
+  //     1,
+  //     1);
+  //
+  //
   fpCmdTraceRaysKHR(
       cmd,
       &rgen,
       &miss,
       &hit,
       &call,
-      lsi_query_.query_edge_count,
+      1,
       1,
       1);
 

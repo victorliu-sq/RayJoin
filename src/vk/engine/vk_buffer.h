@@ -28,8 +28,7 @@ class VkAbsBuf {
   VkAbsBuf& operator=(const VkAbsBuf&) = delete;
 
   // ✅ enable moving
-  VkAbsBuf(VkAbsBuf&& other) noexcept
-      : vk_ctx(other.vk_ctx), buf(other.buf), alloc(other.alloc) {
+  VkAbsBuf(VkAbsBuf&& other) noexcept : vk_ctx(other.vk_ctx), buf(other.buf), alloc(other.alloc) {
     other.buf = VK_NULL_HANDLE;
     other.alloc = VK_NULL_HANDLE;
   }
@@ -54,8 +53,7 @@ class VkAbsBuf {
 
   // ==================================================================
   // Helper method
-  void createBufferSimple(VkDeviceSize size, VkBufferUsageFlags usage,
-                          VmaMemoryUsage memUsage) {
+  void createBufferSimple(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memUsage) {
     VkBufferCreateInfo bi{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
     bi.size = size;
     bi.usage = usage;
@@ -80,21 +78,22 @@ class VkDeviceBuf : public VkAbsBuf {
   // }
 
   void Init(VkDeviceSize size) {
-    createBufferSimple(
-        size,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
-            VK_BUFFER_USAGE_TRANSFER_DST_BIT |
-            // REQUIRED FOR RAY TRACING
-            VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT |
-            VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
-            VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR,
-        VMA_MEMORY_USAGE_GPU_ONLY);
+    createBufferSimple(size,
+                       VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+                           // REQUIRED FOR RAY TRACING
+                           VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR |
+                           VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR,
+                       VMA_MEMORY_USAGE_GPU_ONLY);
   }
 
   void InitAS(VkDeviceSize size) {
+    createBufferSimple(
+        size, VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+  }
+
+  void InitSBT(VkDeviceSize size) {
     createBufferSimple(size,
-                       VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR |
-                           VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
+                       VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                        VMA_MEMORY_USAGE_GPU_ONLY);
   }
 };
@@ -102,13 +101,10 @@ class VkDeviceBuf : public VkAbsBuf {
 class VkStagingBuf : public VkAbsBuf {
  public:
   VkStagingBuf(VkDeviceSize size) {
-    createBufferSimple(
-        size,
-        VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-        VMA_MEMORY_USAGE_CPU_ONLY);
+    createBufferSimple(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
   }
 
-  template <typename T>
+  template<typename T>
   void Stage2Host(std::vector<T>& out_vec) {
     void* mapped = nullptr;
     VK_CHECK(vmaMapMemory(vk_ctx.vma, alloc, &mapped));
@@ -116,7 +112,7 @@ class VkStagingBuf : public VkAbsBuf {
     vmaUnmapMemory(vk_ctx.vma, alloc);
   }
 
-  template <typename T>
+  template<typename T>
   void Host2Stage(const std::vector<T>& in_vec) {
     void* mapped = nullptr;
     VK_CHECK(vmaMapMemory(vk_ctx.vma, alloc, &mapped));

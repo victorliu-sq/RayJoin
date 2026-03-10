@@ -252,6 +252,18 @@ inline VkInstance initVkComputeContext(VkComputeContext& ctx) {
   dci.pNext = &features2;
   // dci.pNext = &rayFeature;
 
+  if (!rayFeature.rayTracingPipeline) throw std::runtime_error("rayTracingPipeline unsupported");
+  if (!accelFeature.accelerationStructure) throw std::runtime_error("accelerationStructure unsupported");
+  if (!bufferAddress.bufferDeviceAddress) throw std::runtime_error("bufferDeviceAddress unsupported");
+  if (!features2.features.shaderInt64) throw std::runtime_error("shaderInt64 unsupported");
+  if (!features2.features.shaderFloat64) throw std::runtime_error("shaderFloat64 unsupported");
+
+  rayFeature.rayTracingPipeline = VK_TRUE;
+  accelFeature.accelerationStructure = VK_TRUE;
+  bufferAddress.bufferDeviceAddress = VK_TRUE;
+  features2.features.shaderInt64 = VK_TRUE;
+  features2.features.shaderFloat64 = VK_TRUE;
+
   VK_CHECK(vkCreateDevice(ctx.phys, &dci, nullptr, &ctx.device));
 
   vkGetDeviceQueue(ctx.device, ctx.queueFamilyIndex, 0, &ctx.queue);

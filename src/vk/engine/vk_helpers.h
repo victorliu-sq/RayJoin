@@ -57,25 +57,60 @@ inline VkCommandBuffer beginOneTime(VkDevice device, VkCommandPool pool) {
   return cmd;
 }
 
-inline void endSubmitWait(VkDevice device, VkQueue q, VkCommandPool pool,
-                          VkCommandBuffer cmd) {
+// inline void endSubmitWait(VkDevice device, VkQueue q, VkCommandPool pool,
+//                           VkCommandBuffer cmd) {
+//   VK_CHECK(vkEndCommandBuffer(cmd));
+//
+//   VkFenceCreateInfo fci{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+//   VkFence fence{};
+//   VK_CHECK(vkCreateFence(device, &fci, nullptr, &fence));
+//
+//   VkSubmitInfo si{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+//   si.commandBufferCount = 1;
+//   si.pCommandBuffers = &cmd;
+//
+//   VK_CHECK(vkQueueSubmit(q, 1, &si, fence));
+//   VK_CHECK(vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX));
+//
+//   vkDestroyFence(device, fence, nullptr);
+//   vkFreeCommandBuffers(device, pool, 1, &cmd);
+// }
+
+inline void endSubmitWait(VkDevice device, VkQueue queue, VkCommandPool pool, VkCommandBuffer cmd) {
   VK_CHECK(vkEndCommandBuffer(cmd));
 
-  VkFenceCreateInfo fci{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
-  VkFence fence{};
+  VkFenceCreateInfo fci{};
+  fci.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+
+  VkFence fence = VK_NULL_HANDLE;
   VK_CHECK(vkCreateFence(device, &fci, nullptr, &fence));
 
-  VkSubmitInfo si{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+  VkSubmitInfo si{};
+  si.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
   si.commandBufferCount = 1;
   si.pCommandBuffers = &cmd;
 
-  VK_CHECK(vkQueueSubmit(q, 1, &si, fence));
-  VK_CHECK(vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX));
+  VkResult submitRes = vkQueueSubmit(queue, 1, &si, fence);
+  if (submitRes != VK_SUCCESS) {
+    vkDestroyFence(device, fence, nullptr);
+    throw std::runtime_error("vkQueueSubmit failed");
+  }
+
+  VkResult waitRes = vkWaitForFences(device, 1, &fence, VK_TRUE, 2'000'000'000ULL); // 2 s
+  if (waitRes == VK_TIMEOUT) {
+    vkDestroyFence(device, fence, nullptr);
+    throw std::runtime_error("vkWaitForFences timeout");
+  }
+  if (waitRes == VK_ERROR_DEVICE_LOST) {
+    vkDestroyFence(device, fence, nullptr);
+    throw std::runtime_error("vkWaitForFences device lost");
+  }
+  VK_CHECK(waitRes);
 
   vkDestroyFence(device, fence, nullptr);
   vkFreeCommandBuffers(device, pool, 1, &cmd);
+  // return VK_SUCCESS;
 }
-
 
 struct AllocBuf {
   // VmaAllocator vma = VK_NULL_HANDLE;
