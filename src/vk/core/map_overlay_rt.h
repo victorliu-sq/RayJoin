@@ -120,6 +120,7 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
 
       LOG(INFO) << "Map-" << im << " builds " << map_edge_count_[im] << " primtives.";
       traverse_handles_[im] = rt_engine_->BuildAccelCustom(aabbs_buf_, map_edge_count_[im]);
+      // traverse_handles_[im] = rt_engine_->BuildAccelCustom(aabbs_buf_, map_edge_count_[im]);
 
       // if (config_.fau) {
       //   clearBuffer(aabbs_buf_);
