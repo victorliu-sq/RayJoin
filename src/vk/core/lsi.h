@@ -33,20 +33,20 @@ namespace vk {
 // };
 
 struct Intersection {
-  // int64_t x;
-  // int64_t y;
+  int64_t x;
+  int64_t y;
 
   uint64_t eid0;
   uint64_t eid1;
 
-  // uint32_t mid_point_polygon_id;
-  // uint32_t pad;
+  uint32_t mid_point_polygon_id;
+  uint32_t pad;
 };
 
-// static_assert(alignof(Intersection) == 32, "Intersection alignment must be 32");
+static_assert(alignof(Intersection) == 8, "Intersection alignment must be 32");
+static_assert(sizeof(Intersection) == 40, "Intersection size must be 64 bytes");
 // static_assert(sizeof(Intersection) == 64, "Intersection size must be 64 bytes");
-// static_assert(sizeof(Intersection) == 40, "Intersection size must be 64 bytes");
-static_assert(sizeof(Intersection) == 16, "Intersection size must be 16");
+// static_assert(sizeof(Intersection) == 16, "Intersection size must be 16");
 
 template<typename CONTEXT_T>
 class LSI {

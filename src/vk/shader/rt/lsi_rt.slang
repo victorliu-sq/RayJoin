@@ -32,14 +32,14 @@ struct EidRange {
 };
 
 struct Intersection {
-  // int64_t x;
-  // int64_t y;
+  int64_t x;
+  int64_t y;
 
   uint64_t eid0;
   uint64_t eid1;
 
-  // uint mid_point_polygon_id;
-  // uint _pad0;
+  uint mid_point_polygon_id;
+  uint _pad0;
   // uint64_t _pad1;
   // uint64_t _pad2;
   // uint64_t _pad3;
