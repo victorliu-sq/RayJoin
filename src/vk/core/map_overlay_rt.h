@@ -113,7 +113,6 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
                                                                map_edge_count_[im],
                                                                ag_iter,
                                                                area_enlarge);
-
       fill_primitives_pass_->run();
 
       DebugPrintAABBs(map, aabbs_buf_, eid_range_buf_[im], map_edge_count_[im]);

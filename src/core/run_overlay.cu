@@ -1,8 +1,7 @@
-#include "core/run_overlay.h"
-
 #include <array>
 #include <memory>
 
+#include "core/run_overlay.h"
 #include "glog/logging.h"
 #include "map/context.h"
 #include "map/planar_graph.h"
@@ -14,9 +13,8 @@
 #include "util/timer.h"
 
 namespace rayjoin {
-template <typename CONTEXT_T, typename OVERLAY_IMPL_T>
-void CheckResult(CONTEXT_T& ctx, std::shared_ptr<OVERLAY_IMPL_T> overlay,
-                 const OverlayConfig& config) {
+template<typename CONTEXT_T, typename OVERLAY_IMPL_T>
+void CheckResult(CONTEXT_T& ctx, std::shared_ptr<OVERLAY_IMPL_T> overlay, const OverlayConfig& config) {
   using xsect_t = dev::Intersection<typename CONTEXT_T::internal_coord_t>;
   using map_t = typename CONTEXT_T::map_t;
   MapOverlayGrid<CONTEXT_T> cuda_grid(ctx);
@@ -36,16 +34,15 @@ void CheckResult(CONTEXT_T& ctx, std::shared_ptr<OVERLAY_IMPL_T> overlay,
     auto n_xsects_ans = xsects_ans.size();
     auto n_xsects_res = xsects_res.size();
     auto write_to = [](const char* path, thrust::host_vector<xsect_t>& xsects) {
-      thrust::sort(xsects.begin(), xsects.end(),
-                   [](const xsect_t& a, const xsect_t& b) {
-                     if (a.eid[0] != b.eid[0]) {
-                       return a.eid[0] < b.eid[0];
-                     }
-                     return a.eid[1] < b.eid[1];
-                   });
+      thrust::sort(xsects.begin(), xsects.end(), [](const xsect_t& a, const xsect_t& b) {
+        if (a.eid[0] != b.eid[0]) {
+          return a.eid[0] < b.eid[0];
+        }
+        return a.eid[1] < b.eid[1];
+      });
 
       std::ofstream ofs(path);
-      for (auto& xsect : xsects) {
+      for (auto& xsect: xsects) {
         ofs << xsect.eid[0] << " " << xsect.eid[1] << "\n";
       }
       ofs.close();
@@ -57,10 +54,8 @@ void CheckResult(CONTEXT_T& ctx, std::shared_ptr<OVERLAY_IMPL_T> overlay,
       auto n_diff = abs((int64_t) n_xsects_ans - (int64_t) n_xsects_res);
 
       LOG(ERROR) << "LSI "
-                 << " xsects (Answer): " << n_xsects_ans
-                 << " xsects (Result): " << n_xsects_res
-                 << " False negative rate: "
-                 << (double) n_diff / n_xsects_ans * 100 << " %";
+                 << " xsects (Answer): " << n_xsects_ans << " xsects (Result): " << n_xsects_res
+                 << " False negative rate: " << (double) n_diff / n_xsects_ans * 100 << " %";
       write_to("/tmp/xsects_answer.txt", xsects_ans);
       write_to("/tmp/xsects_result.txt", xsects_res);
     } else {
@@ -117,12 +112,22 @@ void CheckResult(CONTEXT_T& ctx, std::shared_ptr<OVERLAY_IMPL_T> overlay,
         }
 
         if (diff && n_diff < 10) {
-          printf("point %lu (%.8lf, %.8lf) ans %u, res %u %s %s\n", point_idx,
-                 p.x, p.y, closest_eid_ans, closest_eid_res, ep_ans.c_str(),
+          printf("point %lu (%.8lf, %.8lf) ans %u, res %u %s %s\n",
+                 point_idx,
+                 p.x,
+                 p.y,
+                 closest_eid_ans,
+                 closest_eid_res,
+                 ep_ans.c_str(),
                  ep_res.c_str());
           printf("scaled point %lu (%ld, %ld) ans %u, res %u %s %s\n",
-                 point_idx, scaled_p.x, scaled_p.y, closest_eid_ans,
-                 closest_eid_res, scaled_ep_ans.c_str(), scaled_ep_res.c_str());
+                 point_idx,
+                 scaled_p.x,
+                 scaled_p.y,
+                 closest_eid_ans,
+                 closest_eid_res,
+                 scaled_ep_ans.c_str(),
+                 scaled_ep_res.c_str());
         }
 
         if (diff) {
@@ -131,9 +136,8 @@ void CheckResult(CONTEXT_T& ctx, std::shared_ptr<OVERLAY_IMPL_T> overlay,
       }
     }
     if (n_diff != 0) {
-      LOG(ERROR) << "Map: " << im << " Total points: " << n_points
-                 << " n diff: " << n_diff
-                 << " Error rate: " << (double) n_diff / n_points * 100 << " %";
+      LOG(ERROR) << "Map: " << im << " Total points: " << n_points << " n diff: " << n_diff << " Error rate: " << (double) n_diff / n_points * 100
+                 << " %";
     } else {
       LOG(INFO) << "Map: " << im << " PIP passed check";
     }
@@ -205,25 +209,25 @@ void RunOverlay(const OverlayConfig& config) {
   timer_next("Intersection edges");
   overlay->IntersectEdge(0);
 
-  FOR2 {
-    auto prefix = "Map " + std::to_string(im) + ": ";
-
-    timer_next(prefix + "Locate vertices in other map");
-    overlay->LocateVerticesInOtherMap(im);
-  }
-
-  timer_next("Computer output polygons");
-  overlay->ComputeOutputPolygons();
-
-  if (config.check) {
-    timer_next("Check result");
-    CheckResult(ctx, overlay, config);
-  }
-
-  if (!config.output_path.empty()) {
-    timer_next("Write to file");
-    overlay->WriteResult(config.output_path.c_str());
-  }
+  // FOR2 {
+  //   auto prefix = "Map " + std::to_string(im) + ": ";
+  //
+  //   timer_next(prefix + "Locate vertices in other map");
+  //   overlay->LocateVerticesInOtherMap(im);
+  // }
+  //
+  // timer_next("Computer output polygons");
+  // overlay->ComputeOutputPolygons();
+  //
+  // if (config.check) {
+  //   timer_next("Check result");
+  //   CheckResult(ctx, overlay, config);
+  // }
+  //
+  // if (!config.output_path.empty()) {
+  //   timer_next("Write to file");
+  //   overlay->WriteResult(config.output_path.c_str());
+  // }
   timer_end();
 }
 

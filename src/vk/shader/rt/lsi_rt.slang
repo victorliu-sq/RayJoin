@@ -98,50 +98,6 @@ struct Payload {
   uint32_t queryEid;
 };
 
-// ============================================================================
-// Ray generation
-// ============================================================================
-// [shader("raygeneration")]
-// void raygenMain()
-// {
-//     uint eid = DispatchRaysIndex().x;
-
-//     // Count raygen invocations
-//     uint old0;
-//     InterlockedAdd(gTestCounter[0], 1, old0);
-
-//     // Record last eid seen by raygen
-//     gTestCounter[4] = eid;
-
-//     LaunchParamsLSI params = gParamsBuf[0];
-//     if (eid >= params.query_edge_count)
-//         return;
-
-//     // ----------------------------------------------------------------------
-//     // Debug ray:
-//     // Start with a simple fixed ray instead of your real edge ray.
-//     // This isolates pipeline / SBT / descriptor issues from geometry issues.
-//     // ----------------------------------------------------------------------
-//     RayDesc ray;
-//     ray.Origin = float3(0.0, 0.0, 0.0);
-//     ray.Direction = float3(1.0, 0.0, 0.0);
-//     ray.TMin = 0.0;
-//     ray.TMax = 1e30;
-
-//     Payload payload;
-//     payload.queryEid = eid;
-
-//     TraceRay(
-//         gScene,
-//         RAY_FLAG_NONE,
-//         0xFF,
-//         0,  // rayContributionToHitGroupIndex
-//         1,  // multiplierForGeometryContributionToHitGroupIndex
-//         0,  // missShaderIndex
-//         ray,
-//         payload);
-// }
-
 [shader("raygeneration")]
 void raygenMain() {
   uint eid = DispatchRaysIndex().x;
@@ -199,11 +155,6 @@ void raygenMain() {
   ray.TMin = 0.0;
   ray.TMax = 1.0;
 
-  // ray.Origin = float3(-100.0, -3.0, 0.0);
-  // ray.Direction = float3(1.0, 0.0, 0.0);
-  // ray.TMin = 0.0;
-  // ray.TMax = 1000.0;
-
   Payload payload;
   payload.queryEid = eid;
 
@@ -221,105 +172,6 @@ void raygenMain() {
 void missMain(inout Payload payload) {
   uint old1;
   InterlockedAdd(gTestCounter[1], 1, old1);
-}
-
-// ============================================================================
-// Intersection shader
-// ============================================================================
-// [shader("intersection")]
-// void intersectionMain(inout Payload payload)
-// {
-//     uint prim_idx = PrimitiveIndex();
-
-//     // Count intersection invocations
-//     uint old2;
-//     InterlockedAdd(gTestCounter[2], 1, old2);
-
-//     // Record last primitive index seen
-//     gTestCounter[5] = prim_idx;
-
-//     // Append one dummy intersection record unconditionally.
-//     // This is only to prove that intersection stage can write outputs.
-//     uint outIdx;
-//     InterlockedAdd(gXsectCounter[0], 1, outIdx);
-
-//     // Count successful write attempts
-//     uint old3;
-//     InterlockedAdd(gTestCounter[3], 1, old3);
-
-//     LaunchParamsLSI params = gParamsBuf[0];
-//     if (outIdx < params.xsect_capacity)
-//     {
-//         Intersection x;
-//         x.x_num = 111;
-//         x.x_den = 1;
-//         x.y_num = 222;
-//         x.y_den = 1;
-
-//         // For debug:
-//         //   eid0 = query eid from payload
-//         //   eid1 = primitive index hit
-//         x.eid0 = payload.queryEid;
-//         x.eid1 = prim_idx;
-
-//         x.mid_point_polygon_id = 333;
-//         x._pad0 = 0;
-
-//         gXsects[outIdx] = x;
-//     }
-
-//     // NOTE:
-//     // We intentionally do NOT call ReportHit() here, because for this debug
-//     // pass we only want to prove the intersection shader executes and can
-//     // write to buffers.
-// }
-
-struct Rational64 {
-  int64_t num;
-  int64_t den;
-};
-
-bool pointEquals(Point a, Point b) {
-  return a.x == b.x && a.y == b.y;
-}
-
-int64_t min2_i64(int64_t a, int64_t b) {
-  return (a < b) ? a : b;
-}
-
-int64_t max2_i64(int64_t a, int64_t b) {
-  return (a > b) ? a : b;
-}
-
-int64_t min4_i64(int64_t a, int64_t b, int64_t c, int64_t d) {
-  return min2_i64(min2_i64(a, b), min2_i64(c, d));
-}
-
-int64_t max4_i64(int64_t a, int64_t b, int64_t c, int64_t d) {
-  return max2_i64(max2_i64(a, b), max2_i64(c, d));
-}
-
-// Normalize sign so denominator is non-negative.
-// This is not strictly required for correctness of storage,
-// but it makes comparison/clamping logic well-defined.
-Rational64 makeRational64(int64_t num, int64_t den) {
-  Rational64 r;
-  if (den < 0) {
-    r.num = -num;
-    r.den = -den;
-  } else {
-    r.num = num;
-    r.den = den;
-  }
-  return r;
-}
-
-bool rationalLessThanInt(Rational64 r, int64_t v) {
-  return r.num < v * r.den;
-}
-
-bool rationalGreaterThanInt(Rational64 r, int64_t v) {
-  return r.num > v * r.den;
 }
 
 // -----------------------------------------------------------------------------
@@ -486,87 +338,6 @@ void intersectionMain() {
   InterlockedAdd(gTestCounter[6], nTests, old6);
 }
 
-// [shader("intersection")]
-// void intersectionMain(inout Payload payload) {
-//   uint prim_idx = PrimitiveIndex();
-//   uint64_t query_edge_index = payload.queryEid;
-
-//   // This if statement can stall the program
-//   if (query_edge_index >= payload.queryEdgeCount) {
-//     return;
-//   }
-
-//   // Debug: count intersection-program invocations
-//   uint old2;
-//   InterlockedAdd(gTestCounter[2], 1, old2);
-//   gTestCounter[5] = prim_idx;
-
-//   LaunchParamsLSI params = gParamsBuf[0];
-//   uint query_map_id = (uint)params.query_map_id;
-
-//   Edge query_e = gQueryEdges[query_edge_index];
-//   Point query_e_p1 = gQueryPoints[uint(query_e.p1_idx)];
-//   Point query_e_p2 = gQueryPoints[uint(query_e.p2_idx)];
-
-//   EidRange range = gEidRanges[prim_idx];
-//   uint begin_eid = range.first;
-//   uint end_eid = range.second;
-
-//   // for (uint base_edge_index = begin_eid; base_edge_index < end_eid; ++base_edge_index) {
-//   // Edge base_e = gBaseEdges[base_edge_index];
-//   Edge base_e = gBaseEdges[begin_eid];
-//   Point base_e_p1 = gBasePoints[uint(base_e.p1_idx)];
-//   Point base_e_p2 = gBasePoints[uint(base_e.p2_idx)];
-
-//   // Rational64 xsect_x;
-//   // Rational64 xsect_y;
-
-//   // if (intersect_test(query_e, query_e_p1, query_e_p2, base_e, base_e_p1, base_e_p2,
-// xsect_x,
-//   //                    xsect_y)) {
-//   uint outIdx;
-//   InterlockedAdd(gXsectCounter[0], 1, outIdx);
-
-//   // Debug: count successful append attempts
-//   uint old3;
-//   InterlockedAdd(gTestCounter[3], 1, old3);
-
-//   if (outIdx < params.xsect_capacity) {
-//     Intersection x;
-
-//     // CPU-side Intersection stores int64 x/y, not rational pairs.
-//     // Current drop-in behavior:
-//     //   - if exact integer, store exact value
-//     //   - otherwise use integer division truncation
-//     //
-//     // If you want floor/round instead, change this policy here.
-//     // x.x = xsect_x.num / xsect_x.den;
-//     // x.y = xsect_y.num / xsect_y.den;
-
-//     // Store true 64-bit edge IDs, not array indices.
-//     if (query_map_id == 0) {
-//       x.eid0 = query_e.eid;
-//       x.eid1 = base_e.eid;
-//     } else {
-//       x.eid0 = base_e.eid;
-//       x.eid1 = query_e.eid;
-//     }
-
-//     // Unsigned DONTKNOW sentinel
-//     // x.mid_point_polygon_id = 0xFFFFFFFFu;
-//     // x._pad0 = 0;
-
-//     gXsects[outIdx] = x;
-//   }
-//   // }
-//   // }
-
-//   // Debug: count number of tested base edges for this primitive
-//   uint nTests = end_eid - begin_eid;
-//   uint old6;
-//   InterlockedAdd(gTestCounter[6], nTests, old6);
-// }
-
 [shader("anyhit")]
 void anyHitMain(inout Payload payload) {
   // Intentionally empty.
@@ -578,19 +349,50 @@ void closestHitMain(inout Payload payload) {
   // Intentionally empty.
 }
 
-// [shader("intersection")]
-// void intersectionMain() {
-//   uint prim_idx = PrimitiveIndex();
-//   uint3 ray_idx = DispatchRaysIndex();
-//   uint3 ray_dim = DispatchRaysDimensions();
-//   uint rayId = ray_idx.x + ray_dim.x * (ray_idx.y + ray_dim.y * ray_idx.z);
+struct Rational64 {
+  int64_t num;
+  int64_t den;
+};
 
-//   Edge e = gQueryEdges[rayId];
-//   uint eid = e.eid;
-//   if (prim_idx > eid) {
-//     uint old2 = 0;
-//     InterlockedAdd(gTestCounter[2], 1, old2);
-//     gTestCounter[5] = prim_idx;
-//     return;
-//   }
-// }
+bool pointEquals(Point a, Point b) {
+  return a.x == b.x && a.y == b.y;
+}
+
+int64_t min2_i64(int64_t a, int64_t b) {
+  return (a < b) ? a : b;
+}
+
+int64_t max2_i64(int64_t a, int64_t b) {
+  return (a > b) ? a : b;
+}
+
+int64_t min4_i64(int64_t a, int64_t b, int64_t c, int64_t d) {
+  return min2_i64(min2_i64(a, b), min2_i64(c, d));
+}
+
+int64_t max4_i64(int64_t a, int64_t b, int64_t c, int64_t d) {
+  return max2_i64(max2_i64(a, b), max2_i64(c, d));
+}
+
+// Normalize sign so denominator is non-negative.
+// This is not strictly required for correctness of storage,
+// but it makes comparison/clamping logic well-defined.
+Rational64 makeRational64(int64_t num, int64_t den) {
+  Rational64 r;
+  if (den < 0) {
+    r.num = -num;
+    r.den = -den;
+  } else {
+    r.num = num;
+    r.den = den;
+  }
+  return r;
+}
+
+bool rationalLessThanInt(Rational64 r, int64_t v) {
+  return r.num < v * r.den;
+}
+
+bool rationalGreaterThanInt(Rational64 r, int64_t v) {
+  return r.num > v * r.den;
+}

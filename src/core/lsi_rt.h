@@ -3,7 +3,6 @@
 
 #include <thrust/sort.h>
 #include <thrust/unique.h>
-
 #include <utility>
 
 #include "core/lsi.h"
@@ -13,7 +12,7 @@
 #include "util/helpers.h"
 
 namespace rayjoin {
-template <typename CONTEXT_T>
+template<typename CONTEXT_T>
 class LSIRT : public LSI<CONTEXT_T> {
   using coefficient_t = typename CONTEXT_T::coefficient_t;
   using lsi = LSI<CONTEXT_T>;
@@ -22,16 +21,14 @@ class LSIRT : public LSI<CONTEXT_T> {
   using xsect_t = typename lsi::xsect_t;
 
  public:
-  explicit LSIRT(CONTEXT_T& ctx, const std::shared_ptr<RTEngine>& rt_engine)
-      : LSI<CONTEXT_T>(ctx), rt_engine_(rt_engine) {}
+  explicit LSIRT(CONTEXT_T& ctx, const std::shared_ptr<RTEngine>& rt_engine) : LSI<CONTEXT_T>(ctx), rt_engine_(rt_engine) {}
 
   void Init(size_t max_n_xsects) override { lsi::Init(max_n_xsects); }
 
   void Query(Stream& stream, int query_map_id) override {
     auto& ctx = this->ctx_;
     int base_map_id = 1 - query_map_id;
-    auto d_query_map = ctx.get_map(query_map_id)->DeviceObject(),
-         d_base_map = ctx.get_map(base_map_id)->DeviceObject();
+    auto d_query_map = ctx.get_map(query_map_id)->DeviceObject(), d_base_map = ctx.get_map(base_map_id)->DeviceObject();
     auto scaling = ctx.get_scaling();
     auto& xsects_queue = this->xsect_queue_;
 
@@ -57,18 +54,16 @@ class LSIRT : public LSI<CONTEXT_T> {
 
     rt_engine_->CopyLaunchParams(stream, params);
 
-    rt_engine_->Render(
-        stream, module_id,
-        dim3{(unsigned int) ctx.get_map(query_map_id)->get_edges_num(), 1, 1});
+    rt_engine_->Render(stream, module_id, dim3{(unsigned int) ctx.get_map(query_map_id)->get_edges_num(), 1, 1});
 
     size_t n_xsects = xsects_queue.size(stream);
 
     ForEach(
-        stream, n_xsects,
+        stream,
+        n_xsects,
         [=] __device__(size_t idx, ArrayView<xsect_t> xsects) mutable {
           auto& xsect = xsects[idx];
-          auto base_eid = xsect.eid[base_map_id],
-               query_eid = xsect.eid[query_map_id];
+          auto base_eid = xsect.eid[base_map_id], query_eid = xsect.eid[query_map_id];
 
           const auto& base_e = d_base_map.get_edge(base_eid);
           const auto& base_e_p1 = d_base_map.get_point(base_e.p1_idx);
@@ -78,12 +73,9 @@ class LSIRT : public LSI<CONTEXT_T> {
           const auto& query_e_p1 = d_query_map.get_point(query_e.p1_idx);
           const auto& query_e_p2 = d_query_map.get_point(query_e.p2_idx);
 
-          auto denom = (coefficient_t) base_e.a * query_e.b -
-                       (coefficient_t) query_e.a * base_e.b;
-          auto numx = (coefficient_t) query_e.c * base_e.b -
-                      (coefficient_t) base_e.c * query_e.b;
-          auto numy = (coefficient_t) query_e.a * base_e.c -
-                      (coefficient_t) base_e.a * query_e.c;
+          auto denom = (coefficient_t) base_e.a * query_e.b - (coefficient_t) query_e.a * base_e.b;
+          auto numx = (coefficient_t) query_e.c * base_e.b - (coefficient_t) base_e.c * query_e.b;
+          auto numy = (coefficient_t) query_e.a * base_e.c - (coefficient_t) base_e.a * query_e.c;
 
           tcb::rational<coefficient_t> xsect_x(numx, denom);
           tcb::rational<coefficient_t> xsect_y(numy, denom);
@@ -112,6 +104,9 @@ class LSIRT : public LSI<CONTEXT_T> {
         ArrayView<xsect_t>(xsects_queue.data(), n_xsects));
 
     stream.Sync();
+
+    LOG(INFO) << "# of xsects: " << xsects_queue.size();
+
 #ifndef NDEBUG
     if (config_.profile) {
       LOG(INFO) << "Total tests: " << n_tests_.get(stream);
