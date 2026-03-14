@@ -36,7 +36,6 @@
 #        main compute edge_init_i64_dev_addr.spv
 #)
 # =========================== Shader =======================================
-
 set(SLANGC ${CMAKE_SOURCE_DIR}/deps/slang/bin/slangc)
 set(SHADER_DIR ${CMAKE_SOURCE_DIR}/src/vk/shader)
 

@@ -24,7 +24,7 @@ struct Edge {
   uint64_t right_polygon_id;
 };
 
-template <typename INTERNAL_COORD_T, typename COEFFICIENT_T>
+template<typename INTERNAL_COORD_T, typename COEFFICIENT_T>
 class Map {
  public:
   using internal_coord_t = INTERNAL_COORD_T;
@@ -45,9 +45,8 @@ class Map {
     // vmaDestroyBufferSafe(vk_ctx.vma, edgesDev_);
   }
 
-  template <typename SRC_COORD_T>
-  void LoadFrom(const Scaling<SRC_COORD_T, INTERNAL_COORD_T>& scaling,
-                const PlanarGraph<SRC_COORD_T>& pgraph) {
+  template<typename SRC_COORD_T>
+  void LoadFrom(const Scaling<SRC_COORD_T, INTERNAL_COORD_T>& scaling, const PlanarGraph<SRC_COORD_T>& pgraph) {
     LOG(INFO) << "Init Map-" << id_ << " From PGraphs";
     auto& vk_ctx = GetVkComputeContext();
 
@@ -71,10 +70,8 @@ class Map {
     writeToStorageBuffer(srcPointsDev_, pgraph.points);
     writeToStorageBuffer(scalingDev_, scaling);
     /* run scaling compute pass */
-    std::string spvPathScaling =
-        std::string(SHADER_DIR) + "/scale_points_d2_i64.spv";
-    scale_pass_ = std::make_unique<ScalePointsPassD2I64RAII>(
-        spvPathScaling.c_str(), srcPointsDev_, scaledPointsDev_, scalingDev_, point_count_);
+    std::string spvPathScaling = std::string(SHADER_DIR) + "/scale_points_d2_i64.spv";
+    scale_pass_ = std::make_unique<ScalePointsPassD2I64RAII>(spvPathScaling.c_str(), srcPointsDev_, scaledPointsDev_, scalingDev_, point_count_);
 
     scale_pass_->run();
     DebugPrintScaledPoints(scaling, pgraph, point_count_);
@@ -105,13 +102,10 @@ class Map {
 
     /* run edge init compute pass */
     std::string spvPath = std::string(SHADER_DIR) + "/edge_init_i64.spv";
-    edge_pass_ = std::make_unique<EdgeInitPassI64RAII>(
-        spvPath.c_str(), scaledPointsDev_, chainsDev_, rowDev_, edgesDev_,
-        point_count_, chain_count_);
+    edge_pass_ = std::make_unique<EdgeInitPassI64RAII>(spvPath.c_str(), scaledPointsDev_, chainsDev_, rowDev_, edgesDev_, point_count_, chain_count_);
 
     edge_pass_->run();
-    LOG(INFO) << "Map-" << id_ << ": initialized " << edge_count_
-              << " edges on GPU";
+    LOG(INFO) << "Map-" << id_ << ": initialized " << edge_count_ << " edges on GPU";
 
     DebugPrintEdges(point_count_);
   }
@@ -147,17 +141,15 @@ class Map {
   /* Debug helpers                                                 */
   /* ------------------------------------------------------------ */
 
-  template <typename SRC_COORD_T>
-  void DebugPrintScaledPoints(
-      const Scaling<SRC_COORD_T, INTERNAL_COORD_T>& scaling,
-      const PlanarGraph<SRC_COORD_T>& pgraph, uint32_t point_count) const {
+  template<typename SRC_COORD_T>
+  void DebugPrintScaledPoints(const Scaling<SRC_COORD_T, INTERNAL_COORD_T>& scaling,
+                              const PlanarGraph<SRC_COORD_T>& pgraph,
+                              uint32_t point_count) const {
     uint32_t checkCount = std::min<uint32_t>(point_count, 10);
 
-    auto gpuPts =
-        readBackStorageBuffer<DstPointI64>(scaledPointsDev_, checkCount);
+    auto gpuPts = readBackStorageBuffer<DstPointI64>(scaledPointsDev_, checkCount);
 
-    LOG(INFO) << "Map-" << id_ << " GPU readback (first " << checkCount
-              << " points):";
+    LOG(INFO) << "Map-" << id_ << " GPU readback (first " << checkCount << " points):";
 
     for (uint32_t i = 0; i < checkCount; ++i) {
       auto& srcp = pgraph.points[i];
@@ -182,11 +174,9 @@ class Map {
     uint32_t checkEdges = std::min<uint32_t>(edge_count_, 10);
 
     auto gpuEdges = readBackStorageBuffer<Edge>(edgesDev_, checkEdges);
-    auto gpuPts =
-        readBackStorageBuffer<DstPointI64>(scaledPointsDev_, point_count);
+    auto gpuPts = readBackStorageBuffer<DstPointI64>(scaledPointsDev_, point_count);
 
-    LOG(INFO) << "Map-" << id_ << " GPU edge readback (first " << checkEdges
-              << " edges):";
+    LOG(INFO) << "Map-" << id_ << " GPU edge readback (first " << checkEdges << " edges):";
 
     for (uint32_t i = 0; i < checkEdges; ++i) {
       const auto& e = gpuEdges[i];
@@ -206,8 +196,7 @@ class Map {
 
       bool ok = (a == e.a) && (b == e.b) && (c == e.c);
 
-      LOG(INFO) << "eid=" << e.eid << " p1=" << e.p1_idx << " p2=" << e.p2_idx
-                << " GPU=(" << e.a << "," << e.b << "," << e.c << ")"
+      LOG(INFO) << "eid=" << e.eid << " p1=" << e.p1_idx << " p2=" << e.p2_idx << " GPU=(" << e.a << "," << e.b << "," << e.c << ")"
                 << " CPU=(" << a << "," << b << "," << c << ")"
                 << " match=" << (ok ? "YES" : "NO");
     }

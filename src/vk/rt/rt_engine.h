@@ -74,6 +74,8 @@ class RTEngine {
   // --------------------------------------------------------------------------
   void RunLSI();
 
+  const VkDeviceBuf &GetLSIParamsBuffer() const { return lsi_params_buf_; }
+
  private:
   // --------------------------------------------------------------------------
   // EXISTING:

@@ -13,7 +13,8 @@ using index_t = uint32_t;
 using polygon_id_t = int;
 using coord_t = double;
 // using coefficient_t = __int128;
-using coefficient_t = int64_t;
+// using coefficient_t = int64_t;
+using coefficient_t = double;
 }  // namespace rayjoin
 
 #endif  // RAYJOIN_CONFIG_H

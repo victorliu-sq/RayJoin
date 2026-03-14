@@ -1,5 +1,6 @@
 #ifndef RAYJOIN_LSI_RT_H
 #define RAYJOIN_LSI_RT_H
+#include "vk/map/lsi_finalize_pass.h"
 
 namespace rayjoin {
 namespace vk {
@@ -57,6 +58,21 @@ class LSIRT : public LSI<CONTEXT_T> {
                             static_cast<uint32_t>(query_map->get_edges_num()));
 
     rt_engine_->RunLSI();
+
+
+    std::string spvPath = std::string(SHADER_DIR) + "/lsi_finalize.spv";
+    LSIFinalizePassRAII finalize_pass(spvPath.c_str(),  // [ADDED] compute shader SPIR-V
+                                      rt_engine_->GetLSIParamsBuffer(),  // [ADDED] same LaunchParamsLSI buffer used by RT
+                                      base_map->getEdgesBuffer(),  // [ADDED] binding: gBaseEdges
+                                      base_map->getPointsBuffer(),  // [ADDED] binding: gBasePoints
+                                      query_map->getEdgesBuffer(),  // [ADDED] binding: gQueryEdges
+                                      query_map->getPointsBuffer(),  // [ADDED] binding: gQueryPoints
+                                      this->get_xsect_buffer(),  // [ADDED] binding: gXsects
+                                      this->get_xsect_counter_buffer(),  // [ADDED] binding: gXsectCounter
+                                      static_cast<uint32_t>(this->get_xsect_capacity()));  // [ADDED]
+
+    // [ADDED] Run compute pass after RT traversal.
+    finalize_pass.run();
   }
 
   void set_config(QueryConfigRT config) { config_ = std::move(config); }

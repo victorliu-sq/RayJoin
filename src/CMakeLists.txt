@@ -91,12 +91,12 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON CACHE BOOL "Build all libs with -fPIC" FO
 #endif ()
 
 add_library(rayjoin_lib_vk SHARED
-#        core/run_overlay.cu
-#        core/run_query.cu
-#        rt/rt_engine.cu
+        #        core/run_overlay.cu
+        #        core/run_query.cu
+        #        rt/rt_engine.cu
         flag/flags.cc
-#        ${PROGRAM_MODULES}
-#       VK
+        #        ${PROGRAM_MODULES}
+        #       VK
         vk/core/run_overlay.cc
         vk/core/vk_global_context.cc
         vk/rt/rt_engine.cc
@@ -104,16 +104,16 @@ add_library(rayjoin_lib_vk SHARED
 )
 
 target_link_libraries(rayjoin_lib_vk PUBLIC
-#        CUDA::cudart
-#        CUDA::cuda_driver
+        #        CUDA::cudart
+        #        CUDA::cuda_driver
         glog::glog
         #       Vulkan
         Vulkan::Vulkan
         GPUOpen::VulkanMemoryAllocator
         #       Nvpro2
-#        nvpro2::nvapp
-#        nvpro2::nvutils
-#        nvpro2::nvvk
+        #        nvpro2::nvapp
+        #        nvpro2::nvutils
+        #        nvpro2::nvvk
 )
 
 # Put SPIR-V under: <build>/shaders/
@@ -123,8 +123,17 @@ set(SPV_OUTPUT_DIR "${CMAKE_BINARY_DIR}/shaders")
 target_compile_definitions(rayjoin_lib_vk PRIVATE
         SHADER_DIR="${SPV_OUTPUT_DIR}")
 
+# Put generated SPIR-V next to the build configuration, mirroring shader location.
+# Example:
+#   <build>/Debug/shader/kernel_ns
+#   <build>/Release/shader/kernel_ns
+set(SPV_OUTPUT_DIR_NS "${CMAKE_BINARY_DIR}/shader/kernel_ns")
+target_compile_definitions(rayjoin_lib_vk PRIVATE
+        SHADER_DIR_NS="${SPV_OUTPUT_DIR_NS}"
+)
+
 #target_include_directories(rayjoin_lib_vk PUBLIC
-        #       dependencies
+#       dependencies
 #        ${OptiX_INCLUDE}
 #        ${PROJECT_SOURCE_DIR}/deps/Declib
 #        ${PROJECT_SOURCE_DIR}/deps/lbvh
@@ -144,3 +153,4 @@ add_dependencies(rayjoin_lib_vk optix_ptx)
 
 # =========================== Executables ===================================
 add_subdirectory(app/03_overlay_vk)
+add_subdirectory(app/04_overlay_vk_ns)

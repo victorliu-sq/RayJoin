@@ -10,16 +10,16 @@ namespace rayjoin {
 namespace vk {
 
 namespace detail {
-template <typename COORD_T>
+template<typename COORD_T>
 struct internal_coord {};
 
-template <>
+template<>
 struct internal_coord<float> {
   using type = int32_t;
   constexpr static int shift = 1;
 };
 
-template <>
+template<>
 struct internal_coord<double> {
   using type = int64_t;
   constexpr static int shift = 17;
@@ -27,33 +27,21 @@ struct internal_coord<double> {
 };
 }  // namespace detail
 
-template <typename COORD_T,
-          typename INTERNAL_COORD_T =
-              typename detail::internal_coord<COORD_T>::type,
-          int n_shift = detail::internal_coord<COORD_T>::shift>
+template<typename COORD_T,
+         typename INTERNAL_COORD_T = typename detail::internal_coord<COORD_T>::type,
+         int n_shift = detail::internal_coord<COORD_T>::shift>
 class Scaling {
-  static_assert(std::is_floating_point<COORD_T>::value,
-                "COORD_T should be floating point type");
-  static_assert(std::is_integral<INTERNAL_COORD_T>::value &&
-                    std::is_signed<INTERNAL_COORD_T>::value,
+  static_assert(std::is_floating_point<COORD_T>::value, "COORD_T should be floating point type");
+  static_assert(std::is_integral<INTERNAL_COORD_T>::value && std::is_signed<INTERNAL_COORD_T>::value,
                 "INTERNAL_COORD_T should be signed integral type");
 
  public:
   using coord_t = COORD_T;
   using internal_coord_t = INTERNAL_COORD_T;
 
-  explicit Scaling()
-      : internal_max_(std::numeric_limits<internal_coord_t>::max() >> n_shift),
-        internal_min_(std::numeric_limits<internal_coord_t>::min() >> n_shift),
-        internal_range_(internal_max_ - internal_min_),
-        rx_(0),
-        ry_(0),
-        rrx_(0),
-        rry_(0),
-        deltax_(0),
-        deltay_(0),
-        ddeltax_(0),
-        ddeltay_(0) {}
+  explicit Scaling() :
+      internal_max_(std::numeric_limits<internal_coord_t>::max() >> n_shift), internal_min_(std::numeric_limits<internal_coord_t>::min() >> n_shift),
+      internal_range_(internal_max_ - internal_min_), rx_(0), ry_(0), rrx_(0), rry_(0), deltax_(0), deltay_(0), ddeltax_(0), ddeltay_(0) {}
 
   explicit Scaling(const BoundingBox<coord_t>& bb) : Scaling() {
     auto max_x = bb.max_x + SCALING_BOUNDING_BOX_MARGIN;
@@ -74,8 +62,7 @@ class Scaling {
 
   void DebugPrint() {
     printf("(rx, ry) = (%lf, %lf)\n", (double) rx_, (double) ry_);
-    printf("(deltax, deltay) = (%lf, %lf)\n", (double) deltax_,
-           (double) deltay_);
+    printf("(deltax, deltay) = (%lf, %lf)\n", (double) deltax_, (double) deltay_);
   }
 
   internal_coord_t ScaleX(coord_t x) const {
@@ -95,21 +82,13 @@ class Scaling {
   }
 
 
-  coord_t UnscaleX(internal_coord_t internal_x) const {
-    return internal_x * rrx_ + ddeltax_;
-  }
+  coord_t UnscaleX(internal_coord_t internal_x) const { return internal_x * rrx_ + ddeltax_; }
 
-  coord_t UnscaleY(internal_coord_t internal_y) const {
-    return internal_y * rry_ + ddeltay_;
-  }
+  coord_t UnscaleY(internal_coord_t internal_y) const { return internal_y * rry_ + ddeltay_; }
 
-  Vec2<internal_coord_t> Scale(const Vec2<coord_t>& p) const {
-    return {ScaleX(p.x), ScaleY(p.y)};
-  }
+  Vec2<internal_coord_t> Scale(const Vec2<coord_t>& p) const { return {ScaleX(p.x), ScaleY(p.y)}; }
 
-  Vec2<coord_t> Unscale(const Vec2<internal_coord_t>& p) const {
-    return {UnscaleX(p.x), UnscaleY(p.y)};
-  }
+  Vec2<coord_t> Unscale(const Vec2<internal_coord_t>& p) const { return {UnscaleX(p.x), UnscaleY(p.y)}; }
 
   internal_coord_t get_internal_min() const { return internal_min_; }
 
@@ -117,9 +96,7 @@ class Scaling {
 
   internal_coord_t get_internal_range() const { return internal_range_; }
 
-  bool IsInRange(double v) const {
-    return v >= internal_min_ && v <= internal_max_;
-  }
+  bool IsInRange(double v) const { return v >= internal_min_ && v <= internal_max_; }
 
   // Getters
   coord_t rx() const { return rx_; }

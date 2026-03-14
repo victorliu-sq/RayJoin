@@ -40,9 +40,6 @@ struct Intersection {
 
   uint mid_point_polygon_id;
   uint _pad0;
-  // uint64_t _pad1;
-  // uint64_t _pad2;
-  // uint64_t _pad3;
 };
 
 struct LaunchParamsLSI {
@@ -236,42 +233,42 @@ bool intersect_test(Edge e1, Point e1_p1, Point e1_p2, Edge e2, Point e2_p1, Poi
 // -----------------------------------------------------------------------------
 // intersect_test() with exact intersection point output
 // -----------------------------------------------------------------------------
-bool intersect_test(Edge e1, Point e1_p1, Point e1_p2, Edge e2, Point e2_p1, Point e2_p2,
-                    out Rational64 xsect_x, out Rational64 xsect_y) {
-  xsect_x = makeRational64(0, 1);
-  xsect_y = makeRational64(0, 1);
+// bool intersect_test(Edge e1, Point e1_p1, Point e1_p2, Edge e2, Point e2_p1, Point e2_p2,
+//                     out Rational64 xsect_x, out Rational64 xsect_y) {
+//   xsect_x = makeRational64(0, 1);
+//   xsect_y = makeRational64(0, 1);
 
-  if (!intersect_test(e1, e1_p1, e1_p2, e2, e2_p1, e2_p2))
-    return false;
+//   if (!intersect_test(e1, e1_p1, e1_p2, e2, e2_p1, e2_p2))
+//     return false;
 
-  // calculate intersection point
-  int64_t denom = int64_t(e1.a) * int64_t(e2.b) - int64_t(e2.a) * int64_t(e1.b);
-  int64_t numx = e2.c * int64_t(e1.b) - e1.c * int64_t(e2.b);
-  int64_t numy = int64_t(e2.a) * e1.c - int64_t(e1.a) * e2.c;
+//   // calculate intersection point
+//   int64_t denom = int64_t(e1.a) * int64_t(e2.b) - int64_t(e2.a) * int64_t(e1.b);
+//   int64_t numx = e2.c * int64_t(e1.b) - e1.c * int64_t(e2.b);
+//   int64_t numy = int64_t(e2.a) * e1.c - int64_t(e1.a) * e2.c;
 
-  xsect_x = makeRational64(numx, denom);
-  xsect_y = makeRational64(numy, denom);
+//   xsect_x = makeRational64(numx, denom);
+//   xsect_y = makeRational64(numy, denom);
 
-  int64_t t;
+//   int64_t t;
 
-  t = min4_i64(e1_p1.x, e1_p2.x, e2_p1.x, e2_p2.x);
-  if (rationalLessThanInt(xsect_x, t))
-    xsect_x = makeRational64(t, 1);
+//   t = min4_i64(e1_p1.x, e1_p2.x, e2_p1.x, e2_p2.x);
+//   if (rationalLessThanInt(xsect_x, t))
+//     xsect_x = makeRational64(t, 1);
 
-  t = max4_i64(e1_p1.x, e1_p2.x, e2_p1.x, e2_p2.x);
-  if (rationalGreaterThanInt(xsect_x, t))
-    xsect_x = makeRational64(t, 1);
+//   t = max4_i64(e1_p1.x, e1_p2.x, e2_p1.x, e2_p2.x);
+//   if (rationalGreaterThanInt(xsect_x, t))
+//     xsect_x = makeRational64(t, 1);
 
-  t = min4_i64(e1_p1.y, e1_p2.y, e2_p1.y, e2_p2.y);
-  if (rationalLessThanInt(xsect_y, t))
-    xsect_y = makeRational64(t, 1);
+//   t = min4_i64(e1_p1.y, e1_p2.y, e2_p1.y, e2_p2.y);
+//   if (rationalLessThanInt(xsect_y, t))
+//     xsect_y = makeRational64(t, 1);
 
-  t = max4_i64(e1_p1.y, e1_p2.y, e2_p1.y, e2_p2.y);
-  if (rationalGreaterThanInt(xsect_y, t))
-    xsect_y = makeRational64(t, 1);
+//   t = max4_i64(e1_p1.y, e1_p2.y, e2_p1.y, e2_p2.y);
+//   if (rationalGreaterThanInt(xsect_y, t))
+//     xsect_y = makeRational64(t, 1);
 
-  return true;
-}
+//   return true;
+// }
 
 [shader("intersection")]
 void intersectionMain() {

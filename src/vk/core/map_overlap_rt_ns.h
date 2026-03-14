@@ -1,6 +1,8 @@
-#ifndef RAYJOIN_MAP_OVERLAY_RT_H
-#define RAYJOIN_MAP_OVERLAY_RT_H
+#ifndef RAYJOIN_MAP_OVERLAP_RT_NS_H
+#define RAYJOIN_MAP_OVERLAP_RT_NS_H
 
+#include "map_overlay.h"
+#include "query_config.h"
 #include "vk/core/lsi_rt.h"
 #include "vk/engine/vk_buffer.h"
 #include "vk/map/map.h"
@@ -12,11 +14,11 @@ namespace rayjoin {
 namespace vk {
 
 template<typename CONTEXT_T>
-class MapOverlayRT : public MapOverlay<CONTEXT_T> {
+class MapOverlayRTNS : public MapOverlay<CONTEXT_T> {
   using map_t = typename CONTEXT_T::map_t;
 
  public:
-  explicit MapOverlayRT(CONTEXT_T &ctx) : MapOverlay<CONTEXT_T>(ctx) {
+  explicit MapOverlayRTNS(CONTEXT_T &ctx) : MapOverlay<CONTEXT_T>(ctx) {
     rt_engine_ = std::make_shared<RTEngine>();
     this->lsi_ = std::make_shared<LSIRT<CONTEXT_T>>(ctx, rt_engine_);
     // this->pip_ = std::make_shared<PIPRT<CONTEXT_T>>(ctx, rt_engine_);
@@ -657,4 +659,5 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
 
 }  // namespace vk
 }  // namespace rayjoin
-#endif  // RAYJOIN_MAP_OVERLAY_RT_H
+
+#endif  // RAYJOIN_MAP_OVERLAP_RT_NS_H

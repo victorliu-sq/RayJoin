@@ -5,7 +5,11 @@
 namespace rayjoin {
 namespace vk {
 void RunOverlay(const OverlayConfig& config);
+
+// no scaling
+
+void RunOverlayNS(const OverlayConfig& config);
+}  // namespace vk
 }  // namespace rayjoin
-}
 
 #endif  // RAYJOIN_RUN_OVERLAY_CUH

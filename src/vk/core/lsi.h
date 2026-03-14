@@ -8,33 +8,14 @@
 namespace rayjoin {
 namespace vk {
 
-// struct alignas(32) Intersection {
-//   int64_t x;
-//   int64_t y;
-//
-//   uint32_t eid0;
-//   uint32_t eid1;
-//
-//   uint32_t mid_point_polygon_id;
-//   uint32_t pad; // padding for alignment
-// };
-// static_assert(sizeof(Intersection) == 32); // size: 28 + 4
-// static_assert(alignof(Intersection) == 32);
-
-// struct alignas(32) Intersection {
-//   int64_t x;
-//   int64_t y;
-//
-//   uint64_t eid0;
-//   uint64_t eid1;
-//
-//   uint32_t mid_point_polygon_id;
-//   uint32_t pad;
-// };
+struct Rational64 {
+  int64_t num;
+  int64_t den;
+};
 
 struct Intersection {
-  int64_t x;
-  int64_t y;
+  Rational64 x;
+  Rational64 y;
 
   uint64_t eid0;
   uint64_t eid1;
@@ -43,10 +24,10 @@ struct Intersection {
   uint32_t pad;
 };
 
-static_assert(alignof(Intersection) == 8, "Intersection alignment must be 32");
-static_assert(sizeof(Intersection) == 40, "Intersection size must be 64 bytes");
-// static_assert(sizeof(Intersection) == 64, "Intersection size must be 64 bytes");
-// static_assert(sizeof(Intersection) == 16, "Intersection size must be 16");
+static_assert(sizeof(Rational64) == 16, "Rational64 must be 16 bytes");
+static_assert(alignof(Rational64) == 8, "Rational64 alignment must be 8");
+static_assert(sizeof(Intersection) == 56, "Intersection must be 56 bytes");
+static_assert(alignof(Intersection) == 8, "Intersection alignment must be 8");
 
 template<typename CONTEXT_T>
 class LSI {
