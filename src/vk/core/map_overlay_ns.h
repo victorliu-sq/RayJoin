@@ -7,7 +7,8 @@
 
 namespace rayjoin {
 namespace vk {
-template<ContextNSType CONTEXT_NS_T>
+template<typename CONTEXT_NS_T>
+  requires ContextNSType<CONTEXT_NS_T>
 class MapOverlayNS {
  public:
   using coord_t = CONTEXT_NS_T::coord_t;
