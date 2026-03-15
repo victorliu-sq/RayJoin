@@ -78,7 +78,7 @@ void RunOverlayNS(const rayjoin::OverlayConfig& config) {
   overlay->Init();
 
   timer_next("Build Index");
-  // overlay->BuildIndex();
+  overlay->BuildIndex();
 
   timer_next("Intersection edges");
   // overlay->IntersectEdge(0);
