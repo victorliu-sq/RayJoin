@@ -43,6 +43,8 @@ class FillPrimitivesNS : public VkComputeEngine {
   float m_areaEnlarge;
 
   void createPipeline(const char* spvPath) override {
+    // ------------------------------------------------
+    // Create DescriptorSetLayout
     VkDescriptorSetLayoutBinding bindings[4]{};
 
     for (uint32_t i = 0; i < 4; ++i) {
@@ -62,11 +64,15 @@ class FillPrimitivesNS : public VkComputeEngine {
 
     VK_CHECK(vkCreateDescriptorSetLayout(m_ctx.device, &dsl, nullptr, &m_setLayout));
 
+    // ------------------------------------------------
+    // Create PushConstantRange
     VkPushConstantRange pcr{};
     pcr.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     pcr.offset = 0;
     pcr.size = sizeof(PushConstants);
 
+    // ------------------------------------------------
+    // PipelineLayout = DesciptorSetLayout + PushConstantsRange
     VkPipelineLayoutCreateInfo pl{};
     pl.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pl.pNext = nullptr;
@@ -78,21 +84,22 @@ class FillPrimitivesNS : public VkComputeEngine {
 
     VK_CHECK(vkCreatePipelineLayout(m_ctx.device, &pl, nullptr, &m_pipeLayout));
 
+    // ------------------------------------------------
+    // Load Shader Module
     auto spirv = readSpvU32(spvPath);
-
     if (spirv.empty()) {
       throw std::runtime_error(std::string("Failed to load SPIR-V: ") + spvPath);
     }
-
     VkShaderModuleCreateInfo sm{};
     sm.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     sm.pNext = nullptr;
     sm.flags = 0;
     sm.codeSize = spirv.size() * sizeof(uint32_t);
     sm.pCode = spirv.data();
-
     VK_CHECK(vkCreateShaderModule(m_ctx.device, &sm, nullptr, &m_shader));
 
+    // ------------------------------------------------
+    // Create Shader Stage
     VkPipelineShaderStageCreateInfo stage{};
     stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     stage.pNext = nullptr;
@@ -102,6 +109,8 @@ class FillPrimitivesNS : public VkComputeEngine {
     stage.pName = "main";
     stage.pSpecializationInfo = nullptr;
 
+    // ------------------------------------------------
+    // Pipeline = PipelineLayout + Shader Module + Shader Stage
     VkComputePipelineCreateInfo cp{};
     cp.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
     cp.pNext = nullptr;
@@ -110,7 +119,6 @@ class FillPrimitivesNS : public VkComputeEngine {
     cp.layout = m_pipeLayout;
     cp.basePipelineHandle = VK_NULL_HANDLE;
     cp.basePipelineIndex = -1;
-
     VK_CHECK(vkCreateComputePipelines(m_ctx.device, VK_NULL_HANDLE, 1, &cp, nullptr, &m_pipeline));
   }
 
