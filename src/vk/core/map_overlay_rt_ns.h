@@ -97,9 +97,9 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
 
       std::string spvPath = std::string(SHADER_DIR_NS) + "/fill_primitives_ns.spv";
 
-      fill_primitives_pass_ = std::make_unique<FillPrimitivesNS>(
+      fill_primitives_ns_pass_ = std::make_unique<FillPrimitivesNS>(
           spvPath.c_str(), map->getPointsBuffer(), map->getEdgesBuffer(), aabbs_buf_, eid_range_buf_[im], map_edge_count_[im], ag_iter, area_enlarge);
-      fill_primitives_pass_->run();
+      fill_primitives_ns_pass_->run();
       DebugPrintAABBs(map, aabbs_buf_, eid_range_buf_[im], map_edge_count_[im]);
 
       // LOG(INFO) << "Map-" << im << " builds " << map_edge_count_[im] << " primtives.";
@@ -143,7 +143,7 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
 
   // --------------------------------
   // Build Index
-  std::unique_ptr<FillPrimitivesNS> fill_primitives_pass_;
+  std::unique_ptr<FillPrimitivesNS> fill_primitives_ns_pass_;
 
   void DebugPrintAABBs(std::shared_ptr<map_t> map, const VkDeviceBuf &aabbBuf, const VkDeviceBuf &eidRangeBuf, uint32_t edge_count) const {
     const uint32_t checkCount = std::min<uint32_t>(edge_count, 10);
