@@ -18,7 +18,7 @@ namespace rayjoin {
 namespace vk {
 
 template<EdgeCoeffType COEFF_T>
-struct EdgeT {
+struct Edge {
   COEFF_T a;
   COEFF_T b;
   COEFF_T c;
@@ -36,7 +36,7 @@ class MapNS {
   using coord_t = POINT_COORD_T;
   using coeff_t = POINT_COORD_T;
   using point_t = Vec2<coord_t>;
-  using edge_t = EdgeT<coord_t>;
+  using edge_t = Edge<coord_t>;
 
   MapNS() = delete;
   explicit MapNS(int id) : id_(id) {}

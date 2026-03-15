@@ -34,7 +34,7 @@ class ContextNS {
   using map_t = MapNS<coord_t>;
   using bounding_box_t = BoundingBox<coord_t>;
   using point_t = Vec2<coord_t>;
-  using edge_t = EdgeT<coord_t>;
+  using edge_t = Edge<coord_t>;
 
   ContextNS() = delete;
 
