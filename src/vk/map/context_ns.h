@@ -8,10 +8,10 @@
 namespace rayjoin {
 namespace vk {
 
-
 // ===========================================================
 // Concept support for ContextNS
 template<typename POINT_COORD_T>
+  requires PointCoordType<POINT_COORD_T>
 class ContextNS;
 
 template<typename T>
@@ -25,6 +25,7 @@ concept ContextNSType = is_context_ns<std::remove_cvref_t<T>>::value;
 // ===========================================================
 
 template<typename POINT_COORD_T>
+  requires PointCoordType<POINT_COORD_T>
 class ContextNS {
  public:
   using coord_t = POINT_COORD_T;
@@ -32,6 +33,8 @@ class ContextNS {
   using planar_graph_t = PlanarGraph<coord_t>;
   using map_t = MapNS<coord_t>;
   using bounding_box_t = BoundingBox<coord_t>;
+  using point_t = Vec2<coord_t>;
+  using edge_t = EdgeT<coord_t>;
 
   ContextNS() = delete;
 

@@ -17,4 +17,5 @@ concept PointCoordType = std::same_as<T, float> || std::same_as<T, double>;
 template<typename T>
 concept EdgeCoeffType = std::same_as<T, float> || std::same_as<T, double>;
 
+
 #endif  // RAYJOIN_TYPE_TRAITS_H
