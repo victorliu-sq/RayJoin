@@ -17,7 +17,7 @@
 namespace rayjoin {
 namespace vk {
 
-template<typename COEFF_T>
+template<EdgeCoeffType COEFF_T>
 struct EdgeT {
   COEFF_T a;
   COEFF_T b;
@@ -30,7 +30,7 @@ struct EdgeT {
   uint64_t right_polygon_id;
 };
 
-template<typename POINT_COORD_T>
+template<PointCoordType POINT_COORD_T>
 class MapNS {
  public:
   using coord_t = POINT_COORD_T;

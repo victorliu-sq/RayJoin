@@ -1,14 +1,13 @@
 #ifndef RAYJOIN_PLANAR_GRAPH_H
 #define RAYJOIN_PLANAR_GRAPH_H
-#include <dirent.h>
-#include <sys/stat.h>
-#include <unistd.h>
-
 #include <algorithm>
+#include <dirent.h>
 #include <fstream>
 #include <map>
 #include <memory>
 #include <random>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <vector>
 
 #include "glog/logging.h"
@@ -20,27 +19,25 @@ namespace rayjoin {
 namespace vk {
 
 struct Chain {
-  int64_t id;               // chain index
+  int64_t id;  // chain index
   int64_t first_point_idx;  // unused, first, last index of the chain
   int64_t last_point_idx;
-  int64_t left_polygon_id;   // left polygon id of the chain
+  int64_t left_polygon_id;  // left polygon id of the chain
   int64_t right_polygon_id;  // right polygon id of the chain
 };
 
-template <typename COORD_T>
+template<PointCoordType POINT_COORD_T>
 struct PlanarGraph {
  public:
-  using point_t = Vec2<COORD_T>;
+  using point_t = Vec2<POINT_COORD_T>;
   std::vector<Chain> chains;
   std::vector<index_t> row_index;  // organized in chains
   std::vector<point_t> points;
-  BoundingBox<COORD_T> bb;
+  BoundingBox<POINT_COORD_T> bb;
 
-  static std::shared_ptr<PlanarGraph<COORD_T>> load_from(
-      const std::string& path, const std::string& serialize_prefix) {
+  static std::shared_ptr<PlanarGraph<POINT_COORD_T>> load_from(const std::string& path, const std::string& serialize_prefix) {
     std::string escaped_path;
-    std::replace_copy(path.begin(), path.end(),
-                      std::back_inserter(escaped_path), '/', '-');
+    std::replace_copy(path.begin(), path.end(), std::back_inserter(escaped_path), '/', '-');
     // Ensure serialize directory exists (if requested)
     if (!serialize_prefix.empty()) {
       DIR* dir = opendir(serialize_prefix.c_str());
@@ -55,7 +52,7 @@ struct PlanarGraph {
       }
     }
 
-    std::shared_ptr<PlanarGraph<COORD_T>> result;
+    std::shared_ptr<PlanarGraph<POINT_COORD_T>> result;
     // auto ser_path = serialize_prefix + '/' + escaped_path + ".bin";
     const std::string ser_path = serialize_prefix + '/' + escaped_path + ".bin";
 
@@ -66,8 +63,7 @@ struct PlanarGraph {
       // result = deserialize_pgraph<COORD_T>(ser_path.c_str());
     } else {
       result = read_pgraph(path.c_str());
-      if (!serialize_prefix.empty() &&
-          access(serialize_prefix.c_str(), W_OK) == 0) {
+      if (!serialize_prefix.empty() && access(serialize_prefix.c_str(), W_OK) == 0) {
         // serialize_pgraph(result, ser_path.c_str());
       }
     }
@@ -75,7 +71,7 @@ struct PlanarGraph {
   }
 
  private:
-  static std::shared_ptr<PlanarGraph<COORD_T>> read_pgraph(const char* path) {
+  static std::shared_ptr<PlanarGraph<POINT_COORD_T>> read_pgraph(const char* path) {
     std::ifstream ifs(path);
 
     CHECK(ifs.is_open()) << "Cannot open file " << path;
@@ -83,10 +79,10 @@ struct PlanarGraph {
     std::string line;
     Chain* curr_chain;
     int64_t np = 0;
-    auto pgraph = std::make_shared<PlanarGraph<COORD_T>>();
+    auto pgraph = std::make_shared<PlanarGraph<POINT_COORD_T>>();
     auto& g = *pgraph;
     // typename cuda_vec<COORD_T>::type_2d* last_p = nullptr;
-    Vec2<COORD_T>* last_p = nullptr;
+    Vec2<POINT_COORD_T>* last_p = nullptr;
     std::vector<double> seg_lens;
     size_t lno = 0;
 
@@ -102,10 +98,8 @@ struct PlanarGraph {
         g.chains.push_back(Chain());
         curr_chain = &g.chains.back();
 
-        bad_line =
-            !(iss >> curr_chain->id >> np >> curr_chain->first_point_idx >>
-              curr_chain->last_point_idx >> curr_chain->left_polygon_id >>
-              curr_chain->right_polygon_id);
+        bad_line = !(iss >> curr_chain->id >> np >> curr_chain->first_point_idx >> curr_chain->last_point_idx >> curr_chain->left_polygon_id >>
+                     curr_chain->right_polygon_id);
         bad_line |= np < 2;
         // checking overlapped polygon
         //      bad_line |= curr_chain->left_polygon_id ==
@@ -114,12 +108,11 @@ struct PlanarGraph {
         last_p = nullptr;
       } else {
         // typename cuda_vec<COORD_T>::type_2d p;
-        Vec2<COORD_T> p;
+        Vec2<POINT_COORD_T> p;
 
         bad_line = !(iss >> p.x >> p.y);
         if (last_p != nullptr) {
-          auto seg_len = sqrt((p.x - last_p->x) * (p.x - last_p->x) +
-                              (p.y - last_p->y) * (p.y - last_p->y));
+          auto seg_len = sqrt((p.x - last_p->x) * (p.x - last_p->x) + (p.y - last_p->y) * (p.y - last_p->y));
           seg_lens.push_back(seg_len);
           bad_line |= p.x == last_p->x && p.y == last_p->y;
         }
@@ -133,8 +126,7 @@ struct PlanarGraph {
         np--;
       }
 
-      CHECK(!bad_line) << "Bad line. Check your dataset! " << path << "[" << lno
-                       << "]: " << line;
+      CHECK(!bad_line) << "Bad line. Check your dataset! " << path << "[" << lno << "]: " << line;
     }
     ifs.close();
 
@@ -143,25 +135,17 @@ struct PlanarGraph {
     }
     CHECK_EQ(np, 0);
 
-    double total_seg_len =
-        std::accumulate(seg_lens.begin(), seg_lens.end(), 0.0);
+    double total_seg_len = std::accumulate(seg_lens.begin(), seg_lens.end(), 0.0);
     double mean = total_seg_len / seg_lens.size();
 
     std::vector<double> diff(seg_lens.size());
-    std::transform(seg_lens.begin(), seg_lens.end(), diff.begin(),
-                   [mean](double x) { return x - mean; });
-    double sq_sum =
-        std::inner_product(diff.begin(), diff.end(), diff.begin(), 0.0);
+    std::transform(seg_lens.begin(), seg_lens.end(), diff.begin(), [mean](double x) { return x - mean; });
+    double sq_sum = std::inner_product(diff.begin(), diff.end(), diff.begin(), 0.0);
     double stdev = std::sqrt(sq_sum / seg_lens.size());
 
-    VLOG(1) << "Map " << path << " is loaded, chains: " << g.chains.size()
-            << " points: " << pgraph->points.size()
-            << " edges: " << g.points.size() - g.chains.size()
-            << ", min seg len: "
-            << *std::min_element(seg_lens.begin(), seg_lens.end())
-            << ", max seg len: "
-            << *std::max_element(seg_lens.begin(), seg_lens.end())
-            << ", avg seg len: " << mean << ", stdev: " << stdev;
+    VLOG(1) << "Map " << path << " is loaded, chains: " << g.chains.size() << " points: " << pgraph->points.size()
+            << " edges: " << g.points.size() - g.chains.size() << ", min seg len: " << *std::min_element(seg_lens.begin(), seg_lens.end())
+            << ", max seg len: " << *std::max_element(seg_lens.begin(), seg_lens.end()) << ", avg seg len: " << mean << ", stdev: " << stdev;
     return pgraph;
   }
 };
