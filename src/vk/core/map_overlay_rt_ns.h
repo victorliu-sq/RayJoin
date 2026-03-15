@@ -7,12 +7,14 @@
 #include "vk/engine/vk_buffer.h"
 #include "vk/map/map.h"
 #include "vk/map/vk_debug_readback.h"
+#include "vk/rt/as_scene.h"
 #include "vk/rt/primitive_ns.h"
 #include "vk/rt/rt_engine.h"
 
 namespace rayjoin {
 namespace vk {
 template<typename CONTEXT_NS_T>
+  requires ContextNSType<CONTEXT_NS_T>
 class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
   using map_t = CONTEXT_NS_T::map_t;
   using point_t = CONTEXT_NS_T::point_t;
@@ -102,9 +104,10 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
       fill_primitives_ns_pass_->run();
       DebugPrintAABBs(map, aabbs_buf_, eid_range_buf_[im], map_edge_count_[im]);
 
-      // LOG(INFO) << "Map-" << im << " builds " << map_edge_count_[im] << " primtives.";
-      // traverse_handles_[im] = rt_engine_->BuildAccelCustom(aabbs_buf_, map_edge_count_[im]);
+      LOG(INFO) << "Map-" << im << " builds " << map_edge_count_[im] << " primtives.";
+      accel_[im].BuildAccelCustom(aabbs_buf_, map_edge_count_[im]);
 
+      // traverse_handles_[im] = rt_engine_->BuildAccelCustom(aabbs_buf_, map_edge_count_[im]);
       // traverse_handles_[im] = rt_engine_->BuildAccelCustom(aabbs_buf_, map_edge_count_[im]);
 
       // if (config_.fau) {
@@ -144,6 +147,8 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
   // --------------------------------
   // Build Index
   std::unique_ptr<FillPrimitivesNS> fill_primitives_ns_pass_;
+
+  AccelStructScene accel_[2];
 
   void DebugPrintAABBs(std::shared_ptr<map_t> map, const VkDeviceBuf &aabbBuf, const VkDeviceBuf &eidRangeBuf, uint32_t edge_count) const {
     const uint32_t checkCount = std::min<uint32_t>(edge_count, 10);

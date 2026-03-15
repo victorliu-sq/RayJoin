@@ -180,13 +180,12 @@ class RTEngine {
 
   PFN_vkCmdCopyAccelerationStructureKHR fpCmdCopyAccelerationStructureKHR = nullptr;
 
+  PFN_vkGetAccelerationStructureDeviceAddressKHR fpGetAccelerationStructureDeviceAddressKHR = nullptr;
   // --------------------------------------------------------------------------
   // NEW:
   // Additional Vulkan RT function pointers needed for launching ray tracing
   // pipelines, creating SBTs, and obtaining AS device addresses.
   // --------------------------------------------------------------------------
-  PFN_vkGetAccelerationStructureDeviceAddressKHR fpGetAccelerationStructureDeviceAddressKHR = nullptr;
-
   PFN_vkCreateRayTracingPipelinesKHR fpCreateRayTracingPipelinesKHR = nullptr;
 
   PFN_vkGetRayTracingShaderGroupHandlesKHR fpGetRayTracingShaderGroupHandlesKHR = nullptr;
