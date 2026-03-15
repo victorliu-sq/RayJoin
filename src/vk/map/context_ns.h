@@ -8,6 +8,22 @@
 namespace rayjoin {
 namespace vk {
 
+
+// ===========================================================
+// Concept support for ContextNS
+template<typename POINT_COORD_T>
+class ContextNS;
+
+template<typename T>
+struct is_context_ns : std::false_type {};
+
+template<typename POINT_COORD_T>
+struct is_context_ns<ContextNS<POINT_COORD_T>> : std::true_type {};
+
+template<typename T>
+concept ContextNSType = is_context_ns<std::remove_cvref_t<T>>::value;
+// ===========================================================
+
 template<typename POINT_COORD_T>
 class ContextNS {
  public:
