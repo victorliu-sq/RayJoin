@@ -28,22 +28,6 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     auto &ctx = this->ctx_;
     auto &lsi = this->lsi_;
     auto &vk_ctx = GetVkComputeContext();
-
-    // -------------------------------
-    // Initialize RT Engine
-    // -------------------------------
-    rt_engine_->Init();
-
-    {
-      std::string rgen_spv = std::string(SHADER_DIR) + "/rt/lsi_rgen.spv";
-      std::string rint_spv = std::string(SHADER_DIR) + "/rt/lsi_rint.spv";
-      std::string rahit_spv = std::string(SHADER_DIR) + "/rt/lsi_rahit.spv";
-      std::string rchit_spv = std::string(SHADER_DIR) + "/rt/lsi_rchit.spv";
-      std::string rmiss_spv = std::string(SHADER_DIR) + "/rt/lsi_rmiss.spv";
-
-      rt_engine_->InitLSIPipeline(rgen_spv.c_str(), rint_spv.c_str(), rahit_spv.c_str(), rchit_spv.c_str(), rmiss_spv.c_str());
-    }
-
     // -------------------------------
     // Scan maps
     // -------------------------------
@@ -90,6 +74,19 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
 
     // TODO: enable pip (disabled for now)
     // this->pip_->Init(max_n_points);
+
+
+    // -------------------------------
+    // Initialize RT Engine
+    // -------------------------------
+    rt_engine_->Init();
+
+    std::string rgen_spv = std::string(SHADER_DIR) + "/rt/lsi_rgen.spv";
+    std::string rint_spv = std::string(SHADER_DIR) + "/rt/lsi_rint.spv";
+    std::string rahit_spv = std::string(SHADER_DIR) + "/rt/lsi_rahit.spv";
+    std::string rchit_spv = std::string(SHADER_DIR) + "/rt/lsi_rchit.spv";
+    std::string rmiss_spv = std::string(SHADER_DIR) + "/rt/lsi_rmiss.spv";
+    rt_engine_->InitLSIPipeline(rgen_spv.c_str(), rint_spv.c_str(), rahit_spv.c_str(), rchit_spv.c_str(), rmiss_spv.c_str());
   }
 
   void BuildIndex() override {

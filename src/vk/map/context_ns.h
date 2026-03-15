@@ -8,14 +8,13 @@
 namespace rayjoin {
 namespace vk {
 
-template<typename POINT_COORD_T, typename EDGE_COEFF_T>
+template<typename POINT_COORD_T>
 class ContextNS {
  public:
   using coord_t = POINT_COORD_T;
-  using coeff_t = EDGE_COEFF_T;
-
+  using coeff_t = POINT_COORD_T;
   using planar_graph_t = PlanarGraph<coord_t>;
-  using map_t = MapNS<coord_t, coeff_t>;
+  using map_t = MapNS<coord_t>;
   using bounding_box_t = BoundingBox<coord_t>;
 
   ContextNS() = delete;

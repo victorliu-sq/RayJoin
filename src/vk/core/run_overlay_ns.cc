@@ -18,7 +18,7 @@ namespace rayjoin {
 namespace vk {
 
 void RunOverlayNS(const rayjoin::OverlayConfig& config) {
-  using context_t = ContextNS<coord_t, coefficient_t>;
+  using context_t = ContextNS<coord_t>;
   timer_start();
 
   timer_next("Read map 0");
@@ -75,7 +75,7 @@ void RunOverlayNS(const rayjoin::OverlayConfig& config) {
   }
 
   timer_next("Init");
-  // overlay->Init();
+  overlay->Init();
 
   timer_next("Build Index");
   // overlay->BuildIndex();

@@ -30,13 +30,13 @@ struct EdgeT {
   uint64_t right_polygon_id;
 };
 
-template<typename POINT_COORD_T, typename EDGE_COEFF_T>
+template<typename POINT_COORD_T>
 class MapNS {
  public:
   using coord_t = POINT_COORD_T;
-  using coeff_t = EDGE_COEFF_T;
+  using coeff_t = POINT_COORD_T;
   using point_t = Vec2<coord_t>;
-  using edge_t = EdgeT<coeff_t>;
+  using edge_t = EdgeT<coord_t>;
 
   MapNS() = delete;
   explicit MapNS(int id) : id_(id) {}
