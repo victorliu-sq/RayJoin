@@ -147,8 +147,12 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
   void WriteResult(const char *path) override {}
 
  private:
-  std::shared_ptr<RTEngine> rt_engine_;
   QueryConfigRT config_;
+
+  // -------------------------------
+  // RT-Engine
+  // -------------------------------
+  std::shared_ptr<RTEngine> rt_engine_;
 
   // -------------------------------
   // GPU buffers

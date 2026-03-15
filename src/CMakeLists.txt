@@ -98,6 +98,7 @@ add_library(rayjoin_lib_vk SHARED
         #        ${PROGRAM_MODULES}
         #       VK
         vk/core/run_overlay.cc
+        vk/core/run_overlay_ns.cc
         vk/core/vk_global_context.cc
         vk/rt/rt_engine.cc
         vk/vma_iimpl.cc

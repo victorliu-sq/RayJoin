@@ -1,5 +1,5 @@
-#ifndef RAYJOIN_MAP_OVERLAY_H
-#define RAYJOIN_MAP_OVERLAY_H
+#ifndef RAYJOIN_MAP_OVERLAY_NS_H
+#define RAYJOIN_MAP_OVERLAY_NS_H
 
 #include "vk/core/lsi.h"
 #include "vk/rt/rt_engine.h"
@@ -7,17 +7,17 @@
 namespace rayjoin {
 namespace vk {
 template<typename CONTEXT_T>
-class MapOverlay {
+class MapOverlayNS {
  public:
   using coord_t = typename CONTEXT_T::coord_t;
-  using internal_coord_t = typename CONTEXT_T::internal_coord_t;
-  using coefficient_t = typename CONTEXT_T::coefficient_t;
+  // using internal_coord_t = typename CONTEXT_T::internal_coord_t;
+  using coeff_t = typename CONTEXT_T::coeff_t;
   // using xsect_t = dev::Intersection<internal_coord_t>;
 
-  MapOverlay() = delete;
-  explicit MapOverlay(CONTEXT_T& ctx) : ctx_(ctx) {}
+  MapOverlayNS() = delete;
+  explicit MapOverlayNS(CONTEXT_T& ctx) : ctx_(ctx) {}
 
-  virtual ~MapOverlay() = default;
+  virtual ~MapOverlayNS() = default;
 
   virtual void Init() = 0;
 
@@ -42,6 +42,5 @@ class MapOverlay {
 };
 }  // namespace vk
 }  // namespace rayjoin
-   // namespace rayjoin
 
-#endif  // RAYJOIN_MAP_OVERLAY_H
+#endif  // RAYJOIN_MAP_OVERLAY_NS_H
