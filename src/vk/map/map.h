@@ -12,7 +12,7 @@
 namespace rayjoin {
 namespace vk {
 
-struct Edge {
+struct EdgeInt64 {
   int64_t a;
   int64_t b;
   int64_t c;
@@ -94,7 +94,7 @@ class Map {
     // edgesDev_ = createStorageBuffer(vk_ctx.vma, sizeof(Edge) * edge_count_);
     chainsDev_.Init(sizeof(Chain) * chain_count_);
     rowDev_.Init(sizeof(index_t) * (chain_count_ + 1));
-    edgesDev_.Init(sizeof(Edge) * edge_count_);
+    edgesDev_.Init(sizeof(EdgeInt64) * edge_count_);
 
     /* upload CPU → GPU */
     writeToStorageBuffer(chainsDev_, pgraph.chains);
@@ -173,7 +173,7 @@ class Map {
   void DebugPrintEdges(uint32_t point_count) const {
     uint32_t checkEdges = std::min<uint32_t>(edge_count_, 10);
 
-    auto gpuEdges = readBackStorageBuffer<Edge>(edgesDev_, checkEdges);
+    auto gpuEdges = readBackStorageBuffer<EdgeInt64>(edgesDev_, checkEdges);
     auto gpuPts = readBackStorageBuffer<DstPointI64>(scaledPointsDev_, point_count);
 
     LOG(INFO) << "Map-" << id_ << " GPU edge readback (first " << checkEdges << " edges):";

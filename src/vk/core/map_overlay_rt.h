@@ -186,7 +186,7 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
 
     auto gpuRanges = readBackStorageBuffer<EidRange>(eidRangeBuf, checkCount);
 
-    auto gpuEdges = readBackStorageBuffer<Edge>(map->getEdgesBuffer(), edge_count);
+    auto gpuEdges = readBackStorageBuffer<EdgeInt64>(map->getEdgesBuffer(), edge_count);
 
     auto gpuPts = readBackStorageBuffer<DstPointI64>(map->getPointsBuffer(), map->get_points_num());
 
@@ -288,8 +288,8 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     // ------------------------------------------------------------------------
     // Read back both maps' edges/points/scaling
     // ------------------------------------------------------------------------
-    auto queryEdges = readBackStorageBuffer<Edge>(query_map->getEdgesBuffer(), query_map->get_edges_num());
-    auto baseEdges = readBackStorageBuffer<Edge>(base_map->getEdgesBuffer(), base_map->get_edges_num());
+    auto queryEdges = readBackStorageBuffer<EdgeInt64>(query_map->getEdgesBuffer(), query_map->get_edges_num());
+    auto baseEdges = readBackStorageBuffer<EdgeInt64>(base_map->getEdgesBuffer(), base_map->get_edges_num());
 
     auto queryPts = readBackStorageBuffer<DstPointI64>(query_map->getPointsBuffer(), query_map->get_points_num());
     auto basePts = readBackStorageBuffer<DstPointI64>(base_map->getPointsBuffer(), base_map->get_points_num());
@@ -301,13 +301,16 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     // ------------------------------------------------------------------------
     // Small local CPU checker that mirrors the sign-side logic
     // ------------------------------------------------------------------------
-    auto subedge = [](const DstPointI64 &p, const Edge &e) -> long long {
+    auto subedge = [](const DstPointI64 &p, const EdgeInt64 &e) -> long long {
       return static_cast<long long>(p.x) * static_cast<long long>(e.a) + static_cast<long long>(p.y) * static_cast<long long>(e.b) + e.c;
     };
 
-    auto cpu_intersect_test =
-        [&](const Edge &e1, const DstPointI64 &e1_p1, const DstPointI64 &e1_p2, const Edge &e2, const DstPointI64 &e2_p1, const DstPointI64 &e2_p2)
-        -> bool {
+    auto cpu_intersect_test = [&](const EdgeInt64 &e1,
+                                  const DstPointI64 &e1_p1,
+                                  const DstPointI64 &e1_p2,
+                                  const EdgeInt64 &e2,
+                                  const DstPointI64 &e2_p1,
+                                  const DstPointI64 &e2_p2) -> bool {
       auto e2_p1_agst_e1 = subedge(e2_p1, e1);
       auto e2_p2_agst_e1 = subedge(e2_p2, e1);
       auto e1_p1_agst_e2 = subedge(e1_p1, e2);
@@ -458,8 +461,8 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     // --------------------------------------------------------------------------
     // Read back map data
     // --------------------------------------------------------------------------
-    auto queryEdges = readBackStorageBuffer<Edge>(query_map->getEdgesBuffer(), query_map->get_edges_num());
-    auto baseEdges = readBackStorageBuffer<Edge>(base_map->getEdgesBuffer(), base_map->get_edges_num());
+    auto queryEdges = readBackStorageBuffer<EdgeInt64>(query_map->getEdgesBuffer(), query_map->get_edges_num());
+    auto baseEdges = readBackStorageBuffer<EdgeInt64>(base_map->getEdgesBuffer(), base_map->get_edges_num());
 
     auto queryPts = readBackStorageBuffer<DstPointI64>(query_map->getPointsBuffer(), query_map->get_points_num());
     auto basePts = readBackStorageBuffer<DstPointI64>(base_map->getPointsBuffer(), base_map->get_points_num());
@@ -470,7 +473,7 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     // --------------------------------------------------------------------------
     // CPU helpers that mirror shader math exactly
     // --------------------------------------------------------------------------
-    auto subedge = [](const DstPointI64 &p, const Edge &e) -> int64_t {
+    auto subedge = [](const DstPointI64 &p, const EdgeInt64 &e) -> int64_t {
       return static_cast<int64_t>(p.x) * static_cast<int64_t>(e.a) + static_cast<int64_t>(p.y) * static_cast<int64_t>(e.b) +
              static_cast<int64_t>(e.c);
     };
@@ -497,10 +500,10 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
       bool result = false;
     };
 
-    auto cpu_intersect_test_debug = [&](const Edge &e1,
+    auto cpu_intersect_test_debug = [&](const EdgeInt64 &e1,
                                         const DstPointI64 &e1_p1,
                                         const DstPointI64 &e1_p2,
-                                        const Edge &e2,
+                                        const EdgeInt64 &e2,
                                         const DstPointI64 &e2_p1,
                                         const DstPointI64 &e2_p2,
                                         CpuIntersectDebug &d) -> bool {
@@ -597,8 +600,8 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
         continue;
       }
 
-      const Edge &qe = queryEdges[query_eid];
-      const Edge &be = baseEdges[base_eid];
+      const EdgeInt64 &qe = queryEdges[query_eid];
+      const EdgeInt64 &be = baseEdges[base_eid];
 
       if (qe.p1_idx >= queryPts.size() || qe.p2_idx >= queryPts.size() || be.p1_idx >= basePts.size() || be.p2_idx >= basePts.size()) {
         LOG(ERROR) << "  [" << i << "] invalid point index"
