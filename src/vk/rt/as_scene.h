@@ -7,9 +7,7 @@ class AccelStructScene {
  public:
   AccelStructScene() : vk_ctx_(GetVkComputeContext()), device_(vk_ctx_.device) { loadFunctionPointers(); }
 
-  ~AccelStructScene() { Reset(); }
-
-  void Reset() {
+  ~AccelStructScene() {
     if (tlas_ != VK_NULL_HANDLE) {
       fpDestroyAccelerationStructureKHR(device_, tlas_, nullptr);
       tlas_ = VK_NULL_HANDLE;
@@ -22,8 +20,6 @@ class AccelStructScene {
   }
 
   void BuildAccelCustom(const VkDeviceBuf& aabb_buf, uint32_t primitive_count) {
-    Reset();
-
     if (primitive_count == 0) {
       LOG(WARNING) << "AccelStructScene::BuildAccelCustom called with primitive_count=0";
       return;
@@ -281,7 +277,6 @@ class AccelStructScene {
   VkDeviceBuf blas_buffer_;
 
   VkDeviceBuf instance_buffer_;
-
 
   void loadFunctionPointers() {
     fpCreateAccelerationStructureKHR =
