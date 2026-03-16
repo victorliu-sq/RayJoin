@@ -65,11 +65,11 @@ class LSIIntersectRTPassNS : public VkRayTracingEngine {
 
     VkPipelineShaderStageCreateInfo stages[5]{};
 
-    stages[0] = MakeStage(VK_SHADER_STAGE_RAYGEN_BIT_KHR, m_rgen, "raygenMain");
-    stages[1] = MakeStage(VK_SHADER_STAGE_INTERSECTION_BIT_KHR, m_rint, "intersectionMain");
-    stages[2] = MakeStage(VK_SHADER_STAGE_ANY_HIT_BIT_KHR, m_rahit, "anyHitMain");
-    stages[3] = MakeStage(VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, m_rchit, "closestHitMain");
-    stages[4] = MakeStage(VK_SHADER_STAGE_MISS_BIT_KHR, m_rmiss, "missMain");
+    stages[0] = MakeStage(VK_SHADER_STAGE_RAYGEN_BIT_KHR, m_rgen, "main");
+    stages[1] = MakeStage(VK_SHADER_STAGE_INTERSECTION_BIT_KHR, m_rint, "main");
+    stages[2] = MakeStage(VK_SHADER_STAGE_ANY_HIT_BIT_KHR, m_rahit, "main");
+    stages[3] = MakeStage(VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, m_rchit, "main");
+    stages[4] = MakeStage(VK_SHADER_STAGE_MISS_BIT_KHR, m_rmiss, "main");
 
     VkRayTracingShaderGroupCreateInfoKHR groups[3]{};
 
@@ -103,7 +103,12 @@ class LSIIntersectRTPassNS : public VkRayTracingEngine {
     ci.maxPipelineRayRecursionDepth = 1;
     ci.layout = m_pipeLayout;
 
-    VK_CHECK(fpCreateRayTracingPipelinesKHR(m_ctx.device, VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &ci, nullptr, &m_pipeline));
+    VkResult res = fpCreateRayTracingPipelinesKHR(m_ctx.device, VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &ci, nullptr, &m_pipeline);
+
+    if (res != VK_SUCCESS) {
+      LOG(ERROR) << "vkCreateRayTracingPipelinesKHR failed, VkResult=" << res;
+      throw std::runtime_error("vkCreateRayTracingPipelinesKHR failed");
+    }
   }
 
   void allocateDescriptors() override {
