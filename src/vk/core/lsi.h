@@ -13,7 +13,7 @@ struct Rational64 {
   int64_t den;
 };
 
-struct Intersection {
+struct IntersectionR {
   Rational64 x;
   Rational64 y;
 
@@ -26,8 +26,8 @@ struct Intersection {
 
 static_assert(sizeof(Rational64) == 16, "Rational64 must be 16 bytes");
 static_assert(alignof(Rational64) == 8, "Rational64 alignment must be 8");
-static_assert(sizeof(Intersection) == 56, "Intersection must be 56 bytes");
-static_assert(alignof(Intersection) == 8, "Intersection alignment must be 8");
+static_assert(sizeof(IntersectionR) == 56, "Intersection must be 56 bytes");
+static_assert(alignof(IntersectionR) == 8, "Intersection alignment must be 8");
 
 template<typename CONTEXT_T>
 class LSI {
@@ -64,7 +64,7 @@ class LSI {
     // prof_counter_ = createStorageBuffer(vk_ctx.vma, sizeof(uint64_t) * 1);
 
     xsect_capacity_ = max_n_xsects;
-    xsect_dev_.Init(sizeof(Intersection) * max_n_xsects);
+    xsect_dev_.Init(sizeof(IntersectionR) * max_n_xsects);
     xsect_counter_.Init(sizeof(uint32_t));  // NEW
     prof_counter_.Init(sizeof(uint32_t) * 20);  // debug values
   }

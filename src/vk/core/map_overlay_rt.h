@@ -278,7 +278,7 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     // ------------------------------------------------------------------------
     // Read back first N intersections
     // ------------------------------------------------------------------------
-    auto gpuXsects = readBackStorageBuffer<Intersection>(lsi->get_xsect_buffer(), n_print);
+    auto gpuXsects = readBackStorageBuffer<IntersectionR>(lsi->get_xsect_buffer(), n_print);
 
     if (gpuXsects.size() != n_print) {
       LOG(ERROR) << "DebugPrintIntersections: failed to read xsect buffer";
@@ -450,7 +450,7 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     // --------------------------------------------------------------------------
     // Read back first N GPU intersections
     // --------------------------------------------------------------------------
-    auto gpuXsects = readBackStorageBuffer<Intersection>(lsi->get_xsect_buffer(), n_print);
+    auto gpuXsects = readBackStorageBuffer<IntersectionR>(lsi->get_xsect_buffer(), n_print);
 
     if (gpuXsects.size() != n_print) {
       LOG(ERROR) << "DebugPrintIntersectionsDetailed: failed to read xsect buffer"
