@@ -5,6 +5,7 @@
 #include "query_config.h"
 #include "vk/core/lsi_rt.h"
 #include "vk/engine/vk_buffer.h"
+#include "vk/map/lsi_rt_pass.h"
 #include "vk/map/map.h"
 #include "vk/map/vk_debug_readback.h"
 #include "vk/rt/as_scene.h"
@@ -13,12 +14,28 @@
 
 namespace rayjoin {
 namespace vk {
+
+template<typename POINT_COORD_T>
+  requires PointCoordType<POINT_COORD_T>
+struct Intersection {
+  double x;
+  double y;
+
+  uint64_t eid0;
+  uint64_t eid1;
+
+  uint mid_point_polygon_id;
+  uint pad;
+};
+
 template<typename CONTEXT_NS_T>
   requires ContextNSType<CONTEXT_NS_T>
 class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
+  using coord_t = CONTEXT_NS_T::coord_t;
   using map_t = CONTEXT_NS_T::map_t;
   using point_t = CONTEXT_NS_T::point_t;
   using edge_t = CONTEXT_NS_T::edge_t;
+  using xsect_t = Intersection<coord_t>;
 
  public:
   explicit MapOverlayRTNS(CONTEXT_NS_T &ctx) : MapOverlayNS<CONTEXT_NS_T>(ctx) {}
@@ -85,6 +102,12 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
 
     // TODO: enable pip (disabled for now)
     // this->pip_->Init(max_n_points);
+
+    // Intersect Edges
+    xsect_capacity_ = this->ctx_.get_edge_num() * config_.xsect_factor;
+    xsect_buf_.Init(sizeof(xsect_t) * xsect_capacity_);
+    xsect_counter_buf_.Init(sizeof(uint32_t));
+    prof_counter_buf_.Init(sizeof(uint32_t) * 20);
   }
 
   void BuildIndex() override {
@@ -116,7 +139,44 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
     }
   }
 
-  void IntersectEdge(int query_map_id) override {}
+  void IntersectEdge(int query_map_id) override {
+    const int base_map_id = 1 - query_map_id;
+
+    auto query_map = this->ctx_.get_map(query_map_id);
+    auto base_map = this->ctx_.get_map(base_map_id);
+
+    if (!query_map || !base_map) {
+      throw std::runtime_error("IntersectEdge(): null map");
+    }
+
+    std::string rgen_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rgen_ns.spv";
+    std::string rint_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rint_ns.spv";
+    std::string rahit_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rahit_ns.spv";
+    std::string rchit_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rchit_ns.spv";
+    std::string rmiss_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rmiss_ns.spv";
+
+    LSIIntersectRTPassNS pass(rgen_spv.c_str(),
+                              rint_spv.c_str(),
+                              rahit_spv.c_str(),
+                              rchit_spv.c_str(),
+                              rmiss_spv.c_str(),
+                              accel_[base_map_id].GetTraverseHandle(),
+                              eid_range_buf_[base_map_id],
+                              base_map->getPointsBuffer(),
+                              base_map->getEdgesBuffer(),
+                              query_map->getPointsBuffer(),
+                              query_map->getEdgesBuffer(),
+                              xsect_buf_,
+                              xsect_counter_buf_,
+                              prof_counter_buf_,
+                              static_cast<uint32_t>(query_map_id),
+                              static_cast<uint32_t>(query_map->get_edges_num()),
+                              static_cast<uint32_t>(xsect_capacity_));
+
+    pass.run();
+
+    // DebugPrintIntersectionsDetailed(query_map_id);
+  }
 
   void LocateVerticesInOtherMap(int query_map_id) override {}
 
@@ -147,9 +207,7 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
   // --------------------------------
   // Build Index
   std::unique_ptr<FillPrimitivesNS> fill_primitives_ns_pass_;
-
   AccelStructScene accel_[2];
-
   void DebugPrintAABBs(std::shared_ptr<map_t> map, const VkDeviceBuf &aabbBuf, const VkDeviceBuf &eidRangeBuf, uint32_t edge_count) const {
     const uint32_t checkCount = std::min<uint32_t>(edge_count, 10);
 
@@ -209,6 +267,13 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
       LOG(INFO) << "  contains_edge_bbox=" << (inside ? "YES" : "NO");
     }
   }
+
+  // --------------------------------
+  // Intersect Edges
+  VkDeviceBuf xsect_buf_{};
+  VkDeviceBuf xsect_counter_buf_{};
+  VkDeviceBuf prof_counter_buf_{};
+  size_t xsect_capacity_ = 0;
 };
 
 
