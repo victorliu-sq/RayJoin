@@ -5,6 +5,7 @@
 #include "query_config.h"
 #include "vk/core/lsi_rt.h"
 #include "vk/engine/vk_buffer.h"
+#include "vk/map/lsi_finalize_pass_ns.h"
 #include "vk/map/lsi_rt_pass.h"
 #include "vk/map/map.h"
 #include "vk/map/vk_debug_readback.h"
@@ -139,6 +140,45 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
     }
   }
 
+  // void IntersectEdge(int query_map_id) override {
+  //   const int base_map_id = 1 - query_map_id;
+  //
+  //   auto query_map = this->ctx_.get_map(query_map_id);
+  //   auto base_map = this->ctx_.get_map(base_map_id);
+  //
+  //   if (!query_map || !base_map) {
+  //     throw std::runtime_error("IntersectEdge(): null map");
+  //   }
+  //
+  //   std::string rgen_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rgen_ns.spv";
+  //   std::string rint_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rint_ns.spv";
+  //   std::string rahit_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rahit_ns.spv";
+  //   std::string rchit_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rchit_ns.spv";
+  //   std::string rmiss_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rmiss_ns.spv";
+  //
+  //   LSIIntersectRTPassNS pass(rgen_spv.c_str(),
+  //                             rint_spv.c_str(),
+  //                             rahit_spv.c_str(),
+  //                             rchit_spv.c_str(),
+  //                             rmiss_spv.c_str(),
+  //                             accel_[base_map_id].GetTraverseHandle(),
+  //                             eid_range_buf_[base_map_id],
+  //                             base_map->getPointsBuffer(),
+  //                             base_map->getEdgesBuffer(),
+  //                             query_map->getPointsBuffer(),
+  //                             query_map->getEdgesBuffer(),
+  //                             xsect_buf_,
+  //                             xsect_counter_buf_,
+  //                             prof_counter_buf_,
+  //                             static_cast<uint32_t>(query_map_id),
+  //                             static_cast<uint32_t>(query_map->get_edges_num()),
+  //                             static_cast<uint32_t>(xsect_capacity_));
+  //
+  //   pass.run();
+  //
+  //   this->DebugPrintLSIProfiling(query_map_id);
+  // }
+
   void IntersectEdge(int query_map_id) override {
     const int base_map_id = 1 - query_map_id;
 
@@ -175,7 +215,21 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
 
     pass.run();
 
-    // DebugPrintIntersectionsDetailed(query_map_id);
+    std::string finalize_spv = std::string(SHADER_DIR_NS) + "/lsi_finalize_ns.spv";
+    LSIFinalizePassNS finalize_pass(finalize_spv.c_str(),
+                                    static_cast<uint32_t>(query_map_id),
+                                    static_cast<uint32_t>(query_map->get_edges_num()),
+                                    static_cast<uint32_t>(xsect_capacity_),
+                                    base_map->getEdgesBuffer(),
+                                    base_map->getPointsBuffer(),
+                                    query_map->getEdgesBuffer(),
+                                    query_map->getPointsBuffer(),
+                                    xsect_buf_,
+                                    xsect_counter_buf_);
+    finalize_pass.run();
+
+    this->DebugPrintLSIProfiling(query_map_id);
+    this->DebugPrintIntersectionsDetailed(query_map_id);
   }
 
   void LocateVerticesInOtherMap(int query_map_id) override {}
@@ -265,6 +319,80 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
                 << ")]";
 
       LOG(INFO) << "  contains_edge_bbox=" << (inside ? "YES" : "NO");
+    }
+  }
+
+  void DebugPrintLSIProfiling(int query_map_id) const {
+    auto dbg = readBackStorageBuffer<uint32_t>(prof_counter_buf_, 8);
+    auto xcnt = readBackStorageBuffer<uint32_t>(xsect_counter_buf_, 1);
+
+    if (dbg.empty() || xcnt.empty()) {
+      LOG(ERROR) << "DebugPrintLSIProfiling: failed to read counters";
+      return;
+    }
+
+    LOG(INFO) << "LSI DBG:"
+              << " query_map_id=" << query_map_id << " raygen=" << (dbg.size() > 0 ? dbg[0] : 0) << " miss=" << (dbg.size() > 1 ? dbg[1] : 0)
+              << " intersection_invocations=" << (dbg.size() > 2 ? dbg[2] : 0) << " tested_pairs=" << (dbg.size() > 3 ? dbg[3] : 0)
+              << " last_eid=" << (dbg.size() > 4 ? dbg[4] : 0) << " last_prim=" << (dbg.size() > 5 ? dbg[5] : 0)
+              << " tested_base_edges=" << (dbg.size() > 6 ? dbg[6] : 0) << " intersections_found=" << xcnt[0];
+  }
+
+  void DebugPrintIntersectionsDetailed(int query_map_id, uint32_t max_print = 20) const {
+    const int base_map_id = 1 - query_map_id;
+
+    auto query_map = this->ctx_.get_map(query_map_id);
+    auto base_map = this->ctx_.get_map(base_map_id);
+
+    if (!query_map || !base_map) {
+      LOG(ERROR) << "DebugPrintIntersectionsDetailed: null map";
+      return;
+    }
+
+    auto xcnt = readBackStorageBuffer<uint32_t>(xsect_counter_buf_, 1);
+    if (xcnt.empty()) {
+      LOG(ERROR) << "DebugPrintIntersectionsDetailed: failed to read xsect counter";
+      return;
+    }
+
+    const uint32_t n_xsects = xcnt[0];
+    LOG(INFO) << "DebugPrintIntersectionsDetailed:"
+              << " query_map_id=" << query_map_id << " base_map_id=" << base_map_id << " intersections_found=" << n_xsects;
+
+    if (n_xsects == 0) return;
+
+    const uint32_t n_print = std::min<uint32_t>(n_xsects, max_print);
+
+    auto gpuXsects = readBackStorageBuffer<xsect_t>(xsect_buf_, n_print);
+    auto queryEdges = readBackStorageBuffer<edge_t>(query_map->getEdgesBuffer(), query_map->get_edges_num());
+    auto baseEdges = readBackStorageBuffer<edge_t>(base_map->getEdgesBuffer(), base_map->get_edges_num());
+
+    if (gpuXsects.size() != n_print) {
+      LOG(ERROR) << "DebugPrintIntersectionsDetailed: failed to read xsect buffer";
+      return;
+    }
+
+    for (uint32_t i = 0; i < n_print; ++i) {
+      const auto &x = gpuXsects[i];
+
+      const uint64_t query_eid = (query_map_id == 0) ? x.eid0 : x.eid1;
+      const uint64_t base_eid = (query_map_id == 0) ? x.eid1 : x.eid0;
+
+      if (query_eid >= queryEdges.size() || base_eid >= baseEdges.size()) {
+        LOG(ERROR) << "  [" << i << "] invalid eid mapping"
+                   << " query_eid=" << query_eid << " base_eid=" << base_eid;
+        continue;
+      }
+
+      const auto &qe = queryEdges[query_eid];
+      const auto &be = baseEdges[base_eid];
+
+      const double q_eval = qe.a * x.x + qe.b * x.y + qe.c;
+      const double b_eval = be.a * x.x + be.b * x.y + be.c;
+
+      LOG(INFO) << "  [" << i << "]"
+                << " x=(" << x.x << "," << x.y << ")"
+                << " query_eid=" << query_eid << " base_eid=" << base_eid << " query_eval=ax+by+c=" << q_eval << " base_eval=ax+by+c=" << b_eval;
     }
   }
 
