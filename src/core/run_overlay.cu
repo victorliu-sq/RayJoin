@@ -209,12 +209,12 @@ void RunOverlay(const OverlayConfig& config) {
   timer_next("Intersection edges");
   overlay->IntersectEdge(0);
 
-  // FOR2 {
-  //   auto prefix = "Map " + std::to_string(im) + ": ";
-  //
-  //   timer_next(prefix + "Locate vertices in other map");
-  //   overlay->LocateVerticesInOtherMap(im);
-  // }
+  FOR2 {
+    auto prefix = "Map " + std::to_string(im) + ": ";
+
+    timer_next(prefix + "Locate vertices in other map");
+    overlay->LocateVerticesInOtherMap(im);
+  }
   //
   // timer_next("Computer output polygons");
   // overlay->ComputeOutputPolygons();
