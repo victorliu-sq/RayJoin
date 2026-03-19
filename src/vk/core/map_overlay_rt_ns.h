@@ -8,6 +8,7 @@
 #include "vk/map/lsi_finalize_pass_ns.h"
 #include "vk/map/lsi_rt_pass.h"
 #include "vk/map/map.h"
+#include "vk/map/pip_rt_pass.h"
 #include "vk/map/vk_debug_readback.h"
 #include "vk/rt/as_scene.h"
 #include "vk/rt/primitive_ns.h"
@@ -71,6 +72,9 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
 
       // primitive -> edge range mapping
       eid_range_buf_[im].Init(sizeof(EidRange) * ne);
+
+      // PIP debug counters
+      pip_debug_counter_buf_[im].Init(sizeof(uint32_t) * 8);
 
       max_n_points = std::max(max_n_points, np);
       max_n_edges = std::max(max_n_edges, ne);
@@ -140,45 +144,6 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
     }
   }
 
-  // void IntersectEdge(int query_map_id) override {
-  //   const int base_map_id = 1 - query_map_id;
-  //
-  //   auto query_map = this->ctx_.get_map(query_map_id);
-  //   auto base_map = this->ctx_.get_map(base_map_id);
-  //
-  //   if (!query_map || !base_map) {
-  //     throw std::runtime_error("IntersectEdge(): null map");
-  //   }
-  //
-  //   std::string rgen_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rgen_ns.spv";
-  //   std::string rint_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rint_ns.spv";
-  //   std::string rahit_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rahit_ns.spv";
-  //   std::string rchit_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rchit_ns.spv";
-  //   std::string rmiss_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rmiss_ns.spv";
-  //
-  //   LSIIntersectRTPassNS pass(rgen_spv.c_str(),
-  //                             rint_spv.c_str(),
-  //                             rahit_spv.c_str(),
-  //                             rchit_spv.c_str(),
-  //                             rmiss_spv.c_str(),
-  //                             accel_[base_map_id].GetTraverseHandle(),
-  //                             eid_range_buf_[base_map_id],
-  //                             base_map->getPointsBuffer(),
-  //                             base_map->getEdgesBuffer(),
-  //                             query_map->getPointsBuffer(),
-  //                             query_map->getEdgesBuffer(),
-  //                             xsect_buf_,
-  //                             xsect_counter_buf_,
-  //                             prof_counter_buf_,
-  //                             static_cast<uint32_t>(query_map_id),
-  //                             static_cast<uint32_t>(query_map->get_edges_num()),
-  //                             static_cast<uint32_t>(xsect_capacity_));
-  //
-  //   pass.run();
-  //
-  //   this->DebugPrintLSIProfiling(query_map_id);
-  // }
-
   void IntersectEdge(int query_map_id) override {
     const int base_map_id = 1 - query_map_id;
 
@@ -232,7 +197,39 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
     this->DebugPrintIntersectionsDetailed(query_map_id);
   }
 
-  void LocateVerticesInOtherMap(int query_map_id) override {}
+  void LocateVerticesInOtherMap(int query_map_id) override {
+    auto &ctx = this->ctx_;
+    int base_map_id = 1 - query_map_id;
+
+    auto query_map = ctx.get_map(query_map_id);
+    auto base_map = ctx.get_map(base_map_id);
+
+    std::string rgen_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rgen_ns.spv";
+    std::string rint_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rint_ns.spv";
+    std::string rahit_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rahit_ns.spv";
+    std::string rchit_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rchit_ns.spv";
+    std::string rmiss_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rmiss_ns.spv";
+
+    PIPRTPassNS pass(rgen_spv.c_str(),
+                     rint_spv.c_str(),
+                     rahit_spv.c_str(),
+                     rchit_spv.c_str(),
+                     rmiss_spv.c_str(),
+                     accel_[base_map_id].GetTraverseHandle(),  // or traverse_handles_[base_map_id]
+                     eid_range_buf_[base_map_id],
+                     base_map->getPointsBuffer(),
+                     base_map->getEdgesBuffer(),
+                     query_map->getPointsBuffer(),
+                     closest_eids_buf_[query_map_id],
+                     pip_debug_counter_buf_[query_map_id],
+                     static_cast<uint32_t>(query_map_id),
+                     static_cast<uint32_t>(map_point_count_[query_map_id]));
+
+    pass.run();
+
+    // then run your compute pass:
+    // closest_eids_buf_[query_map_id] -> point_in_polygon_buf_[query_map_id]
+  }
 
   void ComputeOutputPolygons() override {}
 
@@ -257,6 +254,9 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
   // -------------------------------
   size_t map_point_count_[2] = {0, 0};
   size_t map_edge_count_[2] = {0, 0};
+
+  // pip_debug
+  VkDeviceBuf pip_debug_counter_buf_[2];
 
   // --------------------------------
   // Build Index
