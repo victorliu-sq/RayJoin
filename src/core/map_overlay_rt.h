@@ -147,6 +147,7 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
   //                     });
   //   stream.Sync();
   // }
+
   void LocateVerticesInOtherMap(int query_map_id) override {
     auto& ctx = this->ctx_;
     Stream& stream = ctx.get_stream();

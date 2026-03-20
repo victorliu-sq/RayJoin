@@ -258,11 +258,13 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
     finalize_pass.run();
 
     // Compare results from Vulkan and Optix
-    DumpPIPResultsCSV(query_map_id, "tmp/results_pip", "vulkan");
+    // DumpPIPResultsCSV(query_map_id, "tmp/results_pip", "vulkan");
 
     // optional debug
     // this->DebugPrintPIPProfiling(query_map_id);
     // this->DebugPrintPIPResults(query_map_id);
+
+    // DebugPrintPIPRawCounters(query_map_id);
   }
 
   void ComputeOutputPolygons() override {}
