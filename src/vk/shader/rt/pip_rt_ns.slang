@@ -151,223 +151,149 @@ void missMain(inout Payload payload) {
 // -----------------------------------------------------------------------------
 // Intersection
 // -----------------------------------------------------------------------------
-// [shader("intersection")]
-// void intersectionMain() {
-//   uint prim_idx = PrimitiveIndex();
-
-//   uint3 ray_idx = DispatchRaysIndex();
-//   uint3 ray_dim = DispatchRaysDimensions();
-//   uint point_idx = ray_idx.x + ray_dim.x * (ray_idx.y + ray_dim.y * ray_idx.z);
-
-//   LaunchParamsPIP params = gParamsBuf[0];
-
-//   uint old2;
-//   InterlockedAdd(gDebugCounter[2], 1, old2);  // intersection invocations
-//   gDebugCounter[5] = prim_idx;                // last primitive
-
-//   PointD src_p = gQueryPoints[point_idx];
-//   double x_src_p = src_p.x;
-//   double y_src_p = src_p.y;
-
-//   EidRange range = gEidRanges[prim_idx];
-
-//   bool found = false;
-//   uint best_eid = 0xFFFFFFFFu;
-//   double best_y = 0.0;
-//   double best_t = 0.0;
-
-//   for (uint eid = range.first; eid < range.second; ++eid) {
-//     EdgeD e = gBaseEdges[eid];
-//     PointD p1 = gBasePoints[uint(e.p1_idx)];
-//     PointD p2 = gBasePoints[uint(e.p2_idx)];
-
-//     uint old3;
-//     InterlockedAdd(gDebugCounter[3], 1, old3);  // tested edges
-
-//     double x_min = min2_d(p1.x, p2.x);
-//     double x_max = max2_d(p1.x, p2.x);
-
-//     // Same simulation-of-simplicity rule as OptiX.
-//     if (x_src_p < x_min || x_src_p > x_max ||
-//         x_src_p == ((params.query_map_id == 0) ? x_min : x_max)) {
-//       continue;
-//     }
-
-//     // Vertical-line case should be excluded by the x-bound check / SoS rule.
-//     // Keep the guard anyway.
-//     if (e.b == 0.0) {
-//       continue;
-//     }
-
-//     double xsect_y = (-e.a * x_src_p - e.c) / e.b;
-//     double diff_y = y_src_p - xsect_y;
-
-//     if (diff_y == 0.0)
-//       diff_y = (params.query_map_id == 0) ? -e.a : e.a;
-//     if (diff_y == 0.0)
-//       diff_y = (params.query_map_id == 0) ? -e.b : e.b;
-//     if (diff_y == 0.0)
-//       continue;
-
-//     // Query point is above the candidate edge.
-//     if (diff_y > 0.0)
-//       continue;
-
-//     double candidate_t = xsect_y - y_src_p;
-//     if (candidate_t < 0.0)
-//       continue;
-
-//     if (!found) {
-//       found = true;
-//       best_eid = eid;
-//       best_y = xsect_y;
-//       best_t = candidate_t;
-//       continue;
-//     }
-
-//     if (xsect_y < best_y) {
-//       best_eid = eid;
-//       best_y = xsect_y;
-//       best_t = candidate_t;
-//       continue;
-//     }
-
-//     if (xsect_y == best_y) {
-//       EdgeD best_e = gBaseEdges[best_eid];
-//       if (preferCandidateAtSameT(params.query_map_id, e, best_e)) {
-//         best_eid = eid;
-//         best_y = xsect_y;
-//         best_t = candidate_t;
-//       }
-//     }
-//   }
-
-//   if (found) {
-//     HitAttr attr;
-//     attr.baseEid = best_eid;
-//     attr.candidateT = float(best_t);
-
-//     uint old6;
-//     InterlockedAdd(gDebugCounter[6], 1, old6);  // reported hits
-
-//     ReportHit(attr.candidateT, 0, attr);
-//   }
-// }
-
-// // -----------------------------------------------------------------------------
-// // Any-hit
-// // -----------------------------------------------------------------------------
-
-// [shader("anyhit")]
-// void anyHitMain(inout Payload payload, in HitAttr attr) {
-//   // LaunchParamsPIP params = gParamsBuf[0];
-
-//   bool take = false;
-
-//   uint old8;
-//   InterlockedAdd(gDebugCounter[7], 1, old8);  // accepted updates
-
-//   // if (payload.bestEid == 0xFFFFFFFFu) {
-//   //   take = true;
-//   // } else if (attr.candidateT < payload.bestT) {
-//   //   take = true;
-//   // } else if (attr.candidateT == payload.bestT) {
-//   //   EdgeD candidate_e = gBaseEdges[attr.baseEid];
-//   //   EdgeD best_e = gBaseEdges[payload.bestEid];
-//   //   // take = preferCandidateAtSameT(params.query_map_id, candidate_e, best_e);
-//   // }
-
-//   // if (take) {
-//   //   payload.bestEid = attr.baseEid;
-//   //   payload.bestT = attr.candidateT;
-
-//   //   uint old7;
-//   //   InterlockedAdd(gDebugCounter[7], 1, old7);  // accepted updates
-//   // }
-
-//   // Keep traversing. We use payload as the reduction state and never commit a hit.
-//   IgnoreHit();
-// }
-
-// // -----------------------------------------------------------------------------
-// // Closest-hit
-// // -----------------------------------------------------------------------------
-
-// [shader("closesthit")]
-// void closestHitMain(inout Payload payload, in HitAttr attr) {
-//   // Intentionally empty.
-//   // Because anyHit always IgnoreHit(), closest-hit should normally not run.
-//   uint old8;
-//   InterlockedAdd(gDebugCounter[7], 1, old8);  // accepted updates
-// }
-
-//////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////////////////
-struct DummyAttr {
-  uint dummy;
-};
-
 [shader("intersection")]
 void intersectionMain() {
+  uint prim_idx = PrimitiveIndex();
+
+  uint3 ray_idx = DispatchRaysIndex();
+  uint3 ray_dim = DispatchRaysDimensions();
+  uint point_idx = ray_idx.x + ray_dim.x * (ray_idx.y + ray_dim.y * ray_idx.z);
+
+  LaunchParamsPIP params = gParamsBuf[0];
+
   uint old2;
-  InterlockedAdd(gDebugCounter[2], 1, old2);
+  InterlockedAdd(gDebugCounter[2], 1, old2);  // intersection invocations
+  gDebugCounter[5] = prim_idx;                // last primitive
 
-  DummyAttr attr;
-  attr.dummy = 123u;
+  PointD src_p = gQueryPoints[point_idx];
+  double x_src_p = src_p.x;
+  double y_src_p = src_p.y;
 
-  uint old6;
-  InterlockedAdd(gDebugCounter[6], 1, old6);
+  EidRange range = gEidRanges[prim_idx];
 
-  ReportHit(1.0f, 0u, attr);
-}
+  bool found = false;
+  uint best_eid = 0xFFFFFFFFu;
+  double best_y = 0.0;
+  double best_t = 0.0;
 
-[shader("anyhit")]
-void anyHitMain(inout Payload payload, in DummyAttr attr) {
-  uint old7;
-  InterlockedAdd(gDebugCounter[7], 1, old7);
+  for (uint eid = range.first; eid < range.second; ++eid) {
+    EdgeD e = gBaseEdges[eid];
+    PointD p1 = gBasePoints[uint(e.p1_idx)];
+    PointD p2 = gBasePoints[uint(e.p2_idx)];
 
-  payload.bestEid = attr.dummy;
-  payload.bestT = 1.0f;
+    uint old3;
+    InterlockedAdd(gDebugCounter[3], 1, old3);  // tested edges
 
-  IgnoreHit();
-}
+    double x_min = min2_d(p1.x, p2.x);
+    double x_max = max2_d(p1.x, p2.x);
 
-// 1. Define the user-defined attribute structure
-struct MyAttributes {
-  float2 uv;
-  float3 normal;
-};
+    // Same simulation-of-simplicity rule as OptiX.
+    if (x_src_p < x_min || x_src_p > x_max ||
+        x_src_p == ((params.query_map_id == 0) ? x_min : x_max)) {
+      continue;
+    }
 
-// Ray payload structure (separate from attributes)
-struct RayPayload {
-  float4 color;
-};
+    // Vertical-line case should be excluded by the x-bound check / SoS rule.
+    // Keep the guard anyway.
+    if (e.b == 0.0) {
+      continue;
+    }
 
-// 2. Intersection Shader (ReportHit)
-[shader("intersection")]
-void MyIntersectionShader() {
-  MyAttributes attr;
-  attr.uv = float2(0.5, 0.5);     // Example
-  attr.normal = float3(0, 1, 0);  // Example
+    double xsect_y = (-e.a * x_src_p - e.c) / e.b;
+    double diff_y = y_src_p - xsect_y;
 
-  // ReportHit passes the structure
-  ReportHit(1.0, 0, attr);
-}
+    if (diff_y == 0.0)
+      diff_y = (params.query_map_id == 0) ? -e.a : e.a;
+    if (diff_y == 0.0)
+      diff_y = (params.query_map_id == 0) ? -e.b : e.b;
+    if (diff_y == 0.0)
+      continue;
 
-// 3. Any-Hit Shader (Receiving the attributes)
-[shader("anyhit")]
-void MyAnyHitShader(inout RayPayload payload, in MyAttributes attr) {
-  uint old7;
-  InterlockedAdd(gDebugCounter[7], 1, old7);
-  // Access the user-defined attributes
-  if (attr.uv.x > 0.5) {
-    // Example: Ignore hit if uv.x > 0.5
-    IgnoreHit();
+    // Query point is above the candidate edge.
+    if (diff_y > 0.0)
+      continue;
+
+    double candidate_t = xsect_y - y_src_p;
+    if (candidate_t < 0.0)
+      continue;
+
+    if (!found) {
+      found = true;
+      best_eid = eid;
+      best_y = xsect_y;
+      best_t = candidate_t;
+      continue;
+    }
+
+    if (xsect_y < best_y) {
+      best_eid = eid;
+      best_y = xsect_y;
+      best_t = candidate_t;
+      continue;
+    }
+
+    if (xsect_y == best_y) {
+      EdgeD best_e = gBaseEdges[best_eid];
+      if (preferCandidateAtSameT(params.query_map_id, e, best_e)) {
+        best_eid = eid;
+        best_y = xsect_y;
+        best_t = candidate_t;
+      }
+    }
+  }
+
+  if (found) {
+    HitAttr attr;
+    attr.baseEid = best_eid;
+    attr.candidateT = float(best_t);
+
+    uint old6;
+    InterlockedAdd(gDebugCounter[6], 1, old6);  // reported hits
+
+    ReportHit(attr.candidateT, 0, attr);
   }
 }
 
+// -----------------------------------------------------------------------------
+// Any-hit
+// -----------------------------------------------------------------------------
+
+[shader("anyhit")]
+void anyHitMain(inout Payload payload, in HitAttr attr) {
+  // LaunchParamsPIP params = gParamsBuf[0];
+
+  bool take = false;
+
+  if (payload.bestEid == 0xFFFFFFFFu) {
+    take = true;
+  } else if (attr.candidateT < payload.bestT) {
+    take = true;
+  } else if (attr.candidateT == payload.bestT) {
+    EdgeD candidate_e = gBaseEdges[attr.baseEid];
+    EdgeD best_e = gBaseEdges[payload.bestEid];
+    // take = preferCandidateAtSameT(params.query_map_id, candidate_e, best_e);
+  }
+
+  if (take) {
+    payload.bestEid = attr.baseEid;
+    payload.bestT = attr.candidateT;
+
+    uint old7;
+    InterlockedAdd(gDebugCounter[7], 1, old7);  // accepted updates
+  }
+
+  // Keep traversing. We use payload as the reduction state and never commit a hit.
+  IgnoreHit();
+}
+
+// -----------------------------------------------------------------------------
+// Closest-hit
+// -----------------------------------------------------------------------------
+
 [shader("closesthit")]
-void closestHitMain(inout Payload payload, in MyAttributes attr) {
-  uint old7;
-  InterlockedAdd(gDebugCounter[7], 1, old7);
+void closestHitMain(inout Payload payload, in HitAttr attr) {
+  // Intentionally empty.
+  // Because anyHit always IgnoreHit(), closest-hit should normally not run.
+  uint old8;
+  InterlockedAdd(gDebugCounter[7], 1, old8);  // accepted updates
 }
