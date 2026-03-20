@@ -240,6 +240,8 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
 
     rt_pass.run();
 
+    this->DebugPrintPIPRawCounters(query_map_id);
+
     // ------------------------------------------------------------
     // Finalize pass: closest_eid -> polygon_id
     // ------------------------------------------------------------
@@ -435,6 +437,22 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
   VkDeviceBuf xsect_counter_buf_{};
   VkDeviceBuf prof_counter_buf_{};
   size_t xsect_capacity_ = 0;
+
+  void DebugPrintPIPRawCounters(int query_map_id) const {
+    auto dbg = readBackStorageBuffer<uint32_t>(pip_debug_counter_buf_[query_map_id], 8);
+
+    if (dbg.empty()) {
+      LOG(ERROR) << "DebugPrintPIPRawCounters: failed to read pip_debug_counter_buf_"
+                 << " for query_map_id=" << query_map_id;
+      return;
+    }
+
+    LOG(INFO) << "PIP raw dbg:"
+              << " query_map_id=" << query_map_id << " raygen=" << (dbg.size() > 0 ? dbg[0] : 0) << " miss=" << (dbg.size() > 1 ? dbg[1] : 0)
+              << " intersection_invocations=" << (dbg.size() > 2 ? dbg[2] : 0) << " tested_edges=" << (dbg.size() > 3 ? dbg[3] : 0)
+              << " last_point=" << (dbg.size() > 4 ? dbg[4] : 0) << " last_prim=" << (dbg.size() > 5 ? dbg[5] : 0)
+              << " reported_hits=" << (dbg.size() > 6 ? dbg[6] : 0) << " accepted_updates=" << (dbg.size() > 7 ? dbg[7] : 0);
+  }
 
   void DumpPIPResultsCSV(int query_map_id, const std::string &out_dir, const std::string &impl_tag) const {
     namespace fs = std::filesystem;

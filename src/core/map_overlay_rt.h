@@ -347,6 +347,7 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
   thrust::device_vector<OptixAabb> aabbs_;
   std::shared_ptr<thrust::device_vector<thrust::pair<size_t, size_t>>> eid_range_[2];
 
+
   void DumpPIPResultsCSV(int query_map_id, const std::string& out_dir, const std::string& impl_tag) const {
     namespace fs = std::filesystem;
 

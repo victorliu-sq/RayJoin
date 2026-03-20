@@ -30,7 +30,8 @@ class AccelStructScene {
     VkAccelerationStructureGeometryKHR blasGeometry{};
     blasGeometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
     blasGeometry.geometryType = VK_GEOMETRY_TYPE_AABBS_KHR;
-    blasGeometry.flags = VK_GEOMETRY_OPAQUE_BIT_KHR;
+    // blasGeometry.flags = VK_GEOMETRY_OPAQUE_BIT_KHR;
+    blasGeometry.flags = 0;
 
     blasGeometry.geometry.aabbs.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_AABBS_DATA_KHR;
     blasGeometry.geometry.aabbs.data.deviceAddress = aabb_buf.DeviceAddress();
@@ -166,7 +167,8 @@ class AccelStructScene {
     instance.instanceCustomIndex = 0;
     instance.mask = 0xFF;
     instance.instanceShaderBindingTableRecordOffset = 0;
-    instance.flags = VK_GEOMETRY_INSTANCE_FORCE_OPAQUE_BIT_KHR;
+    // instance.flags = VK_GEOMETRY_INSTANCE_FORCE_OPAQUE_BIT_KHR;
+    instance.flags = 0;
     instance.accelerationStructureReference = blasDeviceAddress;
 
     VkDeviceBuf instanceBuffer;
@@ -187,7 +189,8 @@ class AccelStructScene {
     VkAccelerationStructureGeometryKHR tlasGeometry{};
     tlasGeometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
     tlasGeometry.geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
-    tlasGeometry.flags = VK_GEOMETRY_OPAQUE_BIT_KHR;
+    // tlasGeometry.flags = VK_GEOMETRY_OPAQUE_BIT_KHR;
+    tlasGeometry.flags = 0;
     tlasGeometry.geometry.instances = instancesData;
 
     VkAccelerationStructureBuildRangeInfoKHR tlasRange{};
