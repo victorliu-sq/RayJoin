@@ -8,6 +8,7 @@
 #include "vk/map/lsi_finalize_pass_ns.h"
 #include "vk/map/lsi_rt_pass.h"
 #include "vk/map/map.h"
+#include "vk/map/pip_finalize_pass_ns.h"
 #include "vk/map/pip_rt_pass.h"
 #include "vk/map/vk_debug_readback.h"
 #include "vk/rt/as_scene.h"
@@ -199,38 +200,59 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
 
   void LocateVerticesInOtherMap(int query_map_id) override {
     auto &ctx = this->ctx_;
-    int base_map_id = 1 - query_map_id;
+    const int base_map_id = 1 - query_map_id;
 
     auto query_map = ctx.get_map(query_map_id);
     auto base_map = ctx.get_map(base_map_id);
 
+    if (!query_map || !base_map) {
+      throw std::runtime_error("LocateVerticesInOtherMap(): null map");
+    }
+
+    // ------------------------------------------------------------
+    // RT pass: query point -> closest crossing edge in base map
+    // ------------------------------------------------------------
     std::string rgen_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rgen_ns.spv";
     std::string rint_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rint_ns.spv";
     std::string rahit_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rahit_ns.spv";
     std::string rchit_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rchit_ns.spv";
     std::string rmiss_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rmiss_ns.spv";
 
-    PIPRTPassNS pass(rgen_spv.c_str(),
-                     rint_spv.c_str(),
-                     rahit_spv.c_str(),
-                     rchit_spv.c_str(),
-                     rmiss_spv.c_str(),
-                     accel_[base_map_id].GetTraverseHandle(),  // or traverse_handles_[base_map_id]
-                     eid_range_buf_[base_map_id],
-                     base_map->getPointsBuffer(),
-                     base_map->getEdgesBuffer(),
-                     query_map->getPointsBuffer(),
-                     closest_eids_buf_[query_map_id],
-                     pip_debug_counter_buf_[query_map_id],
-                     static_cast<uint32_t>(query_map_id),
-                     static_cast<uint32_t>(map_point_count_[query_map_id]));
+    PIPRTPassNS rt_pass(rgen_spv.c_str(),
+                        rint_spv.c_str(),
+                        rahit_spv.c_str(),
+                        rchit_spv.c_str(),
+                        rmiss_spv.c_str(),
+                        accel_[base_map_id].GetTraverseHandle(),
+                        eid_range_buf_[base_map_id],
+                        base_map->getPointsBuffer(),
+                        base_map->getEdgesBuffer(),
+                        query_map->getPointsBuffer(),
+                        closest_eids_buf_[query_map_id],
+                        pip_debug_counter_buf_[query_map_id],
+                        static_cast<uint32_t>(query_map_id),
+                        static_cast<uint32_t>(map_point_count_[query_map_id]));
 
-    pass.run();
+    rt_pass.run();
 
-    // then run your compute pass:
-    // closest_eids_buf_[query_map_id] -> point_in_polygon_buf_[query_map_id]
+    // ------------------------------------------------------------
+    // Finalize pass: closest_eid -> polygon_id
+    // ------------------------------------------------------------
+    std::string finalize_spv = std::string(SHADER_DIR_NS) + "/pip_finalize_ns.spv";
+
+    PIPFinalizePassNS finalize_pass(finalize_spv.c_str(),
+                                    static_cast<uint32_t>(map_point_count_[query_map_id]),
+                                    static_cast<uint32_t>(EXTERIOR_FACE_ID),
+                                    base_map->getEdgesBuffer(),
+                                    base_map->getPointsBuffer(),
+                                    closest_eids_buf_[query_map_id],
+                                    point_in_polygon_buf_[query_map_id]);
+
+    finalize_pass.run();
+
+    this->DebugPrintPIPProfiling(query_map_id);
+    this->DebugPrintPIPResults(query_map_id);
   }
-
   void ComputeOutputPolygons() override {}
 
   void WriteResult(const char *path) override {}
