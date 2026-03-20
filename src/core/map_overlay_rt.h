@@ -14,9 +14,14 @@
 #include "util/stopwatch.h"
 #include "util/util.h"
 
+/////////////////////////////////////////////////////////////////////////////////////
+/// For Dump Results of PIP
+#include <filesystem>
+#include <limits>
+
 namespace rayjoin {
 
-template <typename CONTEXT_T>
+template<typename CONTEXT_T>
 class MapOverlayRT : public MapOverlay<CONTEXT_T> {
   using coord_t = typename CONTEXT_T::coord_t;
   using internal_coord_t = typename CONTEXT_T::internal_coord_t;
@@ -50,8 +55,7 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
 
       this->closest_eids_[im].resize(np, DONTKNOW);
       this->point_in_polygon_[im].resize(np, DONTKNOW);
-      eid_range_[im] = std::make_shared<
-          thrust::device_vector<thrust::pair<size_t, size_t>>>();
+      eid_range_[im] = std::make_shared<thrust::device_vector<thrust::pair<size_t, size_t>>>();
       eid_range_[im]->reserve(ne);
       max_n_points = std::max(max_n_points, np);
       max_n_edges = std::max(max_n_edges, ne);
@@ -78,14 +82,11 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
       if (config_.ag == 0) {
         FillPrimitives(stream, d_map, scaling, aabbs_, *eid_range_[im]);
       } else if (config_.ag == 1) {
-        FillPrimitivesGroupNew(stream, d_map, scaling, ag_iter,
-                               area_enlarge, aabbs_, *eid_range_[im]);
+        FillPrimitivesGroupNew(stream, d_map, scaling, ag_iter, area_enlarge, aabbs_, *eid_range_[im]);
       } else if (config_.ag == 2) {
-        FillPrimitivesGroup(stream, d_map, scaling, win_size, area_enlarge,
-                            aabbs_, *eid_range_[im]);
+        FillPrimitivesGroup(stream, d_map, scaling, win_size, area_enlarge, aabbs_, *eid_range_[im]);
       }
-      traverse_handles_[im] =
-          rt_engine_->BuildAccelCustom(stream, ArrayView<OptixAabb>(aabbs_));
+      traverse_handles_[im] = rt_engine_->BuildAccelCustom(stream, ArrayView<OptixAabb>(aabbs_));
 
       stream.Sync();
       if (config_.fau) {
@@ -108,6 +109,44 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     stream.Sync();
   }
 
+  //////////////////////////////////////////////////////////////////////////////////
+  // Old Version
+  // void LocateVerticesInOtherMap(int query_map_id) override {
+  //   auto& ctx = this->ctx_;
+  //   Stream& stream = ctx.get_stream();
+  //   auto pip = std::dynamic_pointer_cast<PIPRT<CONTEXT_T>>(this->pip_);
+  //   auto base_map_id = 1 - query_map_id;
+  //   auto d_base_map = ctx.get_map(base_map_id)->DeviceObject();
+  //   auto d_query_map = ctx.get_map(query_map_id)->DeviceObject();
+  //   auto d_points = d_query_map.get_points();
+  //
+  //   config_.eid_range = eid_range_[base_map_id];
+  //   config_.handle = traverse_handles_[base_map_id];
+  //
+  //   pip->set_config(config_);
+  //   pip->Query(stream, query_map_id, d_points);
+  //
+  //   auto& closest_eid = this->pip_->get_closest_eids();
+  //
+  //   thrust::copy(thrust::cuda::par.on(stream.cuda_stream()),
+  //                closest_eid.begin(), closest_eid.end(),
+  //                this->closest_eids_[query_map_id].begin());
+  //
+  //   thrust::transform(thrust::cuda::par.on(stream.cuda_stream()),
+  //                     closest_eid.begin(), closest_eid.end(),
+  //                     this->point_in_polygon_[query_map_id].begin(),
+  //                     [=] __device__(index_t eid) {
+  //                       // point is not in polygon
+  //                       if (eid == std::numeric_limits<index_t>::max()) {
+  //                         return EXTERIOR_FACE_ID;
+  //                       }
+  //
+  //                       const auto& e = d_base_map.get_edge(eid);
+  //
+  //                       return d_base_map.get_face_id(e);
+  //                     });
+  //   stream.Sync();
+  // }
   void LocateVerticesInOtherMap(int query_map_id) override {
     auto& ctx = this->ctx_;
     Stream& stream = ctx.get_stream();
@@ -125,30 +164,27 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
 
     auto& closest_eid = this->pip_->get_closest_eids();
 
-    thrust::copy(thrust::cuda::par.on(stream.cuda_stream()),
-                 closest_eid.begin(), closest_eid.end(),
-                 this->closest_eids_[query_map_id].begin());
+    thrust::copy(thrust::cuda::par.on(stream.cuda_stream()), closest_eid.begin(), closest_eid.end(), this->closest_eids_[query_map_id].begin());
 
     thrust::transform(thrust::cuda::par.on(stream.cuda_stream()),
-                      closest_eid.begin(), closest_eid.end(),
+                      closest_eid.begin(),
+                      closest_eid.end(),
                       this->point_in_polygon_[query_map_id].begin(),
                       [=] __device__(index_t eid) {
-                        // point is not in polygon
                         if (eid == std::numeric_limits<index_t>::max()) {
                           return EXTERIOR_FACE_ID;
                         }
 
                         const auto& e = d_base_map.get_edge(eid);
-
                         return d_base_map.get_face_id(e);
                       });
+
     stream.Sync();
+
+    DumpPIPResultsCSV(query_map_id, "tmp/results_pip", "optix");
   }
 
-  void DumpStatistics(const char* path) {
-    std::dynamic_pointer_cast<PIPRT<CONTEXT_T>>(this->pip_)
-        ->DumpStatistics(path);
-  }
+  void DumpStatistics(const char* path) { std::dynamic_pointer_cast<PIPRT<CONTEXT_T>>(this->pip_)->DumpStatistics(path); }
 
   void ComputeOutputPolygons() override {
     using point_t = typename CONTEXT_T::map_t::point_t;
@@ -160,7 +196,7 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     const auto& scaling = ctx.get_scaling();
 
     FOR2 {
-      if (im == 1 ) {
+      if (im == 1) {
         break;
       }
       // TODO: Move them out out the loop
@@ -172,14 +208,11 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
       auto& xsect_edges_sorted = xsect_edges_sorted_[im];
       // Sort by eid1, eid2 respectively, so we can do binary search
       xsect_edges_sorted.resize(n_xsects);
-      thrust::copy(thrust::cuda::par.on(stream.cuda_stream()), xsects.data(),
-                   xsects.data() + n_xsects, xsect_edges_sorted.begin());
-      thrust::sort(
-          thrust::cuda::par.on(stream.cuda_stream()),
-          xsect_edges_sorted.begin(), xsect_edges_sorted.end(),
-          [=] __device__(const xsect_t& xsect1, const xsect_t& xsect2) {
-            return xsect1.eid[im] < xsect2.eid[im];
-          });
+      thrust::copy(thrust::cuda::par.on(stream.cuda_stream()), xsects.data(), xsects.data() + n_xsects, xsect_edges_sorted.begin());
+      thrust::sort(thrust::cuda::par.on(stream.cuda_stream()),
+                   xsect_edges_sorted.begin(),
+                   xsect_edges_sorted.end(),
+                   [=] __device__(const xsect_t& xsect1, const xsect_t& xsect2) { return xsect1.eid[im] < xsect2.eid[im]; });
 
       ArrayView<xsect_t> d_xsect_edges_sorted(xsect_edges_sorted);
       auto query_map_id = im, base_map_id = 1 - im;
@@ -189,14 +222,13 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
       unique_eids.resize(n_xsects);
 
       // get eids of current map
-      thrust::transform(
-          thrust::cuda::par.on(stream.cuda_stream()),
-          xsect_edges_sorted.begin(), xsect_edges_sorted.end(),
-          unique_eids.begin(),
-          [=] __device__(const xsect_t& xsect) { return xsect.eid[im]; });
+      thrust::transform(thrust::cuda::par.on(stream.cuda_stream()),
+                        xsect_edges_sorted.begin(),
+                        xsect_edges_sorted.end(),
+                        unique_eids.begin(),
+                        [=] __device__(const xsect_t& xsect) { return xsect.eid[im]; });
 
-      auto end = thrust::unique(thrust::cuda::par.on(stream.cuda_stream()),
-                                unique_eids.begin(), unique_eids.end());
+      auto end = thrust::unique(thrust::cuda::par.on(stream.cuda_stream()), unique_eids.begin(), unique_eids.end());
 
       unique_eids.resize(end - unique_eids.begin());
       n_xsects_per_edge.resize(unique_eids.size());
@@ -205,30 +237,24 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
       ArrayView<uint32_t> d_n_xsects_per_edge(n_xsects_per_edge);
       // find intersections for each edge
       thrust::transform(
-          thrust::cuda::par.on(stream.cuda_stream()), unique_eids.begin(),
-          unique_eids.end(), n_xsects_per_edge.begin(),
-          [=] __device__(index_t eid) {
+          thrust::cuda::par.on(stream.cuda_stream()), unique_eids.begin(), unique_eids.end(), n_xsects_per_edge.begin(), [=] __device__(index_t eid) {
             // Assuming points are organized respect to geometric space
             xsect_t dummy_xsect;
             dummy_xsect.eid[im] = eid;
 
             // get eid intersects which edges in other map
-            auto it = thrust::equal_range(
-                thrust::seq, d_xsect_edges_sorted.begin(),
-                d_xsect_edges_sorted.end(), dummy_xsect,
-                [=] __device__(const xsect_t& xsect1, const xsect_t& xsect2) {
-                  return xsect1.eid[im] < xsect2.eid[im];
-                });
+            auto it = thrust::equal_range(thrust::seq,
+                                          d_xsect_edges_sorted.begin(),
+                                          d_xsect_edges_sorted.end(),
+                                          dummy_xsect,
+                                          [=] __device__(const xsect_t& xsect1, const xsect_t& xsect2) { return xsect1.eid[im] < xsect2.eid[im]; });
             return thrust::distance(it.first, it.second);
           });
 
-      thrust::inclusive_scan(thrust::cuda::par.on(stream.cuda_stream()),
-                             n_xsects_per_edge.begin(), n_xsects_per_edge.end(),
-                             xsect_index.begin() + 1);
+      thrust::inclusive_scan(thrust::cuda::par.on(stream.cuda_stream()), n_xsects_per_edge.begin(), n_xsects_per_edge.end(), xsect_index.begin() + 1);
       stream.Sync();
       // n intersection points have n-1 mid points
-      uint32_t n_mid_points =
-          xsect_index[xsect_index.size() - 1] - unique_eids.size();
+      uint32_t n_mid_points = xsect_index[xsect_index.size() - 1] - unique_eids.size();
       // mid-points of intersections from query map
       mid_points.resize(n_mid_points);
 
@@ -248,24 +274,19 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
           const auto& p1 = d_query_map.get_point(e.p1_idx);
           auto* curr_xsects = d_xsect_edges_sorted.data() + begin;
 
-          thrust::sort(
-              thrust::seq, curr_xsects, d_xsect_edges_sorted.data() + end,
-              [=](const xsect_t& xsect1, const xsect_t& xsect2) {
-                // fixme: cast __128 directly
-                auto d1 = SQ(xsect1.x - tcb::rational<__int128>(p1.x)) +
-                          SQ(xsect1.y - tcb::rational<__int128>(p1.y));
-                auto d2 = SQ(xsect2.x - tcb::rational<__int128>(p1.x)) +
-                          SQ(xsect2.y - tcb::rational<__int128>(p1.y));
-                return d1 < d2;
-              });
+          thrust::sort(thrust::seq, curr_xsects, d_xsect_edges_sorted.data() + end, [=](const xsect_t& xsect1, const xsect_t& xsect2) {
+            // fixme: cast __128 directly
+            auto d1 = SQ(xsect1.x - tcb::rational<__int128>(p1.x)) + SQ(xsect1.y - tcb::rational<__int128>(p1.y));
+            auto d2 = SQ(xsect2.x - tcb::rational<__int128>(p1.x)) + SQ(xsect2.y - tcb::rational<__int128>(p1.y));
+            return d1 < d2;
+          });
 
           for (int xsect_idx = 0; xsect_idx < n_xsect - 1; xsect_idx++) {
             xsect_t& xsect1 = *(curr_xsects + xsect_idx);
             xsect_t& xsect2 = *(curr_xsects + xsect_idx + 1);
             tcb::rational<__int128> x1 = xsect1.x, y1 = xsect1.y;
             tcb::rational<__int128> x2 = xsect2.x, y2 = xsect2.y;
-            dev::ExactPoint<internal_coord_t> mid_p(x1 + (x2 - x1) / 2,
-                                                    y1 + (y2 - y1) / 2);
+            dev::ExactPoint<internal_coord_t> mid_p(x1 + (x2 - x1) / 2, y1 + (y2 - y1) / 2);
 
             assert(begin + xsect_idx - idx < d_mid_points.size());
 
@@ -313,10 +334,7 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     }
   }
 
-  void WriteResult(const char* path) {
-    WriteOutputChain(this->ctx_, xsect_edges_sorted_, this->point_in_polygon_,
-                     path);
-  }
+  void WriteResult(const char* path) { WriteOutputChain(this->ctx_, xsect_edges_sorted_, this->point_in_polygon_, path); }
 
  private:
   std::shared_ptr<RTEngine> rt_engine_;
@@ -327,8 +345,55 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
   OptixTraversableHandle traverse_handles_[2];
   // RT
   thrust::device_vector<OptixAabb> aabbs_;
-  std::shared_ptr<thrust::device_vector<thrust::pair<size_t, size_t>>>
-      eid_range_[2];
+  std::shared_ptr<thrust::device_vector<thrust::pair<size_t, size_t>>> eid_range_[2];
+
+  void DumpPIPResultsCSV(int query_map_id, const std::string& out_dir, const std::string& impl_tag) const {
+    namespace fs = std::filesystem;
+
+    fs::create_directories(out_dir);
+
+    const auto& d_closest = this->closest_eids_[query_map_id];
+    const auto& d_poly = this->point_in_polygon_[query_map_id];
+
+    thrust::host_vector<index_t> h_closest = d_closest;
+    thrust::host_vector<index_t> h_poly = d_poly;
+
+    if (h_closest.size() != h_poly.size()) {
+      LOG(ERROR) << "DumpPIPResultsCSV: size mismatch for query_map_id=" << query_map_id << " closest=" << h_closest.size()
+                 << " poly=" << h_poly.size();
+      return;
+    }
+
+    const std::string path = out_dir + "/" + impl_tag + "_pip_map_" + std::to_string(query_map_id) + ".csv";
+
+    std::ofstream ofs(path);
+    if (!ofs) {
+      LOG(ERROR) << "DumpPIPResultsCSV: failed to open " << path;
+      return;
+    }
+
+    ofs << "map_id,point_id,closest_eid,poly_id\n";
+
+    const index_t invalid_eid = std::numeric_limits<index_t>::max();
+
+    for (size_t point_id = 0; point_id < h_closest.size(); ++point_id) {
+      const index_t eid = h_closest[point_id];
+      const index_t pid = h_poly[point_id];
+
+      ofs << query_map_id << "," << point_id << ",";
+
+      if (eid == invalid_eid) {
+        ofs << -1;
+      } else {
+        ofs << static_cast<long long>(eid);
+      }
+
+      ofs << "," << static_cast<long long>(pid) << "\n";
+    }
+
+    ofs.close();
+    LOG(INFO) << "DumpPIPResultsCSV: wrote " << path;
+  }
 };
 
 }  // namespace rayjoin
