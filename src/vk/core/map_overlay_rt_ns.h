@@ -15,6 +15,11 @@
 #include "vk/rt/primitive_ns.h"
 #include "vk/rt/rt_engine.h"
 
+//////////////////////////////////////////////////
+#include <filesystem>
+#include <fstream>
+#include <string>
+
 namespace rayjoin {
 namespace vk {
 
@@ -250,9 +255,14 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
 
     finalize_pass.run();
 
-    this->DebugPrintPIPProfiling(query_map_id);
-    this->DebugPrintPIPResults(query_map_id);
+    // Compare results from Vulkan and Optix
+    DumpPIPResultsCSV(query_map_id, "tmp/results_pip", "vulkan");
+
+    // optional debug
+    // this->DebugPrintPIPProfiling(query_map_id);
+    // this->DebugPrintPIPResults(query_map_id);
   }
+
   void ComputeOutputPolygons() override {}
 
   void WriteResult(const char *path) override {}
@@ -418,12 +428,66 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
     }
   }
 
+
   // --------------------------------
   // Intersect Edges
   VkDeviceBuf xsect_buf_{};
   VkDeviceBuf xsect_counter_buf_{};
   VkDeviceBuf prof_counter_buf_{};
   size_t xsect_capacity_ = 0;
+
+  void DumpPIPResultsCSV(int query_map_id, const std::string &out_dir, const std::string &impl_tag) const {
+    namespace fs = std::filesystem;
+
+    auto query_map = this->ctx_.get_map(query_map_id);
+    if (!query_map) {
+      LOG(ERROR) << "DumpPIPResultsCSV: null query map for query_map_id=" << query_map_id;
+      return;
+    }
+
+    fs::create_directories(out_dir);
+
+    const uint32_t n_points = static_cast<uint32_t>(map_point_count_[query_map_id]);
+
+    auto closest_eids = readBackStorageBuffer<index_t>(closest_eids_buf_[query_map_id], n_points);
+    auto poly_ids = readBackStorageBuffer<index_t>(point_in_polygon_buf_[query_map_id], n_points);
+
+    if (closest_eids.size() != n_points || poly_ids.size() != n_points) {
+      LOG(ERROR) << "DumpPIPResultsCSV: failed to read buffers for query_map_id=" << query_map_id << " closest_eids.size=" << closest_eids.size()
+                 << " poly_ids.size=" << poly_ids.size() << " expected=" << n_points;
+      return;
+    }
+
+    const std::string path = out_dir + "/" + impl_tag + "_pip_map_" + std::to_string(query_map_id) + ".csv";
+
+    std::ofstream ofs(path);
+    if (!ofs) {
+      LOG(ERROR) << "DumpPIPResultsCSV: failed to open " << path;
+      return;
+    }
+
+    ofs << "map_id,point_id,closest_eid,poly_id\n";
+
+    const index_t invalid_eid = std::numeric_limits<index_t>::max();
+
+    for (uint32_t point_id = 0; point_id < n_points; ++point_id) {
+      const index_t eid = closest_eids[point_id];
+      const index_t pid = poly_ids[point_id];
+
+      ofs << query_map_id << "," << point_id << ",";
+
+      if (eid == invalid_eid) {
+        ofs << -1;
+      } else {
+        ofs << static_cast<long long>(eid);
+      }
+
+      ofs << "," << static_cast<long long>(pid) << "\n";
+    }
+
+    ofs.close();
+    LOG(INFO) << "DumpPIPResultsCSV: wrote " << path;
+  }
 };
 
 
