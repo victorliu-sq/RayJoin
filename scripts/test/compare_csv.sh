@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [[ $# -ne 2 ]]; then
-  echo "Usage: $0 <optix_csv> <vulkan_csv>"
+  echo "Usage: $0 <csv1> <csv2>"
   exit 1
 fi
 
@@ -23,7 +23,10 @@ tmp1=$(mktemp)
 tmp2=$(mktemp)
 trap 'rm -f "$tmp1" "$tmp2"' EXIT
 
-# Remove header, sort by map_id then point_id numerically
+# Remove header, then sort numerically by the first two CSV columns.
+# Works for both:
+#   PIP: map_id,point_id,closest_eid,poly_id
+#   LSI: eid1,eid2
 tail -n +2 "$file1" | sort -t, -k1,1n -k2,2n > "$tmp1"
 tail -n +2 "$file2" | sort -t, -k1,1n -k2,2n > "$tmp2"
 

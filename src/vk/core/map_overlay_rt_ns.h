@@ -201,6 +201,9 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
 
     this->DebugPrintLSIProfiling(query_map_id);
     this->DebugPrintIntersectionsDetailed(query_map_id);
+
+    // Test
+    DumpLSIResultsCSV(query_map_id, "tmp/results_lsi", "vulkan");
   }
 
   void LocateVerticesInOtherMap(int query_map_id) override {
@@ -507,6 +510,58 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
 
     ofs.close();
     LOG(INFO) << "DumpPIPResultsCSV: wrote " << path;
+  }
+
+  void DumpLSIResultsCSV(int query_map_id, const std::string &out_dir, const std::string &impl_tag) const {
+    namespace fs = std::filesystem;
+    fs::create_directories(out_dir);
+
+    auto xcnt = readBackStorageBuffer<uint32_t>(xsect_counter_buf_, 1);
+    if (xcnt.empty()) {
+      LOG(ERROR) << "DumpLSIResultsCSV: failed to read xsect counter";
+      return;
+    }
+
+    const uint32_t n_xsects = xcnt[0];
+    auto gpuXsects = readBackStorageBuffer<xsect_t>(xsect_buf_, n_xsects);
+
+    if (gpuXsects.size() != n_xsects) {
+      LOG(ERROR) << "DumpLSIResultsCSV: failed to read xsect buffer"
+                 << " expected=" << n_xsects << " actual=" << gpuXsects.size();
+      return;
+    }
+
+    const std::string path = out_dir + "/" + impl_tag + "_lsi_map_" + std::to_string(query_map_id) + ".csv";
+
+    std::vector<std::pair<uint64_t, uint64_t>> pairs;
+    pairs.reserve(gpuXsects.size());
+
+    for (const auto &x: gpuXsects) {
+      uint64_t eid1 = static_cast<uint64_t>(x.eid0);
+      uint64_t eid2 = static_cast<uint64_t>(x.eid1);
+
+      if (eid1 > eid2) {
+        std::swap(eid1, eid2);
+      }
+
+      pairs.emplace_back(eid1, eid2);
+    }
+
+    std::sort(pairs.begin(), pairs.end());
+
+    std::ofstream ofs(path);
+    if (!ofs) {
+      LOG(ERROR) << "DumpLSIResultsCSV: failed to open " << path;
+      return;
+    }
+
+    ofs << "eid1,eid2\n";
+    for (const auto &[eid1, eid2]: pairs) {
+      ofs << eid1 << "," << eid2 << "\n";
+    }
+
+    ofs.close();
+    LOG(INFO) << "DumpLSIResultsCSV: wrote " << path;
   }
 };
 

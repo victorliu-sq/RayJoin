@@ -107,6 +107,8 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     lsi->set_config(config_);
     lsi->Query(stream, query_map_id);
     stream.Sync();
+
+    DumpLSIResultsCSV(query_map_id, "tmp/results_lsi", "optix");
   }
 
   //////////////////////////////////////////////////////////////////////////////////
@@ -395,6 +397,45 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
 
     ofs.close();
     LOG(INFO) << "DumpPIPResultsCSV: wrote " << path;
+  }
+
+  void DumpLSIResultsCSV(int query_map_id, const std::string& out_dir, const std::string& impl_tag) const {
+    namespace fs = std::filesystem;
+    fs::create_directories(out_dir);
+
+    thrust::host_vector<xsect_t> h_xsects;
+    this->lsi_->CopyTo(h_xsects);
+
+    const std::string path = out_dir + "/" + impl_tag + "_lsi_map_" + std::to_string(query_map_id) + ".csv";
+
+    std::vector<std::pair<uint64_t, uint64_t>> pairs;
+    pairs.reserve(h_xsects.size());
+
+    for (const auto& x: h_xsects) {
+      uint64_t eid1 = static_cast<uint64_t>(x.eid[0]);
+      uint64_t eid2 = static_cast<uint64_t>(x.eid[1]);
+
+      if (eid1 > eid2) {
+        std::swap(eid1, eid2);
+      }
+
+      pairs.emplace_back(eid1, eid2);
+    }
+
+    std::sort(pairs.begin(), pairs.end());
+
+    std::ofstream ofs(path);
+    if (!ofs) {
+      LOG(ERROR) << "DumpLSIResultsCSV: failed to open " << path;
+      return;
+    }
+
+    ofs << "eid1,eid2\n";
+    for (const auto& [eid1, eid2]: pairs) {
+      ofs << eid1 << "," << eid2 << "\n";
+    }
+
+    LOG(INFO) << "DumpLSIResultsCSV: wrote " << path;
   }
 };
 
