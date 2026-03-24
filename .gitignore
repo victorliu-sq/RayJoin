@@ -6,8 +6,3 @@
 /cmake-build-*
 deps
 tmp/
-/test/dataset/br_countyXbr_soil_result_vk.txt
-*_results.txt
-*_result.txt
-*_result_*.txt
-
