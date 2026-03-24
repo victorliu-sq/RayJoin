@@ -91,7 +91,7 @@ void RunOverlayNS(const rayjoin::OverlayConfig& config) {
   }
 
   timer_next("Computer output polygons");
-  // overlay->ComputeOutputPolygons();
+  overlay->ComputeOutputPolygons();
 
   if (config.check) {
     timer_next("Check result");
@@ -100,7 +100,7 @@ void RunOverlayNS(const rayjoin::OverlayConfig& config) {
 
   if (!config.output_path.empty()) {
     timer_next("Write to file");
-    // overlay->WriteResult(config.output_path.c_str());
+    overlay->WriteResult(config.output_path.c_str());
   }
   timer_end();
 }

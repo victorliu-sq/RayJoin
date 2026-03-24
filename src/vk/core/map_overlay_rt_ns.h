@@ -19,6 +19,7 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <unordered_map>
 
 namespace rayjoin {
 namespace vk {
@@ -269,10 +270,354 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
 
     // DebugPrintPIPRawCounters(query_map_id);
   }
+  void ComputeOutputPolygons() override {
+    using polygon_id_t = index_t;
 
-  void ComputeOutputPolygons() override {}
+    auto &ctx = this->ctx_;
 
-  void WriteResult(const char *path) override {}
+    constexpr int im = 0;
+    const int query_map_id = 0;
+    const int base_map_id = 1;
+
+    auto query_map = ctx.get_map(query_map_id);
+    auto base_map = ctx.get_map(base_map_id);
+
+    if (!query_map || !base_map) {
+      throw std::runtime_error("ComputeOutputPolygons(): null map");
+    }
+
+    // Read all intersections currently in the shared xsect buffer.
+    auto xcnt = readBackStorageBuffer<uint32_t>(xsect_counter_buf_, 1);
+    if (xcnt.empty()) {
+      throw std::runtime_error("ComputeOutputPolygons(): failed to read xsect counter");
+    }
+
+    const uint32_t n_xsects = xcnt[0];
+
+    // Cache full intersection list for map 0 only.
+    auto &xsect_edges_sorted = xsect_edges_sorted_[0];
+    xsect_edges_sorted = readBackStorageBuffer<xsect_t>(xsect_buf_, n_xsects);
+
+    if (xsect_edges_sorted.size() != n_xsects) {
+      throw std::runtime_error("ComputeOutputPolygons(): failed to read xsect buffer");
+    }
+
+    if (n_xsects == 0) {
+      return;
+    }
+
+    // Sort by eid0, then by distance from edge start point.
+    auto query_edges = readBackStorageBuffer<edge_t>(query_map->getEdgesBuffer(), query_map->get_edges_num());
+    auto query_points = readBackStorageBuffer<point_t>(query_map->getPointsBuffer(), query_map->get_points_num());
+
+    auto eid_of = [](const xsect_t &x) -> uint64_t { return x.eid0; };
+
+    auto dist2_from_edge_start = [&](const xsect_t &x) -> double {
+      const uint64_t eid = eid_of(x);
+      if (eid >= query_edges.size()) {
+        return std::numeric_limits<double>::infinity();
+      }
+
+      const auto &e = query_edges[eid];
+      if (e.p1_idx >= query_points.size()) {
+        return std::numeric_limits<double>::infinity();
+      }
+
+      const auto &p1 = query_points[e.p1_idx];
+      const double dx = x.x - static_cast<double>(p1.x);
+      const double dy = x.y - static_cast<double>(p1.y);
+      return dx * dx + dy * dy;
+    };
+
+    std::sort(xsect_edges_sorted.begin(), xsect_edges_sorted.end(), [&](const xsect_t &a, const xsect_t &b) {
+      const uint64_t ea = eid_of(a);
+      const uint64_t eb = eid_of(b);
+      if (ea != eb) return ea < eb;
+      return dist2_from_edge_start(a) < dist2_from_edge_start(b);
+    });
+
+    struct MidPointTask {
+      size_t xsect_idx;
+      point_t p;
+    };
+
+    std::vector<MidPointTask> tasks;
+    tasks.reserve(n_xsects);
+
+    // Build midpoint list for every consecutive pair on the same edge.
+    size_t begin = 0;
+    while (begin < xsect_edges_sorted.size()) {
+      const uint64_t eid = eid_of(xsect_edges_sorted[begin]);
+      size_t end = begin + 1;
+      while (end < xsect_edges_sorted.size() && eid_of(xsect_edges_sorted[end]) == eid) {
+        ++end;
+      }
+
+      const size_t count = end - begin;
+      if (count > 1) {
+        for (size_t i = begin; i + 1 < end; ++i) {
+          const auto &x1 = xsect_edges_sorted[i];
+          const auto &x2 = xsect_edges_sorted[i + 1];
+
+          point_t mp{};
+          mp.x = static_cast<coord_t>(x1.x + (x2.x - x1.x) * 0.5);
+          mp.y = static_cast<coord_t>(x1.y + (x2.y - x1.y) * 0.5);
+
+          tasks.push_back(MidPointTask{i, mp});
+        }
+      }
+
+      begin = end;
+    }
+
+    if (tasks.empty()) {
+      return;
+    }
+
+    // Upload midpoints to GPU.
+    VkStagingBuf mid_staging(sizeof(point_t) * tasks.size());
+    {
+      std::vector<point_t> host_mid_points;
+      host_mid_points.reserve(tasks.size());
+      for (const auto &t: tasks) {
+        host_mid_points.push_back(t.p);
+      }
+      mid_staging.Host2Stage(host_mid_points);
+    }
+
+    VkDeviceBuf mid_points_buf;
+    mid_points_buf.Init(sizeof(point_t) * tasks.size());
+    mid_staging.Stage2Device(mid_points_buf, sizeof(point_t) * tasks.size());
+
+    // Reuse existing PIP RT pass to query midpoint containment in map 1.
+    std::string rgen_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rgen_ns.spv";
+    std::string rint_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rint_ns.spv";
+    std::string rahit_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rahit_ns.spv";
+    std::string rchit_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rchit_ns.spv";
+    std::string rmiss_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rmiss_ns.spv";
+
+    VkDeviceBuf mid_closest_eids_buf;
+    mid_closest_eids_buf.Init(sizeof(index_t) * tasks.size());
+
+    VkDeviceBuf mid_debug_counter_buf;
+    mid_debug_counter_buf.Init(sizeof(uint32_t) * 8);
+
+    PIPRTPassNS rt_pass(rgen_spv.c_str(),
+                        rint_spv.c_str(),
+                        rahit_spv.c_str(),
+                        rchit_spv.c_str(),
+                        rmiss_spv.c_str(),
+                        accel_[base_map_id].GetTraverseHandle(),
+                        eid_range_buf_[base_map_id],
+                        base_map->getPointsBuffer(),
+                        base_map->getEdgesBuffer(),
+                        mid_points_buf,
+                        mid_closest_eids_buf,
+                        mid_debug_counter_buf,
+                        static_cast<uint32_t>(query_map_id),
+                        static_cast<uint32_t>(tasks.size()));
+
+    rt_pass.run();
+
+    // Finalize midpoint closest eid -> polygon id.
+    VkDeviceBuf mid_point_in_polygon_buf;
+    mid_point_in_polygon_buf.Init(sizeof(index_t) * tasks.size());
+
+    std::string finalize_spv = std::string(SHADER_DIR_NS) + "/pip_finalize_ns.spv";
+    PIPFinalizePassNS finalize_pass(finalize_spv.c_str(),
+                                    static_cast<uint32_t>(tasks.size()),
+                                    static_cast<uint32_t>(EXTERIOR_FACE_ID),
+                                    base_map->getEdgesBuffer(),
+                                    base_map->getPointsBuffer(),
+                                    mid_closest_eids_buf,
+                                    mid_point_in_polygon_buf);
+
+    finalize_pass.run();
+
+    auto mid_poly_ids = readBackStorageBuffer<polygon_id_t>(mid_point_in_polygon_buf, tasks.size());
+    if (mid_poly_ids.size() != tasks.size()) {
+      throw std::runtime_error("ComputeOutputPolygons(): failed to read midpoint polygon ids");
+    }
+
+    // Fill mid_point_polygon_id into the first xsect of every consecutive pair.
+    for (size_t i = 0; i < tasks.size(); ++i) {
+      xsect_edges_sorted[tasks[i].xsect_idx].mid_point_polygon_id = static_cast<uint32_t>(mid_poly_ids[i]);
+    }
+  }
+
+  void WriteResult(const char *path) override {
+    using polygon_id_t = index_t;
+
+    struct OutputChain {
+      int64_t id = -1;
+      std::vector<point_t> points;
+      index_t first_point_idx = 0;
+      index_t last_point_idx = 0;
+      int64_t left_polygon_id = 0;
+      int64_t right_polygon_id = 0;
+      int64_t other_map_polygon_id = 0;
+
+      void AddChainPoint(const point_t &p) { points.push_back(p); }
+
+      void AddXsectPoint(const xsect_t &xsect) {
+        point_t p{};
+        p.x = static_cast<coord_t>(xsect.x);
+        p.y = static_cast<coord_t>(xsect.y);
+        points.push_back(p);
+      }
+    };
+
+    struct PointLess {
+      bool operator()(const point_t &a, const point_t &b) const {
+        if (a.x < b.x) return true;
+        if (b.x < a.x) return false;
+        return a.y < b.y;
+      }
+    };
+
+    auto same_point = [](const point_t &a, const point_t &b) { return a.x == b.x && a.y == b.y; };
+
+    std::vector<OutputChain> output_chains;
+
+    auto flush = [&output_chains, &same_point](OutputChain &output_chain) {
+      auto &pts = output_chain.points;
+
+      if (!pts.empty()) {
+        if (output_chain.left_polygon_id * output_chain.other_map_polygon_id != 0 ||
+            output_chain.right_polygon_id * output_chain.other_map_polygon_id != 0) {
+          auto it = std::unique(pts.begin(), pts.end(), same_point);
+          pts.resize(static_cast<size_t>(std::distance(pts.begin(), it)));
+          output_chain.id = static_cast<int64_t>(output_chains.size());
+          output_chains.push_back(output_chain);
+        }
+
+        pts.clear();
+      }
+    };
+
+    constexpr int im = 0;
+
+    auto poly_ids = readBackStorageBuffer<polygon_id_t>(point_in_polygon_buf_[0], map_point_count_[0]);
+    if (poly_ids.size() != map_point_count_[0]) {
+      throw std::runtime_error("WriteResult(): failed to read point_in_polygon buffer");
+    }
+
+    const auto &xsect_edges_sorted = xsect_edges_sorted_[0];
+    const auto &p_graph = *this->ctx_.get_planar_graph(0);
+
+    std::unordered_map<index_t, std::vector<xsect_t>> grouped_xsects;
+    grouped_xsects.reserve(xsect_edges_sorted.size());
+
+    for (const auto &x: xsect_edges_sorted) {
+      grouped_xsects[static_cast<index_t>(x.eid0)].push_back(x);
+    }
+
+    LOG(INFO) << "Map 0, Xsect: " << xsect_edges_sorted.size() << " " << grouped_xsects.size();
+
+    for (size_t ic = 0; ic < p_graph.chains.size(); ++ic) {
+      const auto &chain = p_graph.chains[ic];
+      const auto begin_pid = p_graph.row_index[ic];
+      const auto end_pid = p_graph.row_index[ic + 1];
+
+      OutputChain output_chain;
+      output_chain.left_polygon_id = chain.left_polygon_id;
+      output_chain.right_polygon_id = chain.right_polygon_id;
+
+      for (auto pid = begin_pid; pid < end_pid; ++pid) {
+        output_chain.other_map_polygon_id = poly_ids[pid];
+        output_chain.AddChainPoint(p_graph.points[pid]);
+
+        if (pid != end_pid - 1) {
+          const auto eid = static_cast<index_t>(pid - ic);
+          auto it = grouped_xsects.find(eid);
+
+          if (it != grouped_xsects.end()) {
+            auto &xsects = it->second;
+
+            if (!xsects.empty()) {
+              output_chain.AddXsectPoint(xsects[0]);
+
+              for (size_t ix = 0; ix + 1 < xsects.size(); ++ix) {
+                flush(output_chain);
+
+                const auto &x1 = xsects[ix];
+                const auto &x2 = xsects[ix + 1];
+
+                output_chain.other_map_polygon_id = x1.mid_point_polygon_id;
+                output_chain.AddXsectPoint(x1);
+                output_chain.AddXsectPoint(x2);
+              }
+
+              flush(output_chain);
+              output_chain.AddXsectPoint(xsects.back());
+            }
+          }
+        }
+      }
+
+      flush(output_chain);
+    }
+
+    std::map<std::pair<int64_t, int64_t>, size_t> face_ids;
+    std::map<point_t, index_t, PointLess> point_ids;
+    index_t point_counter = 0;
+
+    auto create_polygon = [&face_ids](int64_t polygon_id1, int64_t polygon_id2) -> size_t {
+      if (polygon_id1 == 0 || polygon_id2 == 0) {
+        return 0;
+      }
+
+      auto k = std::make_pair(polygon_id1, polygon_id2);
+      auto it = face_ids.find(k);
+      if (it == face_ids.end()) {
+        face_ids[k] = face_ids.size() + 1;
+        return face_ids.size();
+      }
+      return it->second;
+    };
+
+    for (auto &chain: output_chains) {
+      if (chain.left_polygon_id < chain.other_map_polygon_id) {
+        chain.left_polygon_id = create_polygon(chain.left_polygon_id, chain.other_map_polygon_id);
+      } else {
+        chain.left_polygon_id = create_polygon(chain.other_map_polygon_id, chain.left_polygon_id);
+      }
+
+      if (chain.right_polygon_id < chain.other_map_polygon_id) {
+        chain.right_polygon_id = create_polygon(chain.right_polygon_id, chain.other_map_polygon_id);
+      } else {
+        chain.right_polygon_id = create_polygon(chain.other_map_polygon_id, chain.right_polygon_id);
+      }
+
+      for (const auto &p: chain.points) {
+        if (point_ids.find(p) == point_ids.end()) {
+          point_ids[p] = point_counter++;
+        }
+      }
+
+      chain.first_point_idx = point_ids[chain.points.front()];
+      chain.last_point_idx = point_ids[chain.points.back()];
+    }
+
+    LOG(INFO) << "Total chains: " << output_chains.size() << " Total faces: " << face_ids.size();
+
+    std::ofstream ofs(path);
+    CHECK(ofs.is_open()) << "Cannot open " << path;
+    ofs.setf(std::ios::fixed, std::ios::floatfield);
+    ofs.precision(6);
+
+    for (size_t ichain = 0; ichain < output_chains.size(); ++ichain) {
+      const auto &chain = output_chains[ichain];
+      ofs << (ichain + 1) << " " << chain.points.size() << " " << chain.first_point_idx << " " << chain.last_point_idx << " " << chain.left_polygon_id
+          << " " << chain.right_polygon_id << '\n';
+
+      for (const auto &p: chain.points) {
+        ofs << p.x << " " << p.y << '\n';
+      }
+    }
+
+    ofs.close();
+  }
 
  private:
   QueryConfigRT config_;
@@ -442,6 +787,8 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
   VkDeviceBuf xsect_counter_buf_{};
   VkDeviceBuf prof_counter_buf_{};
   size_t xsect_capacity_ = 0;
+
+  std::vector<xsect_t> xsect_edges_sorted_[2];
 
   void DebugPrintPIPRawCounters(int query_map_id) const {
     auto dbg = readBackStorageBuffer<uint32_t>(pip_debug_counter_buf_[query_map_id], 8);
