@@ -18,7 +18,6 @@ void CheckResult(CONTEXT_T& ctx, std::shared_ptr<OVERLAY_IMPL_T> overlay, const 
   using xsect_t = dev::Intersection<typename CONTEXT_T::internal_coord_t>;
   using map_t = typename CONTEXT_T::map_t;
   MapOverlayGrid<CONTEXT_T> cuda_grid(ctx);
-
   QueryConfigGrid query_config;
 
   LOG(INFO) << "Checking LSI Results";
@@ -33,6 +32,8 @@ void CheckResult(CONTEXT_T& ctx, std::shared_ptr<OVERLAY_IMPL_T> overlay, const 
     auto xsects_res = overlay->get_xsect_edges();
     auto n_xsects_ans = xsects_ans.size();
     auto n_xsects_res = xsects_res.size();
+    for (const auto xsect: xsects_ans) {
+    }
     auto write_to = [](const char* path, thrust::host_vector<xsect_t>& xsects) {
       thrust::sort(xsects.begin(), xsects.end(), [](const xsect_t& a, const xsect_t& b) {
         if (a.eid[0] != b.eid[0]) {
@@ -215,19 +216,19 @@ void RunOverlay(const OverlayConfig& config) {
     timer_next(prefix + "Locate vertices in other map");
     overlay->LocateVerticesInOtherMap(im);
   }
-  //
-  // timer_next("Computer output polygons");
-  // overlay->ComputeOutputPolygons();
-  //
-  // if (config.check) {
-  //   timer_next("Check result");
-  //   CheckResult(ctx, overlay, config);
-  // }
-  //
-  // if (!config.output_path.empty()) {
-  //   timer_next("Write to file");
-  //   overlay->WriteResult(config.output_path.c_str());
-  // }
+
+  timer_next("Computer output polygons");
+  overlay->ComputeOutputPolygons();
+
+  if (config.check) {
+    timer_next("Check result");
+    CheckResult(ctx, overlay, config);
+  }
+
+  if (!config.output_path.empty()) {
+    timer_next("Write to file");
+    overlay->WriteResult(config.output_path.c_str());
+  }
   timer_end();
 }
 
