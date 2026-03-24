@@ -1,4 +1,3 @@
-
 #ifndef RAYJOIN_APP_MAP_OVERLAY_H
 #define RAYJOIN_APP_MAP_OVERLAY_H
 #include "core/lsi.h"
@@ -6,7 +5,7 @@
 #include "shader/lsi.h"
 
 namespace rayjoin {
-template <typename CONTEXT_T>
+template<typename CONTEXT_T>
 class MapOverlay {
  public:
   using coord_t = typename CONTEXT_T::coord_t;
