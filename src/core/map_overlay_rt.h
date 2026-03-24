@@ -335,6 +335,9 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
       });
       stream.Sync();
     }
+
+    // Test correctness of this method
+    DumpComputeOutputPolygonsCSV(0, "tmp/results_compute_output_polygons", "optix");
   }
 
   void WriteResult(const char* path) { WriteOutputChain(this->ctx_, xsect_edges_sorted_, this->point_in_polygon_, path); }
@@ -436,6 +439,36 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     }
 
     LOG(INFO) << "DumpLSIResultsCSV: wrote " << path;
+  }
+
+  void DumpComputeOutputPolygonsCSV(int query_map_id, const std::string& out_dir, const std::string& impl_tag) const {
+    namespace fs = std::filesystem;
+    fs::create_directories(out_dir);
+
+    if (query_map_id != 0) {
+      LOG(INFO) << "DumpComputeOutputPolygonsCSV: skip query_map_id=" << query_map_id;
+      return;
+    }
+
+    const auto& d_xsects = xsect_edges_sorted_[0];
+    thrust::host_vector<xsect_t> h_xsects = d_xsects;
+
+    const std::string path = out_dir + "/" + impl_tag + "_compute_output_polygons_map_0.csv";
+
+    std::ofstream ofs(path);
+    if (!ofs) {
+      LOG(ERROR) << "DumpComputeOutputPolygonsCSV: failed to open " << path;
+      return;
+    }
+
+    ofs << "eid1,eid2,mid_point_polygon_id\n";
+    for (const auto& x: h_xsects) {
+      ofs << static_cast<unsigned long long>(x.eid[0]) << "," << static_cast<unsigned long long>(x.eid[1]) << ","
+          << static_cast<unsigned long long>(x.mid_point_polygon_id) << "\n";
+    }
+
+    ofs.close();
+    LOG(INFO) << "DumpComputeOutputPolygonsCSV: wrote " << path;
   }
 };
 

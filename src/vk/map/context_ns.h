@@ -85,6 +85,11 @@ class ContextNS {
   std::shared_ptr<map_t> get_map(int mapno) { return maps_[mapno]; }
   std::shared_ptr<const map_t> get_map(int mapno) const { return maps_[mapno]; }
 
+  // Used by WriteResults
+  std::shared_ptr<planar_graph_t> get_planar_graph(int mapno) { return planar_graphs_[mapno]; }
+
+  std::shared_ptr<const planar_graph_t> get_planar_graph(int mapno) const { return planar_graphs_[mapno]; }
+
   const bounding_box_t& get_bb() const { return bb_; }
 
   size_t get_edge_num() const {

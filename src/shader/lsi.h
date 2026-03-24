@@ -6,31 +6,26 @@
 
 namespace rayjoin {
 namespace dev {
-template <typename COORD_T>
+template<typename COORD_T>
 struct ExactPoint {
   tcb::rational<COORD_T> x, y;
 
   ExactPoint() = default;
 
-  DEV_HOST ExactPoint(const tcb::rational<COORD_T>& xx,
-                      const tcb::rational<COORD_T>& yy)
-      : x(xx), y(yy) {}
+  DEV_HOST ExactPoint(const tcb::rational<COORD_T>& xx, const tcb::rational<COORD_T>& yy) : x(xx), y(yy) {}
 };
 
-template <typename COORD_T>
+template<typename COORD_T>
 struct Intersection : public ExactPoint<COORD_T> {
   index_t eid[2];
-  polygon_id_t mid_point_polygon_id;
+  polygon_id_t mid_point_polygon_id = 0;  // MyChange: set to 0 by default
   DEV_HOST Intersection() : eid{0, 0}, mid_point_polygon_id(DONTKNOW) {}
 };
 
-template <typename EDGE_T1, typename EDGE_T2, typename POINT_T,
-          typename COEFFICIENT_T>
-DEV_INLINE bool intersect_test(const EDGE_T1& e1, const POINT_T& e1_p1,
-                               const POINT_T& e1_p2, const EDGE_T2& e2,
-                               const POINT_T& e2_p1, const POINT_T& e2_p2) {
-#define SUBEDGE(p, e) \
-  ((COEFFICIENT_T) p.x * e.a + (COEFFICIENT_T) p.y * e.b + e.c)  // ax+by+c
+template<typename EDGE_T1, typename EDGE_T2, typename POINT_T, typename COEFFICIENT_T>
+DEV_INLINE bool intersect_test(
+    const EDGE_T1& e1, const POINT_T& e1_p1, const POINT_T& e1_p2, const EDGE_T2& e2, const POINT_T& e2_p1, const POINT_T& e2_p2) {
+#define SUBEDGE(p, e) ((COEFFICIENT_T) p.x * e.a + (COEFFICIENT_T) p.y * e.b + e.c)  // ax+by+c
   // N.B., e.b >= 0, we ensure it when calculate edge eqns
   auto e2_p1_agst_e1 = SUBEDGE(e2_p1, e1);
   auto e2_p2_agst_e1 = SUBEDGE(e2_p2, e1);
@@ -46,7 +41,7 @@ DEV_INLINE bool intersect_test(const EDGE_T1& e1, const POINT_T& e1_p1,
     e1_p1_agst_e2 = -e2.b;
   }
   if (e1_p1_agst_e2 == 0) {  // b = 0, then c must be 0
-    return false;            // zero length edge
+    return false;  // zero length edge
   }
 
   if (e1_p2_agst_e2 == 0) {
@@ -61,8 +56,7 @@ DEV_INLINE bool intersect_test(const EDGE_T1& e1, const POINT_T& e1_p1,
 
   // p1 and p2 of edge1 is on the same side of edge2, they will not
   // intersect
-  if ((e1_p1_agst_e2 > 0 && e1_p2_agst_e2 > 0) ||
-      (e1_p1_agst_e2 < 0 && e1_p2_agst_e2 < 0)) {
+  if ((e1_p1_agst_e2 > 0 && e1_p2_agst_e2 > 0) || (e1_p1_agst_e2 < 0 && e1_p2_agst_e2 < 0)) {
     return false;
   }
 
@@ -85,8 +79,7 @@ DEV_INLINE bool intersect_test(const EDGE_T1& e1, const POINT_T& e1_p1,
   if (e2_p2_agst_e1 == 0) {
     return false;
   }
-  if ((e2_p1_agst_e1 > 0 && e2_p2_agst_e1 > 0) ||
-      (e2_p1_agst_e1 < 0 && e2_p2_agst_e1 < 0)) {
+  if ((e2_p1_agst_e1 > 0 && e2_p2_agst_e1 > 0) || (e2_p1_agst_e1 < 0 && e2_p2_agst_e1 < 0)) {
     return false;
   }
 
@@ -94,23 +87,23 @@ DEV_INLINE bool intersect_test(const EDGE_T1& e1, const POINT_T& e1_p1,
    * Check if both edges are the same.  If so, they shouldn't be
    * intersecting.
    */
-  if ((e1_p1 == e2_p1 && e1_p2 == e2_p2) ||
-      (e1_p1 == e2_p2 && e1_p2 == e2_p1)) {
+  if ((e1_p1 == e2_p1 && e1_p2 == e2_p2) || (e1_p1 == e2_p2 && e1_p2 == e2_p1)) {
     return false;
   }
 
   return true;
 }
 
-template <typename EDGE_T1, typename EDGE_T2, typename POINT_T,
-          typename COEFFICIENT_T>
-DEV_INLINE bool intersect_test(const EDGE_T1& e1, const POINT_T& e1_p1,
-                               const POINT_T& e1_p2, const EDGE_T2& e2,
-                               const POINT_T& e2_p1, const POINT_T& e2_p2,
+template<typename EDGE_T1, typename EDGE_T2, typename POINT_T, typename COEFFICIENT_T>
+DEV_INLINE bool intersect_test(const EDGE_T1& e1,
+                               const POINT_T& e1_p1,
+                               const POINT_T& e1_p2,
+                               const EDGE_T2& e2,
+                               const POINT_T& e2_p1,
+                               const POINT_T& e2_p2,
                                tcb::rational<COEFFICIENT_T>& xsect_x,
                                tcb::rational<COEFFICIENT_T>& xsect_y) {
-  if (!intersect_test<EDGE_T1, EDGE_T2, POINT_T, COEFFICIENT_T>(
-          e1, e1_p1, e1_p2, e2, e2_p1, e2_p2)) {
+  if (!intersect_test<EDGE_T1, EDGE_T2, POINT_T, COEFFICIENT_T>(e1, e1_p1, e1_p2, e2, e2_p1, e2_p2)) {
     return false;
   }
   // calculate intersection point
