@@ -582,15 +582,22 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
     };
 
     for (auto &chain: output_chains) {
-      if (chain.left_polygon_id < chain.other_map_polygon_id) {
+      // if (chain.left_polygon_id < chain.other_map_polygon_id) {
+      //   chain.left_polygon_id = create_polygon(chain.left_polygon_id, chain.other_map_polygon_id);
+      // } else {
+      //   chain.left_polygon_id = create_polygon(chain.other_map_polygon_id, chain.left_polygon_id);
+      // }
+      //
+      // if (chain.right_polygon_id < chain.other_map_polygon_id) {
+      //   chain.right_polygon_id = create_polygon(chain.right_polygon_id, chain.other_map_polygon_id);
+      // } else {
+      //   chain.right_polygon_id = create_polygon(chain.other_map_polygon_id, chain.right_polygon_id);
+      // }
+      if (im == 0) {
         chain.left_polygon_id = create_polygon(chain.left_polygon_id, chain.other_map_polygon_id);
-      } else {
-        chain.left_polygon_id = create_polygon(chain.other_map_polygon_id, chain.left_polygon_id);
-      }
-
-      if (chain.right_polygon_id < chain.other_map_polygon_id) {
         chain.right_polygon_id = create_polygon(chain.right_polygon_id, chain.other_map_polygon_id);
       } else {
+        chain.left_polygon_id = create_polygon(chain.other_map_polygon_id, chain.left_polygon_id);
         chain.right_polygon_id = create_polygon(chain.other_map_polygon_id, chain.right_polygon_id);
       }
 
