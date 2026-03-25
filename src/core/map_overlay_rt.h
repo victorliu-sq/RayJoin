@@ -199,9 +199,6 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     const auto& scaling = ctx.get_scaling();
 
     FOR2 {
-      if (im == 1) {
-        break;
-      }
       // TODO: Move them out out the loop
       thrust::device_vector<index_t> unique_eids;
       thrust::device_vector<uint32_t> n_xsects_per_edge;
