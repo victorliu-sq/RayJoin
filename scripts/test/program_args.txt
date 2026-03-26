@@ -17,11 +17,33 @@
 -query=lsi/pip
 
 ///////////////////////////////////////////////////
-// Test 1
--poly1 test/dataset/basic_test1_m1.txt -poly2 test/dataset/basic_test1_m2.txt -output
-tmp/results/basic_test1_overlay.txt -mode=rt -xsect_factor=5.0 -warmup=5 -repeat=5 -query=lsi/pip
+// Test1
+-poly1 data/test/basic_test1_m1.txt
+-poly2 data/test/basic_test1_m2.txt
+-output tmp/results/basic_test1_overlay.txt
+-mode=rt -xsect_factor=5.0 -warmup=5 -repeat=5 -query=lsi/pip
+
+// Test1-Vk
+-poly1 data/test/basic_test1_m1.txt
+-poly2 data/test/basic_test1_m2.txt
+-output tmp/results/basic_test1_overlay_vk.txt
+-mode=rt -xsect_factor=5.0 -warmup=5 -repeat=5 -query=lsi/pip
+
+// Test1-Optix
+-poly1 data/test/basic_test1_m1.txt
+-poly2 data/test/basic_test1_m2.txt
+-output tmp/results/basic_test1_overlay_optix.txt
+-mode=rt -xsect_factor=5.0 -warmup=5 -repeat=5 -query=lsi/pip
+
 
 ///////////////////////////////////////////////////
 // Test 2
--poly1 test/dataset/basic_test2_m1.txt -poly2 test/dataset/basic_test2_m2.txt -output
-tmp/results/basic_test2_overlay.txt -mode=rt -xsect_factor=5.0 -warmup=5 -repeat=5 -query=lsi/pip
+-poly1 data/test/basic_test2_m1.txt
+-poly2 data/test/basic_test2_m2.txt
+-output tmp/results/basic_test2_overlay.txt
+-mode=rt -xsect_factor=5.0 -warmup=5 -repeat=5 -query=lsi/pip
+
+// Test2-Vk
+
+
+// Test2-Optix
