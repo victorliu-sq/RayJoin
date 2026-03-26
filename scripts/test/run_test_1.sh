@@ -39,20 +39,24 @@ if [[ ! -f "$file2" ]]; then
 fi
 
 # Compare files
+# Compare files
+echo "================================================="
+echo "Test-1: Comparing OptiX and Vulkan output files for Sample Datasets..."
+
 if diff "$file1" "$file2" > "$diff_file"; then
-    echo "Test passed"
+    echo "Test-1 PASS: The output files are identical."
     rm -f "$diff_file"
     exit 0
 else
     status=$?
 
     if [[ $status -eq 1 ]]; then
-        echo "Test failed"
-        echo "Diff:"
+        echo "Test-1 FAIL: The output files differ."
+        echo "Differences:"
         cat "$diff_file"
         exit 1
     else
-        echo "Error: diff command failed" >&2
+        echo "ERROR: Failed to run the diff command." >&2
         exit 2
     fi
 fi
