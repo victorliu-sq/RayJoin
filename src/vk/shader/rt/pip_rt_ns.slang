@@ -283,16 +283,6 @@ void anyHitMain(inout Payload payload, in HitAttr attr) {
 
   bool take = false;
 
-  // if (payload.bestEid == 0xFFFFFFFFu) {
-  //   take = true;
-  // } else if (attr.candidateT < payload.bestT) {
-  //   take = true;
-  // } else if (attr.candidateT == payload.bestT) {
-  //   EdgeD candidate_e = gBaseEdges[attr.baseEid];
-  //   EdgeD best_e = gBaseEdges[payload.bestEid];
-  //   take = preferCandidateAtSameT(params.query_map_id, candidate_e, best_e);
-  // }
-
   if (payload.bestEid == 0xFFFFFFFFu) {
     take = true;
   } else {
