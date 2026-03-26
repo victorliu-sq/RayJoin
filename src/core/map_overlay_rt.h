@@ -108,7 +108,7 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     lsi->Query(stream, query_map_id);
     stream.Sync();
 
-    DumpLSIResultsCSV(query_map_id, "tmp/results_lsi", "optix");
+    // DumpLSIResultsCSV(query_map_id, "tmp/results_lsi", "optix");
   }
 
   //////////////////////////////////////////////////////////////////////////////////

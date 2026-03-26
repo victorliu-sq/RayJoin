@@ -65,7 +65,7 @@ class MapNS {
 
     LOG(INFO) << "Map-" << id_ << ": initialized " << edge_count_ << " edges on GPU (no scaling)";
 
-    DebugPrintEdges();
+    // DebugPrintEdges();
   }
 
   size_t get_edges_num() const { return edge_count_; }

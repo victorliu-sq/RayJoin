@@ -33,7 +33,6 @@ struct Intersection {
   uint64_t eid0;
   uint64_t eid1;
 
-  // default the mid_point_poly_id to 0
   uint mid_point_polygon_id = 0;
   uint pad;
 };
@@ -138,7 +137,9 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
       fill_primitives_ns_pass_ = std::make_unique<FillPrimitivesNS>(
           spvPath.c_str(), map->getPointsBuffer(), map->getEdgesBuffer(), aabbs_buf_, eid_range_buf_[im], map_edge_count_[im], ag_iter, area_enlarge);
       fill_primitives_ns_pass_->run();
-      DebugPrintAABBs(map, aabbs_buf_, eid_range_buf_[im], map_edge_count_[im]);
+
+      // DEBUG
+      // DebugPrintAABBs(map, aabbs_buf_, eid_range_buf_[im], map_edge_count_[im]);
 
       LOG(INFO) << "Map-" << im << " builds " << map_edge_count_[im] << " primtives.";
       accel_[im].BuildAccelCustom(aabbs_buf_, map_edge_count_[im]);
@@ -201,11 +202,11 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
                                     xsect_counter_buf_);
     finalize_pass.run();
 
-    this->DebugPrintLSIProfiling(query_map_id);
-    this->DebugPrintIntersectionsDetailed(query_map_id);
+    // this->DebugPrintLSIProfiling(query_map_id);
+    // this->DebugPrintIntersectionsDetailed(query_map_id);
 
     // Test
-    DumpLSIResultsCSV(query_map_id, "tmp/results_lsi", "vulkan");
+    // DumpLSIResultsCSV(query_map_id, "tmp/results_lsi", "vulkan");
   }
 
   void LocateVerticesInOtherMap(int query_map_id) override {
@@ -441,8 +442,8 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
     }
 
     // Optional debug dumps
-    DumpComputeOutputPolygonsCSV(0, "tmp/results_compute_output_polygons", "vulkan");
-    DumpComputeOutputPolygonsCSV(1, "tmp/results_compute_output_polygons", "vulkan");
+    // DumpComputeOutputPolygonsCSV(0, "tmp/results_compute_output_polygons", "vulkan");
+    // DumpComputeOutputPolygonsCSV(1, "tmp/results_compute_output_polygons", "vulkan");
   }
 
   void WriteResult(const char *path) override {
