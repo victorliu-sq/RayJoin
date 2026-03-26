@@ -105,11 +105,6 @@ run_compare "LSI map 0" \
   "${lsi_dir}/optix_lsi_map_0.csv" \
   "${lsi_dir}/vulkan_lsi_map_0.csv"
 
-# Add map 1 too if LSI is dumped per map.
-# run_compare "LSI map 1" \
-#   "${lsi_dir}/optix_lsi_map_1.csv" \
-#   "${lsi_dir}/vulkan_lsi_map_1.csv"
-
 # -------------------------
 # Output polygon comparisons
 # -------------------------

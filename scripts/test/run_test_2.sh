@@ -1,61 +1,115 @@
 #!/usr/bin/env bash
-set -u
+set -euo pipefail
 
-# ==================================================================
-# Run MapOverlay for Optix and Vulkan
+base_dir="tmp"
+
+poly1="data/realworld/Aquifers.cdb"
+poly2="data/realworld/dtl_cnty.cdb"
+
+vk_output="${base_dir}/results/Aquifers_Cnty_result_vk.txt"
+optix_output="${base_dir}/results/Aquifers_Cnty_result_optix.txt"
+
+# =========================================================
+# Run Vulkan with dumps enabled
 ./build/bin/polyover_vk_exec_ns \
-  -poly1 data/realworld/Aquifers.cdb \
-  -poly2 data/realworld/dtl_cnty.cdb \
-  -output  tmp/results/Aquifers_Cnty_result_vk.txt \
+  -poly1 "$poly1" \
+  -poly2 "$poly2" \
+  -output "$vk_output" \
   -mode=rt \
   -xsect_factor=5.0 \
   -warmup=5 -repeat=5 \
-  -query=lsi/pip
+  -query=lsi/pip \
+  -dump_results=pip,lsi,output \
+  -dump_dir="$base_dir"
 
+# =========================================================
+# Run OptiX with dumps enabled
 ./build/bin/polyover_exec \
-  -poly1 data/realworld/Aquifers.cdb \
-  -poly2 data/realworld/dtl_cnty.cdb \
-  -output  tmp/results/Aquifers_Cnty_result_optix.txt \
+  -poly1 "$poly1" \
+  -poly2 "$poly2" \
+  -output "$optix_output" \
   -mode=rt \
   -xsect_factor=5.0 \
   -warmup=5 -repeat=5 \
-  -query=lsi/pip
+  -query=lsi/pip \
+  -dump_results=pip,lsi,output \
+  -dump_dir="$base_dir"
 
-# ==================================================================
-# Test results
-file1="tmp/results/Aquifers_Cnty_result_optix.txt"
-file2="tmp/results/Aquifers_Cnty_result_vk.txt"
-diff_file="tmp/results/test2_diff.txt"
+status=0
+cmp_script="./scripts/test/compare_csv.sh"
 
-# Check that both files exist
-if [[ ! -f "$file1" ]]; then
-    echo "Error: file not found: $file1" >&2
-    exit 2
-fi
+run_compare() {
+  local label="$1"
+  local f1="$2"
+  local f2="$3"
 
-if [[ ! -f "$file2" ]]; then
-    echo "Error: file not found: $file2" >&2
-    exit 2
-fi
+  echo "========================================"
+  echo "Test: $label"
+  echo "  file 1: $f1"
+  echo "  file 2: $f2"
+  echo "========================================"
 
-# Compare files
-echo "================================================="
-echo "Test-2: Comparing OptiX and Vulkan output files for Realworld Datasets..."
+  if [[ ! -x "$cmp_script" ]]; then
+    echo "Result: FAIL"
+    echo "Reason: compare script missing or not executable: $cmp_script"
+    status=1
+    echo
+    return
+  fi
 
-if diff "$file1" "$file2" > "$diff_file"; then
-    echo "Test-2 PASS: The output files are identical."
-    rm -f "$diff_file"
-    exit 0
-else
-    status=$?
+  if [[ ! -f "$f1" ]]; then
+    echo "Result: FAIL"
+    echo "Reason: missing file: $f1"
+    status=1
+    echo
+    return
+  fi
 
-    if [[ $status -eq 1 ]]; then
-        echo "Test-2 FAIL: The output files differ."
-#        echo "Differences:"
-#        cat "$diff_file"
-        exit 1
-    else
-        echo "ERROR: Failed to run the diff command." >&2
-        exit 2
-    fi
-fi
+  if [[ ! -f "$f2" ]]; then
+    echo "Result: FAIL"
+    echo "Reason: missing file: $f2"
+    status=1
+    echo
+    return
+  fi
+
+  if "$cmp_script" "$f1" "$f2"; then
+    echo "Result: PASS"
+  else
+    echo "Result: FAIL"
+    status=1
+  fi
+
+  echo
+}
+
+pip_dir="${base_dir}/results_pip"
+lsi_dir="${base_dir}/results_lsi"
+output_dir="${base_dir}/results_output"
+
+# -------------------------
+# PIP comparisons
+# -------------------------
+run_compare "PIP map 0" \
+  "${pip_dir}/optix_pip_map_0.csv" \
+  "${pip_dir}/vulkan_pip_map_0.csv"
+
+run_compare "PIP map 1" \
+  "${pip_dir}/optix_pip_map_1.csv" \
+  "${pip_dir}/vulkan_pip_map_1.csv"
+
+# -------------------------
+# LSI comparisons
+# -------------------------
+run_compare "LSI map 0" \
+  "${lsi_dir}/optix_lsi_map_0.csv" \
+  "${lsi_dir}/vulkan_lsi_map_0.csv"
+
+# -------------------------
+# Output polygon comparisons
+# -------------------------
+# run_compare "Output polygons" \
+#   "${output_dir}/optix_output.csv" \
+#   "${output_dir}/vulkan_output.csv"
+
+exit "$status"
