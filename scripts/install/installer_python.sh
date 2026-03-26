@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PY_REQ="$SCRIPTS_DIR/install/requirements.txt"
-ENV_NAME="xb-env"
+ENV_NAME="rayjoin-env"
 
 echo "[INSTALL] Install Python Environment ..."
 #if [[ ! $(conda info --env | grep xb-env) ]]; then
@@ -18,7 +18,6 @@ echo "[INSTALL] Install Python Environment ..."
 #else
 #  echo "[INSTALL] Install Python Environment Already Exists!"
 #fi
-
 
 # ------------------------------------------------------------
 # Create env if it does not exist
