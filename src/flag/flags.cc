@@ -31,3 +31,7 @@ DEFINE_double(gen_t, 0.1, "Len of generated line segments");
 DEFINE_int32(gen_n, 10000, "Number of generated edges/points");
 DEFINE_bool(histo, false, "Whether to print histogram");
 DEFINE_bool(profile, false, "Enable profiling, some counters are only compiled available under debug");
+
+// Dump Results
+DEFINE_string(dump_results, "", "Comma-separated dump stages: pip,lsi,output,all");
+DEFINE_string(dump_dir, "tmp", "Base directory for debug dumps");

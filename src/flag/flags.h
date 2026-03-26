@@ -2,7 +2,6 @@
 #define RAYJOIN_FLAGS_H
 
 #include <gflags/gflags.h>
-
 #include <limits>
 // #include "flags.h"
 
@@ -33,4 +32,8 @@ DECLARE_double(gen_t);
 DECLARE_int32(gen_n);
 DECLARE_bool(histo);
 DECLARE_bool(profile);
+
+// Dump Results for LSI, PIP, OverlaidPolygons
+DECLARE_string(dump_results);
+DECLARE_string(dump_dir);
 #endif  // RAYJOIN_FLAGS_H
