@@ -90,7 +90,7 @@ void RunOverlayNS(const rayjoin::OverlayConfig& config) {
     overlay->LocateVerticesInOtherMap(im);
   }
 
-  timer_next("Computer output polygons");
+  timer_next("Compute output polygons");
   overlay->ComputeOutputPolygons();
 
   if (config.check) {
