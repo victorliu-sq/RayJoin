@@ -39,7 +39,7 @@ bash "${INSTALLER_DIR}/installer_vma.sh"
 # --- Install google benchmark  ----------------------------------------------------
 #bash "${INSTALLER_DIR}/installer_gbenchmark.sh"
 
-#bash "${INSTALLER_DIR}/installer_python.sh"
+bash "${INSTALLER_DIR}/installer_python.sh"
 
 # --- Install Ligra ----------------------------------------------------
 #bash "${SCRIPTS_DIR}/install/install_ligra_openmp.sh" # Install Ligra

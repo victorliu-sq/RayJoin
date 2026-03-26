@@ -11,7 +11,7 @@ echo "[RUNME] SCRIPTS_DIR is ${SCRIPTS_DIR}"
 bash "${SCRIPTS_DIR}/install/install_all.sh"
 
 # 2. Datasets
-#bash "${SCRIPTS_DIR}/datasets/download_realworld_datasets.sh" # Download Datasets for X-Blossom
+bash "${SCRIPTS_DIR}/datasets/download_realworld_datasets.sh" # Download Datasets for X-Blossom
 #bash "${SCRIPTS_DIR}/datasets/to_ligra_adj.sh" # reformat datasets for ligra
 #bash "${SCRIPTS_DIR}/datasets/to_gunrock_mm.sh" # reformat datasets for gunrock
 #bash "${SCRIPTS_DIR}/datasets/generate_src_lists.sh" # Generate src lists for BFS
