@@ -342,11 +342,11 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     }
 
     // Test correctness of this method
-    if (rayjoin::ShouldDumpStage(config_.dump_results, "output")) {
-      DumpComputeOutputPolygonsCSV(0, rayjoin::DumpSubdir(config_.dump_dir, "results_compute_output_polygons"), "optix");
-
-      DumpComputeOutputPolygonsCSV(1, rayjoin::DumpSubdir(config_.dump_dir, "results_compute_output_polygons"), "optix");
-    }
+    // if (rayjoin::ShouldDumpStage(config_.dump_results, "output")) {
+    //   DumpComputeOutputPolygonsCSV(0, rayjoin::DumpSubdir(config_.dump_dir, "results_compute_output_polygons"), "optix");
+    //
+    //   DumpComputeOutputPolygonsCSV(1, rayjoin::DumpSubdir(config_.dump_dir, "results_compute_output_polygons"), "optix");
+    // }
   }
 
   void WriteResult(const char* path) { WriteOutputChain(this->ctx_, xsect_edges_sorted_, this->point_in_polygon_, path); }

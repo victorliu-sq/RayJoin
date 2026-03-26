@@ -451,11 +451,12 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
     // Optional debug dumps
     // DumpComputeOutputPolygonsCSV(0, "tmp/results_compute_output_polygons", "vulkan");
     // DumpComputeOutputPolygonsCSV(1, "tmp/results_compute_output_polygons", "vulkan");
-    if (rayjoin::ShouldDumpStage(config_.dump_results, "output")) {
-      DumpComputeOutputPolygonsCSV(0, rayjoin::DumpSubdir(config_.dump_dir, "results_compute_output_polygons"), "vulkan");
 
-      DumpComputeOutputPolygonsCSV(1, rayjoin::DumpSubdir(config_.dump_dir, "results_compute_output_polygons"), "vulkan");
-    }
+    // if (rayjoin::ShouldDumpStage(config_.dump_results, "output")) {
+    //   DumpComputeOutputPolygonsCSV(0, rayjoin::DumpSubdir(config_.dump_dir, "results_compute_output_polygons"), "vulkan");
+    //
+    //   DumpComputeOutputPolygonsCSV(1, rayjoin::DumpSubdir(config_.dump_dir, "results_compute_output_polygons"), "vulkan");
+    // }
   }
 
   void WriteResult(const char *path) override {
