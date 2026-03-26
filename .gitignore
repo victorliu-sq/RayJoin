@@ -2,8 +2,8 @@
 .DS_Store
 .idea
 .png
-/build
-/cmake-build-*
+build
+cmake-build-*
 deps
 tmp/
 data/realworld
