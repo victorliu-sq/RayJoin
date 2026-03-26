@@ -12,15 +12,12 @@ bash "${SCRIPTS_DIR}/install/install_all.sh"
 
 # 2. Datasets
 bash "${SCRIPTS_DIR}/datasets/download_realworld_datasets.sh" # Download Datasets for X-Blossom
-#bash "${SCRIPTS_DIR}/datasets/to_ligra_adj.sh" # reformat datasets for ligra
-#bash "${SCRIPTS_DIR}/datasets/to_gunrock_mm.sh" # reformat datasets for gunrock
-#bash "${SCRIPTS_DIR}/datasets/generate_src_lists.sh" # Generate src lists for BFS
 
 # 3. Build all Benchmarks and Profiling programs
 bash "${SCRIPTS_DIR}/build_targets/build_all.sh"
 
 # 4. Test RayJoin-Vk
-bash "${SCRIPTS_DIR}/test/run_test1.sh"
+bash "${SCRIPTS_DIR}/test/run_test_1.sh"
 
 # ==========================================================
 # Start to produce results
