@@ -17,7 +17,7 @@ bash "${SCRIPTS_DIR}/datasets/download_realworld_datasets.sh" # Download Dataset
 #bash "${SCRIPTS_DIR}/datasets/generate_src_lists.sh" # Generate src lists for BFS
 
 # 3. Build all Benchmarks and Profiling programs
-#bash "${SCRIPTS_DIR}/build_targets/build_all.sh"
+bash "${SCRIPTS_DIR}/build_targets/build_all.sh"
 
 # ==========================================================
 # Start to produce results
