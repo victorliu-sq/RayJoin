@@ -18,8 +18,11 @@ struct QueryConfigRT {
   float enlarge;
   int ag;
   OptixTraversableHandle handle;
-  std::shared_ptr<thrust::device_vector<thrust::pair<size_t, size_t>>>
-      eid_range;
+  std::shared_ptr<thrust::device_vector<thrust::pair<size_t, size_t>>> eid_range;
+
+  // dump controls
+  std::string dump_results;
+  std::string dump_dir;
 };
 
 struct QueryConfigLBVH {

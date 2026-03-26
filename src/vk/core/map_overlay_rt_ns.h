@@ -21,6 +21,8 @@
 #include <string>
 #include <unordered_map>
 
+#include "util/dump.h"
+
 namespace rayjoin {
 namespace vk {
 
@@ -206,7 +208,9 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
     // this->DebugPrintIntersectionsDetailed(query_map_id);
 
     // Test
-    // DumpLSIResultsCSV(query_map_id, "tmp/results_lsi", "vulkan");
+    if (rayjoin::ShouldDumpStage(config_.dump_results, "lsi")) {
+      DumpLSIResultsCSV(query_map_id, rayjoin::DumpSubdir(config_.dump_dir, "results_lsi"), "vulkan");
+    }
   }
 
   void LocateVerticesInOtherMap(int query_map_id) override {
@@ -271,6 +275,9 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
     // this->DebugPrintPIPResults(query_map_id);
 
     // DebugPrintPIPRawCounters(query_map_id);
+    if (rayjoin::ShouldDumpStage(config_.dump_results, "pip")) {
+      DumpPIPResultsCSV(query_map_id, rayjoin::DumpSubdir(config_.dump_dir, "results_pip"), "vulkan");
+    }
   }
 
   void ComputeOutputPolygons() override {
@@ -444,6 +451,11 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
     // Optional debug dumps
     // DumpComputeOutputPolygonsCSV(0, "tmp/results_compute_output_polygons", "vulkan");
     // DumpComputeOutputPolygonsCSV(1, "tmp/results_compute_output_polygons", "vulkan");
+    if (rayjoin::ShouldDumpStage(config_.dump_results, "output")) {
+      DumpComputeOutputPolygonsCSV(0, rayjoin::DumpSubdir(config_.dump_dir, "results_compute_output_polygons"), "vulkan");
+
+      DumpComputeOutputPolygonsCSV(1, rayjoin::DumpSubdir(config_.dump_dir, "results_compute_output_polygons"), "vulkan");
+    }
   }
 
   void WriteResult(const char *path) override {
@@ -927,11 +939,6 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
   void DumpComputeOutputPolygonsCSV(int query_map_id, const std::string &out_dir, const std::string &impl_tag) const {
     namespace fs = std::filesystem;
     fs::create_directories(out_dir);
-
-    if (query_map_id != 0) {
-      LOG(INFO) << "DumpComputeOutputPolygonsCSV: skip query_map_id=" << query_map_id;
-      return;
-    }
 
     const auto &xsects = xsect_edges_sorted_[0];
     const std::string path = out_dir + "/" + impl_tag + "_compute_output_polygons_map_0.csv";

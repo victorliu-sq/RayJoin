@@ -49,6 +49,10 @@ void RunOverlayNS(const rayjoin::OverlayConfig& config) {
     query_config.win = config.win;
     query_config.enlarge = config.enlarge;
 
+    // new dump config
+    query_config.dump_results = config.dump_results;
+    query_config.dump_dir = config.dump_dir;
+
     overlay_rt->set_config(query_config);
     overlay = overlay_rt;
   } else if (config.mode == "grid") {

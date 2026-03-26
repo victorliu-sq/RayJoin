@@ -20,6 +20,10 @@ struct OverlayConfig {
   int ag;
   int ag_iter;
   float enlarge;
+
+  // dump
+  std::string dump_results;
+  std::string dump_dir;
 };
 }  // namespace rayjoin
 

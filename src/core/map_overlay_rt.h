@@ -19,6 +19,8 @@
 #include <filesystem>
 #include <limits>
 
+#include "util/dump.h"
+
 namespace rayjoin {
 
 template<typename CONTEXT_T>
@@ -109,6 +111,9 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     stream.Sync();
 
     // DumpLSIResultsCSV(query_map_id, "tmp/results_lsi", "optix");
+    if (rayjoin::ShouldDumpStage(config_.dump_results, "lsi")) {
+      DumpLSIResultsCSV(query_map_id, rayjoin::DumpSubdir(config_.dump_dir, "results_lsi"), "optix");
+    }
   }
 
   //////////////////////////////////////////////////////////////////////////////////
@@ -184,7 +189,10 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
 
     stream.Sync();
 
-    DumpPIPResultsCSV(query_map_id, "tmp/results_pip", "optix");
+    // DumpPIPResultsCSV(query_map_id, "tmp/results_pip", "optix");
+    if (rayjoin::ShouldDumpStage(config_.dump_results, "pip")) {
+      DumpPIPResultsCSV(query_map_id, rayjoin::DumpSubdir(config_.dump_dir, "results_pip"), "optix");
+    }
   }
 
   void DumpStatistics(const char* path) { std::dynamic_pointer_cast<PIPRT<CONTEXT_T>>(this->pip_)->DumpStatistics(path); }
@@ -334,7 +342,11 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     }
 
     // Test correctness of this method
-    DumpComputeOutputPolygonsCSV(0, "tmp/results_compute_output_polygons", "optix");
+    if (rayjoin::ShouldDumpStage(config_.dump_results, "output")) {
+      DumpComputeOutputPolygonsCSV(0, rayjoin::DumpSubdir(config_.dump_dir, "results_compute_output_polygons"), "optix");
+
+      DumpComputeOutputPolygonsCSV(1, rayjoin::DumpSubdir(config_.dump_dir, "results_compute_output_polygons"), "optix");
+    }
   }
 
   void WriteResult(const char* path) { WriteOutputChain(this->ctx_, xsect_edges_sorted_, this->point_in_polygon_, path); }
@@ -441,11 +453,6 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
   void DumpComputeOutputPolygonsCSV(int query_map_id, const std::string& out_dir, const std::string& impl_tag) const {
     namespace fs = std::filesystem;
     fs::create_directories(out_dir);
-
-    if (query_map_id != 0) {
-      LOG(INFO) << "DumpComputeOutputPolygonsCSV: skip query_map_id=" << query_map_id;
-      return;
-    }
 
     const auto& d_xsects = xsect_edges_sorted_[0];
     thrust::host_vector<xsect_t> h_xsects = d_xsects;

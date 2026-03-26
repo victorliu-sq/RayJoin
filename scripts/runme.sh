@@ -18,8 +18,9 @@ bash "${SCRIPTS_DIR}/build_targets/build_all.sh"
 
 # 4. Test RayJoin-Vk
 #bash "${SCRIPTS_DIR}/test/run_test_1.sh"
-bash "${SCRIPTS_DIR}/test/run_test_2.sh"
+#bash "${SCRIPTS_DIR}/test/run_test_2.sh"
 #bash "${SCRIPTS_DIR}/test/run_test_3.sh"
+bash "${SCRIPTS_DIR}/test/run_test_1_dump.sh"
 
 # ==========================================================
 # Start to produce results
