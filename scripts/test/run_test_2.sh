@@ -5,8 +5,8 @@ set -u
 # Run MapOverlay for Optix and Vulkan
 ./build/bin/polyover_vk_exec_ns \
   -poly1 data/realworld/Aquifers.cdb \
-  -poly2 data/realworld/Parks.cdb \
-  -output  tmp/results/Aquifers_Parks_result_vk.txt \
+  -poly2 data/realworld/dtl_cnty.cdb \
+  -output  tmp/results/Aquifers_Cnty_result_vk.txt \
   -mode=rt \
   -xsect_factor=5.0 \
   -warmup=5 -repeat=5 \
@@ -14,8 +14,8 @@ set -u
 
 ./build/bin/polyover_exec \
   -poly1 data/realworld/Aquifers.cdb \
-  -poly2 data/realworld/Parks.cdb \
-  -output  tmp/results/Aquifers_Parks_result_optix.txt \
+  -poly2 data/realworld/dtl_cnty.cdb \
+  -output  tmp/results/Aquifers_Cnty_result_optix.txt \
   -mode=rt \
   -xsect_factor=5.0 \
   -warmup=5 -repeat=5 \
@@ -23,8 +23,8 @@ set -u
 
 # ==================================================================
 # Test results
-file1="tmp/results/Aquifers_Parks_result_optix.txt"
-file2="tmp/results/Aquifers_Parks_result_vk.txt"
+file1="tmp/results/Aquifers_Cnty_result_optix.txt"
+file2="tmp/results/Aquifers_Cnty_result_vk.txt"
 diff_file="tmp/results/test2_diff.txt"
 
 # Check that both files exist
@@ -51,8 +51,8 @@ else
 
     if [[ $status -eq 1 ]]; then
         echo "Test-2 FAIL: The output files differ."
-        echo "Differences:"
-        cat "$diff_file"
+#        echo "Differences:"
+#        cat "$diff_file"
         exit 1
     else
         echo "ERROR: Failed to run the diff command." >&2
