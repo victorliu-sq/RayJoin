@@ -30,7 +30,6 @@ struct OutputChain {
   template<typename INTERNAL_COORD_T>
   void AddXsectPoint(const dev::Intersection<INTERNAL_COORD_T>& xsect, const Scaling<COORD_T, INTERNAL_COORD_T>& scaling) {
     typename cuda_vec<COORD_T>::type_2d p{scaling.UnscaleX(xsect.x), scaling.UnscaleY(xsect.y)};
-    LOG(INFO) << "xsec: " << "x: " << p.x << ", y" << p.y;
     points.push_back(p);
   }
 };
