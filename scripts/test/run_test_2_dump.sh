@@ -36,7 +36,6 @@ optix_output="${base_dir}/results/Aquifers_Cnty_result_optix.txt"
   -dump_dir="$base_dir"
 
 status=0
-file_cmp_script="./scripts/test/compare_files.sh"
 
 pip_dir="${base_dir}/results_pip"
 lsi_dir="${base_dir}/results_lsi"
@@ -46,47 +45,8 @@ pip_diff_dir="${pip_dir}/diffs"
 lsi_diff_dir="${lsi_dir}/diffs"
 output_diff_dir="${output_dir}/diffs"
 
-run_compare() {
-  local label="$1"
-  local f1="$2"
-  local f2="$3"
-  local diff_dir="$4"
-
-  echo "========================================"
-  echo "Test: $label"
-  echo "  file 1  : $f1"
-  echo "  file 2  : $f2"
-  echo "  diff dir: $diff_dir"
-  echo "========================================"
-
-  if [[ ! -x "$file_cmp_script" ]]; then
-    echo "Result: FAIL"
-    echo "Reason: compare script missing or not executable: $file_cmp_script"
-    status=1
-    echo
-    return
-  fi
-
-  local output
-  local rc=0
-  output="$("$file_cmp_script" "$f1" "$f2" "$diff_dir" 2>&1)" || rc=$?
-
-  echo "$output"
-
-  if [[ $rc -eq 0 ]]; then
-    echo "Result: PASS"
-  else
-    echo "Result: FAIL"
-    if [[ "$output" == *"file not found"* ]]; then
-      echo "Reason: missing input file"
-    else
-      echo "Reason: contents differ"
-    fi
-    status=1
-  fi
-
-  echo
-}
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${script_dir}/compare_files.sh"
 
 # -------------------------
 # PIP comparisons
@@ -94,12 +54,12 @@ run_compare() {
 run_compare "PIP map 0" \
   "${pip_dir}/optix_pip_map_0.csv" \
   "${pip_dir}/vulkan_pip_map_0.csv" \
-  "$pip_diff_dir"
+  "$pip_diff_dir" || status=1
 
 run_compare "PIP map 1" \
   "${pip_dir}/optix_pip_map_1.csv" \
   "${pip_dir}/vulkan_pip_map_1.csv" \
-  "$pip_diff_dir"
+  "$pip_diff_dir" || status=1
 
 # -------------------------
 # LSI comparisons
@@ -107,7 +67,7 @@ run_compare "PIP map 1" \
 run_compare "LSI map 0" \
   "${lsi_dir}/optix_lsi_map_0.csv" \
   "${lsi_dir}/vulkan_lsi_map_0.csv" \
-  "$lsi_diff_dir"
+  "$lsi_diff_dir" || status=1
 
 # -------------------------
 # Output polygon comparisons
@@ -115,6 +75,6 @@ run_compare "LSI map 0" \
 run_compare "Output polygons" \
   "$optix_output" \
   "$vk_output" \
-  "$output_diff_dir"
+  "$output_diff_dir" || status=1
 
 exit "$status"

@@ -36,80 +36,45 @@ optix_output="${base_dir}/results/br_countyXbr_soil_result_optix.txt"
   -dump_dir="$base_dir"
 
 status=0
-cmp_script="./scripts/test/compare_csv.sh"
-
-run_compare() {
-  local label="$1"
-  local f1="$2"
-  local f2="$3"
-
-  echo "========================================"
-  echo "Test: $label"
-  echo "  file 1: $f1"
-  echo "  file 2: $f2"
-  echo "========================================"
-
-  if [[ ! -x "$cmp_script" ]]; then
-    echo "Result: FAIL"
-    echo "Reason: compare script missing or not executable: $cmp_script"
-    status=1
-    echo
-    return
-  fi
-
-  if [[ ! -f "$f1" ]]; then
-    echo "Result: FAIL"
-    echo "Reason: missing file: $f1"
-    status=1
-    echo
-    return
-  fi
-
-  if [[ ! -f "$f2" ]]; then
-    echo "Result: FAIL"
-    echo "Reason: missing file: $f2"
-    status=1
-    echo
-    return
-  fi
-
-  if "$cmp_script" "$f1" "$f2"; then
-    echo "Result: PASS"
-  else
-    echo "Result: FAIL"
-    status=1
-  fi
-
-  echo
-}
 
 pip_dir="${base_dir}/results_pip"
 lsi_dir="${base_dir}/results_lsi"
 output_dir="${base_dir}/results_output"
+
+pip_diff_dir="${pip_dir}/diffs"
+lsi_diff_dir="${lsi_dir}/diffs"
+output_diff_dir="${output_dir}/diffs"
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${script_dir}/compare_files.sh"
 
 # -------------------------
 # PIP comparisons
 # -------------------------
 run_compare "PIP map 0" \
   "${pip_dir}/optix_pip_map_0.csv" \
-  "${pip_dir}/vulkan_pip_map_0.csv"
+  "${pip_dir}/vulkan_pip_map_0.csv" \
+  "$pip_diff_dir" || status=1
 
 run_compare "PIP map 1" \
   "${pip_dir}/optix_pip_map_1.csv" \
-  "${pip_dir}/vulkan_pip_map_1.csv"
+  "${pip_dir}/vulkan_pip_map_1.csv" \
+  "$pip_diff_dir" || status=1
 
 # -------------------------
 # LSI comparisons
 # -------------------------
 run_compare "LSI map 0" \
   "${lsi_dir}/optix_lsi_map_0.csv" \
-  "${lsi_dir}/vulkan_lsi_map_0.csv"
+  "${lsi_dir}/vulkan_lsi_map_0.csv" \
+  "$lsi_diff_dir" || status=1
 
 # -------------------------
 # Output polygon comparisons
 # -------------------------
 # run_compare "Output polygons" \
 #   "${output_dir}/optix_output.csv" \
-#   "${output_dir}/vulkan_output.csv"
+#   "${output_dir}/vulkan_output.csv" \
+#   "$output_diff_dir" || status=1
 
 exit "$status"
