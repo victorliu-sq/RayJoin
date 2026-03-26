@@ -60,13 +60,19 @@ RWStructuredBuffer<uint> gDebugCounter;
 struct Payload {
   uint pointIdx;
   uint bestEid;
-  float bestT;
-  uint _pad0;
+  // float bestT;
+  // uint _pad0;
+
+  uint bestTLow;
+  uint bestTHigh;
 };
 
 struct HitAttr {
   uint baseEid;
-  float candidateT;
+  // float candidateT;
+
+  uint candidateTLow;
+  uint candidateTHigh;
 };
 
 // -----------------------------------------------------------------------------
@@ -99,6 +105,14 @@ bool preferCandidateAtSameT(uint query_map_id, EdgeD candidate_e, EdgeD best_e) 
   return !((query_map_id != 0 && !flag) || (flag && query_map_id == 0));
 }
 
+void packDoubleToU32(double v, out uint lo, out uint hi) {
+  asuint(v, lo, hi);
+}
+
+double unpackDoubleFromU32(uint lo, uint hi) {
+  return asdouble(lo, hi);
+}
+
 // -----------------------------------------------------------------------------
 // Ray generation
 // -----------------------------------------------------------------------------
@@ -126,8 +140,11 @@ void raygenMain() {
   Payload payload;
   payload.pointIdx = point_idx;
   payload.bestEid = 0xFFFFFFFFu;
-  payload.bestT = 3.402823466e+38f;  // FLT_MAX
-  payload._pad0 = 0u;
+
+  // payload.bestT = 3.402823466e+38f;  // FLT_MAX
+  // payload._pad0 = 0u;
+
+  packDoubleToU32(1.0e300, payload.bestTLow, payload.bestTHigh);
 
   TraceRay(gScene, RAY_FLAG_NONE, 0xFF,
            0,  // rayContributionToHitGroupIndex
@@ -245,12 +262,14 @@ void intersectionMain() {
   if (found) {
     HitAttr attr;
     attr.baseEid = best_eid;
-    attr.candidateT = float(best_t);
+    // attr.candidateT = float(best_t);
+    packDoubleToU32(best_t, attr.candidateTLow, attr.candidateTHigh);
 
     uint old6;
     InterlockedAdd(gDebugCounter[6], 1, old6);  // reported hits
 
-    ReportHit(attr.candidateT, 0, attr);
+    // ReportHit(attr.candidateT, 0, attr);
+    ReportHit(float(best_t), 0, attr);
   }
 }
 
@@ -264,19 +283,36 @@ void anyHitMain(inout Payload payload, in HitAttr attr) {
 
   bool take = false;
 
+  // if (payload.bestEid == 0xFFFFFFFFu) {
+  //   take = true;
+  // } else if (attr.candidateT < payload.bestT) {
+  //   take = true;
+  // } else if (attr.candidateT == payload.bestT) {
+  //   EdgeD candidate_e = gBaseEdges[attr.baseEid];
+  //   EdgeD best_e = gBaseEdges[payload.bestEid];
+  //   take = preferCandidateAtSameT(params.query_map_id, candidate_e, best_e);
+  // }
+
   if (payload.bestEid == 0xFFFFFFFFu) {
     take = true;
-  } else if (attr.candidateT < payload.bestT) {
-    take = true;
-  } else if (attr.candidateT == payload.bestT) {
-    EdgeD candidate_e = gBaseEdges[attr.baseEid];
-    EdgeD best_e = gBaseEdges[payload.bestEid];
-    take = preferCandidateAtSameT(params.query_map_id, candidate_e, best_e);
+  } else {
+    double candidate_t = unpackDoubleFromU32(attr.candidateTLow, attr.candidateTHigh);
+    double best_t = unpackDoubleFromU32(payload.bestTLow, payload.bestTHigh);
+
+    if (candidate_t < best_t) {
+      take = true;
+    } else if (candidate_t == best_t) {
+      EdgeD candidate_e = gBaseEdges[attr.baseEid];
+      EdgeD best_e = gBaseEdges[payload.bestEid];
+      take = preferCandidateAtSameT(uint(params.query_map_id), candidate_e, best_e);
+    }
   }
 
   if (take) {
     payload.bestEid = attr.baseEid;
-    payload.bestT = attr.candidateT;
+    // payload.bestT = attr.candidateT;
+    payload.bestTLow = attr.candidateTLow;
+    payload.bestTHigh = attr.candidateTHigh;
 
     uint old7;
     InterlockedAdd(gDebugCounter[7], 1, old7);  // accepted updates
