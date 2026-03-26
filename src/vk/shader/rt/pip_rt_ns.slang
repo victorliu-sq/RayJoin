@@ -260,7 +260,7 @@ void intersectionMain() {
 
 [shader("anyhit")]
 void anyHitMain(inout Payload payload, in HitAttr attr) {
-  // LaunchParamsPIP params = gParamsBuf[0];
+  LaunchParamsPIP params = gParamsBuf[0];
 
   bool take = false;
 
@@ -271,7 +271,7 @@ void anyHitMain(inout Payload payload, in HitAttr attr) {
   } else if (attr.candidateT == payload.bestT) {
     EdgeD candidate_e = gBaseEdges[attr.baseEid];
     EdgeD best_e = gBaseEdges[payload.bestEid];
-    // take = preferCandidateAtSameT(params.query_map_id, candidate_e, best_e);
+    take = preferCandidateAtSameT(params.query_map_id, candidate_e, best_e);
   }
 
   if (take) {
