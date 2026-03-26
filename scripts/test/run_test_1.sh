@@ -2,7 +2,7 @@
 set -u
 
 # ==================================================================
-# Run MapOverlay
+# Run MapOverlay for Optix and Vulkan
 ./build/bin/polyover_vk_exec_ns \
   -poly1 data/realworld_small/br_county_clean_25_odyssey_final.txt \
   -poly2 data/realworld_small/br_soil_ascii_odyssey_final.txt \
