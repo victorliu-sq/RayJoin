@@ -342,11 +342,11 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     }
 
     // Test correctness of this method
-    // if (rayjoin::ShouldDumpStage(config_.dump_results, "output")) {
-    //   DumpComputeOutputPolygonsCSV(0, rayjoin::DumpSubdir(config_.dump_dir, "results_compute_output_polygons"), "optix");
-    //
-    //   DumpComputeOutputPolygonsCSV(1, rayjoin::DumpSubdir(config_.dump_dir, "results_compute_output_polygons"), "optix");
-    // }
+    if (rayjoin::ShouldDumpStage(config_.dump_results, "output")) {
+      DumpComputeOutputPolygonsCSV(0, rayjoin::DumpSubdir(config_.dump_dir, "results_compute_output_polygons"), "optix");
+
+      DumpComputeOutputPolygonsCSV(1, rayjoin::DumpSubdir(config_.dump_dir, "results_compute_output_polygons"), "optix");
+    }
   }
 
   void WriteResult(const char* path) { WriteOutputChain(this->ctx_, xsect_edges_sorted_, this->point_in_polygon_, path); }
@@ -467,8 +467,7 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
 
     ofs << "eid1,eid2,mid_point_polygon_id\n";
     for (const auto& x: h_xsects) {
-      ofs << static_cast<unsigned long long>(x.eid[0]) << "," << static_cast<unsigned long long>(x.eid[1]) << ","
-          << static_cast<unsigned long long>(x.mid_point_polygon_id) << "\n";
+      ofs << static_cast<index_t>(x.eid[0]) << "," << static_cast<index_t>(x.eid[1]) << "," << static_cast<index_t>(x.mid_point_polygon_id) << "\n";
     }
 
     ofs.close();

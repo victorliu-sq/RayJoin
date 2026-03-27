@@ -452,11 +452,11 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
     // DumpComputeOutputPolygonsCSV(0, "tmp/results_compute_output_polygons", "vulkan");
     // DumpComputeOutputPolygonsCSV(1, "tmp/results_compute_output_polygons", "vulkan");
 
-    // if (rayjoin::ShouldDumpStage(config_.dump_results, "output")) {
-    //   DumpComputeOutputPolygonsCSV(0, rayjoin::DumpSubdir(config_.dump_dir, "results_compute_output_polygons"), "vulkan");
-    //
-    //   DumpComputeOutputPolygonsCSV(1, rayjoin::DumpSubdir(config_.dump_dir, "results_compute_output_polygons"), "vulkan");
-    // }
+    if (rayjoin::ShouldDumpStage(config_.dump_results, "output")) {
+      DumpComputeOutputPolygonsCSV(0, rayjoin::DumpSubdir(config_.dump_dir, "results_compute_output_polygons"), "vulkan");
+
+      DumpComputeOutputPolygonsCSV(1, rayjoin::DumpSubdir(config_.dump_dir, "results_compute_output_polygons"), "vulkan");
+    }
   }
 
   void WriteResult(const char *path) override {
@@ -953,7 +953,7 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
     ofs << "eid1,eid2,mid_point_polygon_id\n";
     for (const auto &x: xsects) {
       ofs << static_cast<unsigned long long>(x.eid0) << "," << static_cast<unsigned long long>(x.eid1) << ","
-          << static_cast<unsigned long long>(x.mid_point_polygon_id) << "\n";
+          << static_cast<uint32_t>(x.mid_point_polygon_id) << "\n";
     }
 
     ofs.close();
