@@ -19,7 +19,7 @@ optix_output="${base_dir}/results/br_countyXbr_soil_result_optix.txt"
   -xsect_factor=5.0 \
   -warmup=5 -repeat=5 \
   -query=lsi/pip \
-  -dump_results=pip,lsi,output \
+  -dump_results=pip,lsi,pipmid \
   -dump_dir="$base_dir"
 
 # =========================================================
@@ -32,18 +32,18 @@ optix_output="${base_dir}/results/br_countyXbr_soil_result_optix.txt"
   -xsect_factor=5.0 \
   -warmup=5 -repeat=5 \
   -query=lsi/pip \
-  -dump_results=pip,lsi,output \
+  -dump_results=pip,lsi,pipmid \
   -dump_dir="$base_dir"
 
 status=0
 
 pip_dir="${base_dir}/results_pip"
 lsi_dir="${base_dir}/results_lsi"
-output_dir="${base_dir}/results_output"
+mid_dir="${base_dir}/results_mid"
 
 pip_diff_dir="${pip_dir}/diffs"
 lsi_diff_dir="${lsi_dir}/diffs"
-output_diff_dir="${output_dir}/diffs"
+mid_diff_dir="${mid_dir}/diffs"
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${script_dir}/compare_files.sh"
@@ -69,12 +69,22 @@ run_compare "LSI map 0" \
   "${lsi_dir}/vulkan_lsi_map_0.csv" \
   "$lsi_diff_dir" || status=1
 
+#run_compare "LSI map 1" \
+#  "${lsi_dir}/optix_lsi_map_1.csv" \
+#  "${lsi_dir}/vulkan_lsi_map_1.csv" \
+#  "$lsi_diff_dir" || status=1
+
 # -------------------------
-# Output polygon comparisons
+# Midpoint PIP comparisons
 # -------------------------
-# run_compare "Output polygons" \
-#   "${output_dir}/optix_output.csv" \
-#   "${output_dir}/vulkan_output.csv" \
-#   "$output_diff_dir" || status=1
+run_compare "PIP midpoint map 0" \
+  "${mid_dir}/optix_pipmid_map_0.csv" \
+  "${mid_dir}/vulkan_pipmid_map_0.csv" \
+  "$mid_diff_dir" || status=1
+
+run_compare "PIP midpoint map 1" \
+  "${mid_dir}/optix_pipmid_map_1.csv" \
+  "${mid_dir}/vulkan_pipmid_map_1.csv" \
+  "$mid_diff_dir" || status=1
 
 exit "$status"

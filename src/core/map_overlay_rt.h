@@ -111,8 +111,11 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     stream.Sync();
 
     // DumpLSIResultsCSV(query_map_id, "tmp/results_lsi", "optix");
-    if (rayjoin::ShouldDumpStage(config_.dump_results, "lsi")) {
-      DumpLSIResultsCSV(query_map_id, rayjoin::DumpSubdir(config_.dump_dir, "results_lsi"), "optix");
+    // if (rayjoin::ShouldDumpStage(config_.dump_results, "lsi")) {
+    //   DumpLSIResultsCSV(query_map_id, rayjoin::DumpSubdir(config_.dump_dir, "results_lsi"), "optix");
+    // }
+    if (query_map_id == 0 && rayjoin::ShouldDumpStage(config_.dump_results, "lsi")) {
+      DumpLSIResultsCSV(rayjoin::DumpSubdir(config_.dump_dir, "results_lsi"), "optix");
     }
   }
 
@@ -342,10 +345,10 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     }
 
     // Test correctness of this method
-    if (rayjoin::ShouldDumpStage(config_.dump_results, "output")) {
-      DumpComputeOutputPolygonsCSV(0, rayjoin::DumpSubdir(config_.dump_dir, "results_compute_output_polygons"), "optix");
-
-      DumpComputeOutputPolygonsCSV(1, rayjoin::DumpSubdir(config_.dump_dir, "results_compute_output_polygons"), "optix");
+    if (ShouldDumpStage(config_.dump_results, "pipmid")) {
+      const auto out_dir = rayjoin::DumpSubdir(config_.dump_dir, "results_mid");
+      DumpComputeOutputPolygonsCSV(0, out_dir, "optix");
+      DumpComputeOutputPolygonsCSV(1, out_dir, "optix");
     }
   }
 
@@ -450,14 +453,59 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     LOG(INFO) << "DumpLSIResultsCSV: wrote " << path;
   }
 
+  void DumpLSIResultsCSV(const std::string& out_dir, const std::string& impl_tag) const {
+    namespace fs = std::filesystem;
+    fs::create_directories(out_dir);
+
+    thrust::host_vector<xsect_t> h_xsects;
+    this->lsi_->CopyTo(h_xsects);
+
+    const std::string path = out_dir + "/" + impl_tag + "_lsi.csv";
+
+    std::vector<std::pair<uint64_t, uint64_t>> pairs;
+    pairs.reserve(h_xsects.size());
+
+    for (const auto& x: h_xsects) {
+      uint64_t eid1 = static_cast<uint64_t>(x.eid[0]);
+      uint64_t eid2 = static_cast<uint64_t>(x.eid[1]);
+
+      if (eid1 > eid2) {
+        std::swap(eid1, eid2);
+      }
+
+      pairs.emplace_back(eid1, eid2);
+    }
+
+    std::sort(pairs.begin(), pairs.end());
+
+    std::ofstream ofs(path);
+    if (!ofs) {
+      LOG(ERROR) << "DumpLSIResultsCSV: failed to open " << path;
+      return;
+    }
+
+    ofs << "eid1,eid2\n";
+    for (const auto& [eid1, eid2]: pairs) {
+      ofs << eid1 << "," << eid2 << "\n";
+    }
+
+    ofs.close();
+    LOG(INFO) << "DumpLSIResultsCSV: wrote " << path;
+  }
+
   void DumpComputeOutputPolygonsCSV(int query_map_id, const std::string& out_dir, const std::string& impl_tag) const {
     namespace fs = std::filesystem;
     fs::create_directories(out_dir);
 
-    const auto& d_xsects = xsect_edges_sorted_[0];
+    if (query_map_id < 0 || query_map_id > 1) {
+      LOG(ERROR) << "DumpComputeOutputPolygonsCSV: invalid query_map_id=" << query_map_id;
+      return;
+    }
+
+    const auto& d_xsects = xsect_edges_sorted_[query_map_id];
     thrust::host_vector<xsect_t> h_xsects = d_xsects;
 
-    const std::string path = out_dir + "/" + impl_tag + "_compute_output_polygons_map_0.csv";
+    const std::string path = out_dir + "/" + impl_tag + "_pipmid_map_" + std::to_string(query_map_id) + ".csv";
 
     std::ofstream ofs(path);
     if (!ofs) {
@@ -465,9 +513,11 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
       return;
     }
 
-    ofs << "eid1,eid2,mid_point_polygon_id\n";
+    ofs << "query_map_id,eid_self,eid_other,mid_point_polygon_id\n";
+
     for (const auto& x: h_xsects) {
-      ofs << static_cast<index_t>(x.eid[0]) << "," << static_cast<index_t>(x.eid[1]) << "," << static_cast<index_t>(x.mid_point_polygon_id) << "\n";
+      ofs << query_map_id << "," << static_cast<index_t>(x.eid[query_map_id]) << "," << static_cast<index_t>(x.eid[1 - query_map_id]) << ","
+          << static_cast<index_t>(x.mid_point_polygon_id) << "\n";
     }
 
     ofs.close();
