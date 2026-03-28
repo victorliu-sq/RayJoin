@@ -29,6 +29,7 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
   using internal_coord_t = typename CONTEXT_T::internal_coord_t;
   using coefficient_t = typename CONTEXT_T::coefficient_t;
   using xsect_t = dev::Intersection<internal_coord_t>;
+  using scaling_t = typename CONTEXT_T::scaling_t;
 
  public:
   explicit MapOverlayRT(CONTEXT_T& ctx) : MapOverlay<CONTEXT_T>(ctx) {
@@ -217,7 +218,7 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
       thrust::device_vector<point_t> mid_points;
 
       auto& xsect_edges_sorted = xsect_edges_sorted_[im];
-      // Sort by eid1, eid2 respectively, so we can do binary search
+      // Sort by eid1, eid2 according to map id, so we can do binary search
       xsect_edges_sorted.resize(n_xsects);
       thrust::copy(thrust::cuda::par.on(stream.cuda_stream()), xsects.data(), xsects.data() + n_xsects, xsect_edges_sorted.begin());
       thrust::sort(thrust::cuda::par.on(stream.cuda_stream()),
@@ -285,12 +286,33 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
           const auto& p1 = d_query_map.get_point(e.p1_idx);
           auto* curr_xsects = d_xsect_edges_sorted.data() + begin;
 
+          // thrust::sort(thrust::seq, curr_xsects, d_xsect_edges_sorted.data() + end, [=](const xsect_t& xsect1, const xsect_t& xsect2) {
+          //   // fixme: cast __128 directly
+          //   auto d1 = SQ(xsect1.x - tcb::rational<__int128>(p1.x)) + SQ(xsect1.y - tcb::rational<__int128>(p1.y));
+          //   auto d2 = SQ(xsect2.x - tcb::rational<__int128>(p1.x)) + SQ(xsect2.y - tcb::rational<__int128>(p1.y));
+          //   return d1 < d2;
+          // });
+
+          // ===================== Jiaxin Patch: when distances are the same, order the one with smaller id =========================================
           thrust::sort(thrust::seq, curr_xsects, d_xsect_edges_sorted.data() + end, [=](const xsect_t& xsect1, const xsect_t& xsect2) {
-            // fixme: cast __128 directly
             auto d1 = SQ(xsect1.x - tcb::rational<__int128>(p1.x)) + SQ(xsect1.y - tcb::rational<__int128>(p1.y));
             auto d2 = SQ(xsect2.x - tcb::rational<__int128>(p1.x)) + SQ(xsect2.y - tcb::rational<__int128>(p1.y));
-            return d1 < d2;
+
+            if (d1 != d2) return d1 < d2;
+            return xsect1.eid[1 - im] < xsect2.eid[1 - im];
           });
+
+          for (int xsect_idx = 0; xsect_idx < n_xsect - 1; xsect_idx++) {
+            xsect_t& xsect1 = *(curr_xsects + xsect_idx);
+            xsect_t& xsect2 = *(curr_xsects + xsect_idx + 1);
+            tcb::rational<__int128> x1 = xsect1.x, y1 = xsect1.y;
+            tcb::rational<__int128> x2 = xsect2.x, y2 = xsect2.y;
+            dev::ExactPoint<internal_coord_t> mid_p(x1 + (x2 - x1) / 2, y1 + (y2 - y1) / 2);
+
+            assert(begin + xsect_idx - idx < d_mid_points.size());
+
+            d_mid_points[begin + xsect_idx - idx] = {mid_p.x, mid_p.y};
+          }
 
           for (int xsect_idx = 0; xsect_idx < n_xsect - 1; xsect_idx++) {
             xsect_t& xsect1 = *(curr_xsects + xsect_idx);
@@ -307,6 +329,18 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
       });
 
       stream.Sync();
+
+      // Jiaxin: Dump midpoints
+      if (rayjoin::ShouldDumpStage(config_.dump_results, "pipmid")) {
+        DumpSortedMidPointsCSV(query_map_id,
+                               scaling,
+                               unique_eids,
+                               xsect_index,
+                               mid_points,
+                               xsect_edges_sorted,
+                               rayjoin::DumpSubdir(config_.dump_dir, "results_midpoints"),
+                               "optix");
+      }
 
       config_.eid_range = eid_range_[base_map_id];
       config_.handle = traverse_handles_[base_map_id];
@@ -522,6 +556,83 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
 
     ofs.close();
     LOG(INFO) << "DumpComputeOutputPolygonsCSV: wrote " << path;
+  }
+  void DumpSortedMidPointsCSV(int query_map_id,
+                              const scaling_t& scaling,
+                              const thrust::device_vector<index_t>& d_unique_eids,
+                              const thrust::device_vector<uint32_t>& d_xsect_index,
+                              const thrust::device_vector<typename CONTEXT_T::map_t::point_t>& d_mid_points,
+                              const thrust::device_vector<xsect_t>& d_xsect_edges_sorted,
+                              const std::string& out_dir,
+                              const std::string& impl_tag) const {
+    namespace fs = std::filesystem;
+    fs::create_directories(out_dir);
+
+    thrust::host_vector<index_t> h_unique_eids = d_unique_eids;
+    thrust::host_vector<uint32_t> h_xsect_index = d_xsect_index;
+    thrust::host_vector<typename CONTEXT_T::map_t::point_t> h_mid_points = d_mid_points;
+    thrust::host_vector<xsect_t> h_xsects = d_xsect_edges_sorted;
+
+    const std::string path = out_dir + "/" + impl_tag + "_sorted_midpoints_map_" + std::to_string(query_map_id) + ".csv";
+
+    std::ofstream ofs(path);
+    if (!ofs) {
+      LOG(ERROR) << "DumpSortedMidPointsCSV: failed to open " << path;
+      return;
+    }
+
+    constexpr int kDumpDecimals = 7;
+    ofs << std::fixed << std::setprecision(kDumpDecimals);
+
+    ofs << "query_map_id,group_idx,eid_self,local_mid_idx,mid_idx,"
+           "eid_other_left,eid_other_right,"
+           "x1,y1,x2,y2,mid_x,mid_y\n";
+
+    for (size_t group_idx = 0; group_idx < h_unique_eids.size(); ++group_idx) {
+      const uint32_t begin = h_xsect_index[group_idx];
+      const uint32_t end = h_xsect_index[group_idx + 1];
+      const uint32_t n_xsect = end - begin;
+
+      if (n_xsect <= 1) {
+        continue;
+      }
+
+      const index_t eid_self = h_unique_eids[group_idx];
+
+      for (uint32_t local_mid_idx = 0; local_mid_idx + 1 < n_xsect; ++local_mid_idx) {
+        const uint32_t left_idx = begin + local_mid_idx;
+        const uint32_t right_idx = begin + local_mid_idx + 1;
+
+        const uint32_t mid_idx = begin + local_mid_idx - static_cast<uint32_t>(group_idx);
+
+        if (mid_idx >= h_mid_points.size()) {
+          LOG(ERROR) << "DumpSortedMidPointsCSV: midpoint index overflow";
+          ofs.close();
+          return;
+        }
+
+        const auto& x1 = h_xsects[left_idx];
+        const auto& x2 = h_xsects[right_idx];
+        const auto& mp = h_mid_points[mid_idx];
+
+        const index_t eid_other_left = static_cast<index_t>(x1.eid[1 - query_map_id]);
+        const index_t eid_other_right = static_cast<index_t>(x2.eid[1 - query_map_id]);
+
+        const double x1_dump = TruncateForDump(scaling.UnscaleX(x1.x), kDumpDecimals);
+        const double y1_dump = TruncateForDump(scaling.UnscaleY(x1.y), kDumpDecimals);
+        const double x2_dump = TruncateForDump(scaling.UnscaleX(x2.x), kDumpDecimals);
+        const double y2_dump = TruncateForDump(scaling.UnscaleY(x2.y), kDumpDecimals);
+        const double mx_dump = TruncateForDump(scaling.UnscaleX(mp.x), kDumpDecimals);
+        const double my_dump = TruncateForDump(scaling.UnscaleY(mp.y), kDumpDecimals);
+
+        ofs << query_map_id << "," << group_idx << "," << static_cast<long long>(eid_self) << "," << local_mid_idx << "," << mid_idx << ","
+            << static_cast<long long>(eid_other_left) << "," << static_cast<long long>(eid_other_right) << "," << x1_dump << "," << y1_dump << ","
+            << x2_dump << "," << y2_dump << "," << mx_dump << "," << my_dump << "\n";
+      }
+    }
+
+    ofs.close();
+    LOG(INFO) << "DumpSortedMidPointsCSV: wrote " << path;
   }
 };
 

@@ -28,6 +28,20 @@ inline std::string DumpSubdir(const std::string& base, const std::string& subdir
   return base + "/" + subdir;
 }
 
+// inline double TruncateForDump(double v, int decimals = 9) {
+//   const double scale = std::pow(10.0, decimals);
+//   return std::trunc(v * scale) / scale;
+// }
+inline double TruncateForDump(double v, int decimals = 7) {
+  const double scale_hi = std::pow(10.0, decimals + 3);
+  const double scale_lo = std::pow(10.0, decimals);
+
+  // First round to a finer grid to suppress tiny binary noise,
+  // then truncate to the final displayed precision.
+  const double rounded_hi = std::round(v * scale_hi) / scale_hi;
+  return std::trunc(rounded_hi * scale_lo) / scale_lo;
+}
+
 }  // namespace rayjoin
 
 #endif  // RAYJOIN_DUMP_H

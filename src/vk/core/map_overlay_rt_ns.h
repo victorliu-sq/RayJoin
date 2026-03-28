@@ -283,12 +283,686 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
     }
   }
 
+  // void ComputeOutputPolygons() override {
+  //   using polygon_id_t = index_t;
+  //
+  //   auto &ctx = this->ctx_;
+  //
+  //   // Read the shared intersection buffer once. We then sort/copy it separately for im=0 and im=1.
+  //   auto xcnt = readBackStorageBuffer<uint32_t>(xsect_counter_buf_, 1);
+  //   if (xcnt.empty()) {
+  //     throw std::runtime_error("ComputeOutputPolygons(): failed to read xsect counter");
+  //   }
+  //
+  //   const uint32_t n_xsects = xcnt[0];
+  //   auto xsects_all = readBackStorageBuffer<xsect_t>(xsect_buf_, n_xsects);
+  //   if (xsects_all.size() != n_xsects) {
+  //     throw std::runtime_error("ComputeOutputPolygons(): failed to read xsect buffer");
+  //   }
+  //
+  //   for (int im = 0; im < 2; ++im) {
+  //     const int query_map_id = im;
+  //     const int base_map_id = 1 - im;
+  //
+  //     auto query_map = ctx.get_map(query_map_id);
+  //     auto base_map = ctx.get_map(base_map_id);
+  //
+  //     if (!query_map || !base_map) {
+  //       throw std::runtime_error("ComputeOutputPolygons(): null map");
+  //     }
+  //
+  //     auto &xsect_edges_sorted = xsect_edges_sorted_[im];
+  //     xsect_edges_sorted = xsects_all;
+  //
+  //     if (xsect_edges_sorted.empty()) {
+  //       continue;
+  //     }
+  //
+  //     auto query_edges = readBackStorageBuffer<edge_t>(query_map->getEdgesBuffer(), query_map->get_edges_num());
+  //     auto query_points = readBackStorageBuffer<point_t>(query_map->getPointsBuffer(), query_map->get_points_num());
+  //
+  //     auto eid_of = [im](const xsect_t &x) -> uint64_t { return (im == 0) ? x.eid0 : x.eid1; };
+  //
+  //     auto dist2_from_edge_start = [&](const xsect_t &x) -> double {
+  //       const uint64_t eid = eid_of(x);
+  //       if (eid >= query_edges.size()) {
+  //         return std::numeric_limits<double>::infinity();
+  //       }
+  //
+  //       const auto &e = query_edges[eid];
+  //       if (e.p1_idx >= query_points.size()) {
+  //         return std::numeric_limits<double>::infinity();
+  //       }
+  //
+  //       const auto &p1 = query_points[e.p1_idx];
+  //       const double dx = static_cast<double>(x.x) - static_cast<double>(p1.x);
+  //       const double dy = static_cast<double>(x.y) - static_cast<double>(p1.y);
+  //       return dx * dx + dy * dy;
+  //     };
+  //
+  //     std::sort(xsect_edges_sorted.begin(), xsect_edges_sorted.end(), [&](const xsect_t &a, const xsect_t &b) {
+  //       const uint64_t ea = eid_of(a);
+  //       const uint64_t eb = eid_of(b);
+  //       if (ea != eb) return ea < eb;
+  //       return dist2_from_edge_start(a) < dist2_from_edge_start(b);
+  //     });
+  //
+  //     struct MidPointTask {
+  //       size_t xsect_idx;  // index into xsect_edges_sorted_[im]
+  //       point_t p;
+  //     };
+  //
+  //     std::vector<MidPointTask> tasks;
+  //     tasks.reserve(xsect_edges_sorted.size());
+  //
+  //     size_t begin = 0;
+  //     while (begin < xsect_edges_sorted.size()) {
+  //       const uint64_t eid = eid_of(xsect_edges_sorted[begin]);
+  //       size_t end = begin + 1;
+  //       while (end < xsect_edges_sorted.size() && eid_of(xsect_edges_sorted[end]) == eid) {
+  //         ++end;
+  //       }
+  //
+  //       const size_t n_xsect = end - begin;
+  //       if (n_xsect > 1) {
+  //         for (size_t i = begin; i + 1 < end; ++i) {
+  //           const auto &x1 = xsect_edges_sorted[i];
+  //           const auto &x2 = xsect_edges_sorted[i + 1];
+  //
+  //           point_t mp{};
+  //           mp.x = static_cast<coord_t>(static_cast<double>(x1.x) + (static_cast<double>(x2.x) - static_cast<double>(x1.x)) * 0.5);
+  //           mp.y = static_cast<coord_t>(static_cast<double>(x1.y) + (static_cast<double>(x2.y) - static_cast<double>(x1.y)) * 0.5);
+  //
+  //           tasks.push_back(MidPointTask{i, mp});
+  //         }
+  //       }
+  //
+  //       begin = end;
+  //     }
+  //
+  //     if (tasks.empty()) {
+  //       continue;
+  //     }
+  //
+  //     VkStagingBuf mid_staging(sizeof(point_t) * tasks.size());
+  //     {
+  //       std::vector<point_t> host_mid_points;
+  //       host_mid_points.reserve(tasks.size());
+  //       for (const auto &t: tasks) {
+  //         host_mid_points.push_back(t.p);
+  //       }
+  //       mid_staging.Host2Stage(host_mid_points);
+  //     }
+  //
+  //     VkDeviceBuf mid_points_buf;
+  //     mid_points_buf.Init(sizeof(point_t) * tasks.size());
+  //     mid_staging.Stage2Device(mid_points_buf, sizeof(point_t) * tasks.size());
+  //
+  //     std::string rgen_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rgen_ns.spv";
+  //     std::string rint_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rint_ns.spv";
+  //     std::string rahit_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rahit_ns.spv";
+  //     std::string rchit_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rchit_ns.spv";
+  //     std::string rmiss_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rmiss_ns.spv";
+  //
+  //     VkDeviceBuf mid_closest_eids_buf;
+  //     mid_closest_eids_buf.Init(sizeof(index_t) * tasks.size());
+  //
+  //     VkDeviceBuf mid_debug_counter_buf;
+  //     mid_debug_counter_buf.Init(sizeof(uint32_t) * 8);
+  //
+  //     PIPRTPassNS rt_pass(rgen_spv.c_str(),
+  //                         rint_spv.c_str(),
+  //                         rahit_spv.c_str(),
+  //                         rchit_spv.c_str(),
+  //                         rmiss_spv.c_str(),
+  //                         accel_[base_map_id].GetTraverseHandle(),
+  //                         eid_range_buf_[base_map_id],
+  //                         base_map->getPointsBuffer(),
+  //                         base_map->getEdgesBuffer(),
+  //                         mid_points_buf,
+  //                         mid_closest_eids_buf,
+  //                         mid_debug_counter_buf,
+  //                         static_cast<uint32_t>(query_map_id),
+  //                         static_cast<uint32_t>(tasks.size()));
+  //
+  //     rt_pass.run();
+  //
+  //     VkDeviceBuf mid_point_in_polygon_buf;
+  //     mid_point_in_polygon_buf.Init(sizeof(index_t) * tasks.size());
+  //
+  //     std::string finalize_spv = std::string(SHADER_DIR_NS) + "/pip_finalize_ns.spv";
+  //     PIPFinalizePassNS finalize_pass(finalize_spv.c_str(),
+  //                                     static_cast<uint32_t>(tasks.size()),
+  //                                     static_cast<uint32_t>(EXTERIOR_FACE_ID),
+  //                                     base_map->getEdgesBuffer(),
+  //                                     base_map->getPointsBuffer(),
+  //                                     mid_closest_eids_buf,
+  //                                     mid_point_in_polygon_buf);
+  //
+  //     finalize_pass.run();
+  //
+  //     auto mid_poly_ids = readBackStorageBuffer<polygon_id_t>(mid_point_in_polygon_buf, tasks.size());
+  //     if (mid_poly_ids.size() != tasks.size()) {
+  //       throw std::runtime_error("ComputeOutputPolygons(): failed to read midpoint polygon ids");
+  //     }
+  //
+  //     for (size_t i = 0; i < tasks.size(); ++i) {
+  //       xsect_edges_sorted[tasks[i].xsect_idx].mid_point_polygon_id = static_cast<polygon_id_t>(mid_poly_ids[i]);
+  //     }
+  //   }
+  //
+  //   // Optional debug dumps
+  //   // DumpComputeOutputPolygonsCSV(0, "tmp/results_compute_output_polygons", "vulkan");
+  //   // DumpComputeOutputPolygonsCSV(1, "tmp/results_compute_output_polygons", "vulkan");
+  //
+  //   // if (rayjoin::ShouldDumpStage(config_.dump_results, "output")) {
+  //   //   DumpComputeOutputPolygonsCSV(0, rayjoin::DumpSubdir(config_.dump_dir, "results_compute_output_polygons"), "vulkan");
+  //   //
+  //   //   DumpComputeOutputPolygonsCSV(1, rayjoin::DumpSubdir(config_.dump_dir, "results_compute_output_polygons"), "vulkan");
+  //   // }
+  //   if (rayjoin::ShouldDumpStage(config_.dump_results, "pipmid")) {
+  //     const auto out_dir = rayjoin::DumpSubdir(config_.dump_dir, "results_mid");
+  //     DumpComputeOutputPolygonsCSV(0, out_dir, "vulkan");
+  //     DumpComputeOutputPolygonsCSV(1, out_dir, "vulkan");
+  //   }
+  // }
+
+  // void ComputeOutputPolygons() override {
+  //   using polygon_id_t = index_t;
+  //
+  //   auto &ctx = this->ctx_;
+  //
+  //   auto xcnt = readBackStorageBuffer<uint32_t>(xsect_counter_buf_, 1);
+  //   if (xcnt.empty()) {
+  //     throw std::runtime_error("ComputeOutputPolygons(): failed to read xsect counter");
+  //   }
+  //
+  //   const uint32_t n_xsects = xcnt[0];
+  //   auto xsects_all = readBackStorageBuffer<xsect_t>(xsect_buf_, n_xsects);
+  //   if (xsects_all.size() != n_xsects) {
+  //     throw std::runtime_error("ComputeOutputPolygons(): failed to read xsect buffer");
+  //   }
+  //
+  //   for (int im = 0; im < 2; ++im) {
+  //     const int query_map_id = im;
+  //     const int base_map_id = 1 - im;
+  //
+  //     auto query_map = ctx.get_map(query_map_id);
+  //     auto base_map = ctx.get_map(base_map_id);
+  //
+  //     if (!query_map || !base_map) {
+  //       throw std::runtime_error("ComputeOutputPolygons(): null map");
+  //     }
+  //
+  //     auto &xsect_edges_sorted = xsect_edges_sorted_[im];
+  //     xsect_edges_sorted = xsects_all;
+  //
+  //     if (xsect_edges_sorted.empty()) {
+  //       continue;
+  //     }
+  //
+  //     auto query_edges = readBackStorageBuffer<edge_t>(query_map->getEdgesBuffer(), query_map->get_edges_num());
+  //     auto query_points = readBackStorageBuffer<point_t>(query_map->getPointsBuffer(), query_map->get_points_num());
+  //
+  //     auto eid_of = [im](const xsect_t &x) -> uint64_t { return (im == 0) ? x.eid0 : x.eid1; };
+  //
+  //     // ------------------------------------------------------------------
+  //     // MODIFIED:
+  //     // Match OptiX stage 1 exactly in spirit:
+  //     // first sort ONLY by query-map eid, nothing else.
+  //     //
+  //     // OptiX does:
+  //     //   thrust::sort(..., [=](x1,x2){ return x1.eid[im] < x2.eid[im]; });
+  //     // and only later sorts *within each group* by distance from p1.
+  //     // ------------------------------------------------------------------
+  //     std::stable_sort(
+  //         xsect_edges_sorted.begin(), xsect_edges_sorted.end(), [&](const xsect_t &a, const xsect_t &b) { return eid_of(a) < eid_of(b); });
+  //
+  //     // Build unique_eids and prefix index, matching the OptiX grouping layout.
+  //     std::vector<index_t> unique_eids;
+  //     unique_eids.reserve(xsect_edges_sorted.size());
+  //
+  //     for (const auto &x: xsect_edges_sorted) {
+  //       const index_t eid = static_cast<index_t>(eid_of(x));
+  //       if (unique_eids.empty() || unique_eids.back() != eid) {
+  //         unique_eids.push_back(eid);
+  //       }
+  //     }
+  //
+  //     std::vector<uint32_t> xsect_index(unique_eids.size() + 1, 0);
+  //     {
+  //       size_t pos = 0;
+  //       size_t group_idx = 0;
+  //       while (pos < xsect_edges_sorted.size()) {
+  //         const uint64_t eid = eid_of(xsect_edges_sorted[pos]);
+  //         size_t end = pos + 1;
+  //         while (end < xsect_edges_sorted.size() && eid_of(xsect_edges_sorted[end]) == eid) {
+  //           ++end;
+  //         }
+  //         xsect_index[group_idx + 1] = xsect_index[group_idx] + static_cast<uint32_t>(end - pos);
+  //         pos = end;
+  //         ++group_idx;
+  //       }
+  //     }
+  //
+  //     const uint32_t n_mid_points = xsect_index.back() - static_cast<uint32_t>(unique_eids.size());
+  //
+  //     struct MidPointTask {
+  //       size_t xsect_idx;  // same meaning as OptiX: write result back to xsect1
+  //       point_t p;
+  //     };
+  //
+  //     std::vector<MidPointTask> tasks;
+  //     tasks.reserve(n_mid_points);
+  //
+  //     // ------------------------------------------------------------------
+  //     // MODIFIED:
+  //     // Use UINT_MAX for entries that are not assigned by midpoint fill.
+  //     //
+  //     // This matches the behavior you are currently seeing in OptiX dumps
+  //     // for the final xsect in each group, instead of forcing them to 0.
+  //     // ------------------------------------------------------------------
+  //     for (auto &x: xsect_edges_sorted) {
+  //       x.mid_point_polygon_id = std::numeric_limits<polygon_id_t>::max();
+  //     }
+  //
+  //     // Helper: same distance notion as OptiX's subgroup sort:
+  //     // squared distance from query edge p1.
+  //     auto dist2_from_edge_start = [&](const xsect_t &x) -> long double {
+  //       const uint64_t eid = eid_of(x);
+  //       if (eid >= query_edges.size()) {
+  //         return std::numeric_limits<long double>::infinity();
+  //       }
+  //
+  //       const auto &e = query_edges[eid];
+  //       if (e.p1_idx >= query_points.size()) {
+  //         return std::numeric_limits<long double>::infinity();
+  //       }
+  //
+  //       const auto &p1 = query_points[e.p1_idx];
+  //
+  //       const long double dx = static_cast<long double>(x.x) - static_cast<long double>(p1.x);
+  //       const long double dy = static_cast<long double>(x.y) - static_cast<long double>(p1.y);
+  //
+  //       return dx * dx + dy * dy;
+  //     };
+  //
+  //     // ------------------------------------------------------------------
+  //     // MODIFIED:
+  //     // Match OptiX stage 2:
+  //     // for each equal-eid group, sort ONLY that subgroup by distance to p1.
+  //     //
+  //     // Do NOT do a different global comparator here.
+  //     // Do NOT force a different midpoint-id default.
+  //     // ------------------------------------------------------------------
+  //     for (size_t group_idx = 0; group_idx < unique_eids.size(); ++group_idx) {
+  //       const size_t begin = xsect_index[group_idx];
+  //       const size_t end = xsect_index[group_idx + 1];
+  //       const size_t n_xsect = end - begin;
+  //
+  //       if (n_xsect <= 1) {
+  //         continue;
+  //       }
+  //
+  //       auto first = xsect_edges_sorted.begin() + static_cast<std::ptrdiff_t>(begin);
+  //       auto last = xsect_edges_sorted.begin() + static_cast<std::ptrdiff_t>(end);
+  //
+  //       // Stable subgroup sort to keep behavior deterministic for near-equal
+  //       // distances while preserving the original LSI order as a fallback.
+  //       std::stable_sort(first, last, [&](const xsect_t &a, const xsect_t &b) {
+  //         const long double da = dist2_from_edge_start(a);
+  //         const long double db = dist2_from_edge_start(b);
+  //         return da < db;
+  //       });
+  //
+  //       for (size_t local_idx = 0; local_idx + 1 < n_xsect; ++local_idx) {
+  //         const auto &x1 = xsect_edges_sorted[begin + local_idx];
+  //         const auto &x2 = xsect_edges_sorted[begin + local_idx + 1];
+  //
+  //         point_t mp{};
+  //
+  //         // Same midpoint construction pattern as the Vulkan code before,
+  //         // but computed after the subgroup order now matches OptiX better.
+  //         mp.x = static_cast<coord_t>(static_cast<double>(x1.x) + (static_cast<double>(x2.x) - static_cast<double>(x1.x)) * 0.5);
+  //         mp.y = static_cast<coord_t>(static_cast<double>(x1.y) + (static_cast<double>(x2.y) - static_cast<double>(x1.y)) * 0.5);
+  //
+  //         tasks.push_back(MidPointTask{begin + local_idx, mp});
+  //       }
+  //     }
+  //
+  //     if (tasks.empty()) {
+  //       continue;
+  //     }
+  //
+  //     VkStagingBuf mid_staging(sizeof(point_t) * tasks.size());
+  //     {
+  //       std::vector<point_t> host_mid_points;
+  //       host_mid_points.reserve(tasks.size());
+  //       for (const auto &t: tasks) {
+  //         host_mid_points.push_back(t.p);
+  //       }
+  //       mid_staging.Host2Stage(host_mid_points);
+  //     }
+  //
+  //     VkDeviceBuf mid_points_buf;
+  //     mid_points_buf.Init(sizeof(point_t) * tasks.size());
+  //     mid_staging.Stage2Device(mid_points_buf, sizeof(point_t) * tasks.size());
+  //
+  //     std::string rgen_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rgen_ns.spv";
+  //     std::string rint_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rint_ns.spv";
+  //     std::string rahit_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rahit_ns.spv";
+  //     std::string rchit_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rchit_ns.spv";
+  //     std::string rmiss_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rmiss_ns.spv";
+  //
+  //     VkDeviceBuf mid_closest_eids_buf;
+  //     mid_closest_eids_buf.Init(sizeof(index_t) * tasks.size());
+  //
+  //     VkDeviceBuf mid_debug_counter_buf;
+  //     mid_debug_counter_buf.Init(sizeof(uint32_t) * 8);
+  //
+  //     PIPRTPassNS rt_pass(rgen_spv.c_str(),
+  //                         rint_spv.c_str(),
+  //                         rahit_spv.c_str(),
+  //                         rchit_spv.c_str(),
+  //                         rmiss_spv.c_str(),
+  //                         accel_[base_map_id].GetTraverseHandle(),
+  //                         eid_range_buf_[base_map_id],
+  //                         base_map->getPointsBuffer(),
+  //                         base_map->getEdgesBuffer(),
+  //                         mid_points_buf,
+  //                         mid_closest_eids_buf,
+  //                         mid_debug_counter_buf,
+  //                         static_cast<uint32_t>(query_map_id),
+  //                         static_cast<uint32_t>(tasks.size()));
+  //
+  //     rt_pass.run();
+  //
+  //     VkDeviceBuf mid_point_in_polygon_buf;
+  //     mid_point_in_polygon_buf.Init(sizeof(index_t) * tasks.size());
+  //
+  //     std::string finalize_spv = std::string(SHADER_DIR_NS) + "/pip_finalize_ns.spv";
+  //     PIPFinalizePassNS finalize_pass(finalize_spv.c_str(),
+  //                                     static_cast<uint32_t>(tasks.size()),
+  //                                     static_cast<uint32_t>(EXTERIOR_FACE_ID),
+  //                                     base_map->getEdgesBuffer(),
+  //                                     base_map->getPointsBuffer(),
+  //                                     mid_closest_eids_buf,
+  //                                     mid_point_in_polygon_buf);
+  //     finalize_pass.run();
+  //
+  //     auto mid_poly_ids = readBackStorageBuffer<polygon_id_t>(mid_point_in_polygon_buf, tasks.size());
+  //     if (mid_poly_ids.size() != tasks.size()) {
+  //       throw std::runtime_error("ComputeOutputPolygons(): failed to read midpoint polygon ids");
+  //     }
+  //
+  //     // Write midpoint polygon id back to xsect1 of each adjacent pair,
+  //     // matching the OptiX logic.
+  //     for (size_t i = 0; i < tasks.size(); ++i) {
+  //       xsect_edges_sorted[tasks[i].xsect_idx].mid_point_polygon_id = static_cast<polygon_id_t>(mid_poly_ids[i]);
+  //     }
+  //   }
+  //
+  //   if (rayjoin::ShouldDumpStage(config_.dump_results, "pipmid")) {
+  //     const auto out_dir = rayjoin::DumpSubdir(config_.dump_dir, "results_mid");
+  //     DumpComputeOutputPolygonsCSV(0, out_dir, "vulkan");
+  //     DumpComputeOutputPolygonsCSV(1, out_dir, "vulkan");
+  //   }
+  // }
+  // void ComputeOutputPolygons() override {
+  //   using polygon_id_t = index_t;
+  //
+  //   auto &ctx = this->ctx_;
+  //
+  //   auto xcnt = readBackStorageBuffer<uint32_t>(xsect_counter_buf_, 1);
+  //   if (xcnt.empty()) {
+  //     throw std::runtime_error("ComputeOutputPolygons(): failed to read xsect counter");
+  //   }
+  //
+  //   const uint32_t n_xsects = xcnt[0];
+  //   auto xsects_all = readBackStorageBuffer<xsect_t>(xsect_buf_, n_xsects);
+  //   if (xsects_all.size() != n_xsects) {
+  //     throw std::runtime_error("ComputeOutputPolygons(): failed to read xsect buffer");
+  //   }
+  //
+  //   for (int im = 0; im < 2; ++im) {
+  //     const int query_map_id = im;
+  //     const int base_map_id = 1 - im;
+  //
+  //     auto query_map = ctx.get_map(query_map_id);
+  //     auto base_map = ctx.get_map(base_map_id);
+  //
+  //     if (!query_map || !base_map) {
+  //       throw std::runtime_error("ComputeOutputPolygons(): null map");
+  //     }
+  //
+  //     auto &xsect_edges_sorted = xsect_edges_sorted_[im];
+  //     xsect_edges_sorted = xsects_all;
+  //
+  //     if (xsect_edges_sorted.empty()) {
+  //       continue;
+  //     }
+  //
+  //     auto query_edges = readBackStorageBuffer<edge_t>(query_map->getEdgesBuffer(), query_map->get_edges_num());
+  //     auto query_points = readBackStorageBuffer<point_t>(query_map->getPointsBuffer(), query_map->get_points_num());
+  //
+  //     auto query_eid_of = [im](const xsect_t &x) -> uint64_t { return (im == 0) ? x.eid0 : x.eid1; };
+  //
+  //     auto base_eid_of = [im](const xsect_t &x) -> uint64_t { return (im == 0) ? x.eid1 : x.eid0; };
+  //
+  //     // Match OptiX stage 1: group only by query-map eid first.
+  //     std::stable_sort(xsect_edges_sorted.begin(), xsect_edges_sorted.end(), [&](const xsect_t &a, const xsect_t &b) {
+  //       return query_eid_of(a) < query_eid_of(b);
+  //     });
+  //
+  //     // Build unique_eids and prefix index array.
+  //     std::vector<index_t> unique_eids;
+  //     unique_eids.reserve(xsect_edges_sorted.size());
+  //
+  //     for (const auto &x: xsect_edges_sorted) {
+  //       const index_t eid = static_cast<index_t>(query_eid_of(x));
+  //       if (unique_eids.empty() || unique_eids.back() != eid) {
+  //         unique_eids.push_back(eid);
+  //       }
+  //     }
+  //
+  //     std::vector<uint32_t> xsect_index(unique_eids.size() + 1, 0);
+  //     {
+  //       size_t pos = 0;
+  //       size_t group_idx = 0;
+  //       while (pos < xsect_edges_sorted.size()) {
+  //         const uint64_t eid = query_eid_of(xsect_edges_sorted[pos]);
+  //         size_t end = pos + 1;
+  //         while (end < xsect_edges_sorted.size() && query_eid_of(xsect_edges_sorted[end]) == eid) {
+  //           ++end;
+  //         }
+  //         xsect_index[group_idx + 1] = xsect_index[group_idx] + static_cast<uint32_t>(end - pos);
+  //         pos = end;
+  //         ++group_idx;
+  //       }
+  //     }
+  //
+  //     const uint32_t n_mid_points = xsect_index.back() - static_cast<uint32_t>(unique_eids.size());
+  //
+  //     struct MidPointTask {
+  //       size_t xsect_idx;  // write midpoint polygon id back to this xsect
+  //       point_t p;
+  //     };
+  //
+  //     std::vector<MidPointTask> tasks;
+  //     tasks.reserve(n_mid_points);
+  //
+  //     // Match OptiX dump behavior for entries that never receive midpoint fill.
+  //     for (auto &x: xsect_edges_sorted) {
+  //       x.mid_point_polygon_id = std::numeric_limits<polygon_id_t>::max();
+  //     }
+  //
+  //     auto dist2_from_edge_start = [&](const xsect_t &x) -> long double {
+  //       const uint64_t eid = query_eid_of(x);
+  //       if (eid >= query_edges.size()) {
+  //         return std::numeric_limits<long double>::infinity();
+  //       }
+  //
+  //       const auto &e = query_edges[eid];
+  //       if (e.p1_idx >= query_points.size()) {
+  //         return std::numeric_limits<long double>::infinity();
+  //       }
+  //
+  //       const auto &p1 = query_points[e.p1_idx];
+  //
+  //       const long double dx = static_cast<long double>(x.x) - static_cast<long double>(p1.x);
+  //       const long double dy = static_cast<long double>(x.y) - static_cast<long double>(p1.y);
+  //
+  //       return dx * dx + dy * dy;
+  //     };
+  //
+  //     // Reorder every equal-query-eid group before building midpoints.
+  //     // This is the critical fix: midpoint adjacency must be defined on the
+  //     // same per-edge ordering that OptiX uses conceptually.
+  //     for (size_t group_idx = 0; group_idx < unique_eids.size(); ++group_idx) {
+  //       const size_t begin = xsect_index[group_idx];
+  //       const size_t end = xsect_index[group_idx + 1];
+  //       const size_t n_xsect = end - begin;
+  //
+  //       if (n_xsect <= 1) {
+  //         continue;
+  //       }
+  //
+  //       struct LocalRef {
+  //         size_t src_idx;
+  //         long double d2;
+  //         long double x;
+  //         long double y;
+  //         uint64_t base_eid;
+  //       };
+  //
+  //       std::vector<LocalRef> refs;
+  //       refs.reserve(n_xsect);
+  //
+  //       for (size_t i = begin; i < end; ++i) {
+  //         const auto &x = xsect_edges_sorted[i];
+  //         refs.push_back(LocalRef{i, dist2_from_edge_start(x), static_cast<long double>(x.x), static_cast<long double>(x.y), base_eid_of(x)});
+  //       }
+  //
+  //       std::stable_sort(refs.begin(), refs.end(), [](const LocalRef &a, const LocalRef &b) {
+  //         if (a.d2 < b.d2) return true;
+  //         if (b.d2 < a.d2) return false;
+  //
+  //         // Deterministic tie-breakers so midpoint pairing is stable.
+  //         if (a.x < b.x) return true;
+  //         if (b.x < a.x) return false;
+  //
+  //         if (a.y < b.y) return true;
+  //         if (b.y < a.y) return false;
+  //
+  //         if (a.base_eid < b.base_eid) return true;
+  //         if (b.base_eid < a.base_eid) return false;
+  //
+  //         return a.src_idx < b.src_idx;
+  //       });
+  //
+  //       std::vector<xsect_t> reordered;
+  //       reordered.reserve(n_xsect);
+  //       for (const auto &r: refs) {
+  //         reordered.push_back(xsect_edges_sorted[r.src_idx]);
+  //       }
+  //       for (size_t local_idx = 0; local_idx < n_xsect; ++local_idx) {
+  //         xsect_edges_sorted[begin + local_idx] = reordered[local_idx];
+  //       }
+  //
+  //       for (size_t local_idx = 0; local_idx + 1 < n_xsect; ++local_idx) {
+  //         const auto &x1 = xsect_edges_sorted[begin + local_idx];
+  //         const auto &x2 = xsect_edges_sorted[begin + local_idx + 1];
+  //
+  //         point_t mp{};
+  //         mp.x = static_cast<coord_t>(static_cast<double>(x1.x) + (static_cast<double>(x2.x) - static_cast<double>(x1.x)) * 0.5);
+  //         mp.y = static_cast<coord_t>(static_cast<double>(x1.y) + (static_cast<double>(x2.y) - static_cast<double>(x1.y)) * 0.5);
+  //
+  //         tasks.push_back(MidPointTask{begin + local_idx, mp});
+  //       }
+  //     }
+  //
+  //
+  //     if (tasks.empty()) {
+  //       continue;
+  //     }
+  //
+  //     VkStagingBuf mid_staging(sizeof(point_t) * tasks.size());
+  //     {
+  //       std::vector<point_t> host_mid_points;
+  //       host_mid_points.reserve(tasks.size());
+  //       for (const auto &t: tasks) {
+  //         host_mid_points.push_back(t.p);
+  //       }
+  //       mid_staging.Host2Stage(host_mid_points);
+  //     }
+  //
+  //     VkDeviceBuf mid_points_buf;
+  //     mid_points_buf.Init(sizeof(point_t) * tasks.size());
+  //     mid_staging.Stage2Device(mid_points_buf, sizeof(point_t) * tasks.size());
+  //
+  //     std::string rgen_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rgen_ns.spv";
+  //     std::string rint_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rint_ns.spv";
+  //     std::string rahit_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rahit_ns.spv";
+  //     std::string rchit_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rchit_ns.spv";
+  //     std::string rmiss_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rmiss_ns.spv";
+  //
+  //     VkDeviceBuf mid_closest_eids_buf;
+  //     mid_closest_eids_buf.Init(sizeof(index_t) * tasks.size());
+  //
+  //     VkDeviceBuf mid_debug_counter_buf;
+  //     mid_debug_counter_buf.Init(sizeof(uint32_t) * 8);
+  //
+  //     PIPRTPassNS rt_pass(rgen_spv.c_str(),
+  //                         rint_spv.c_str(),
+  //                         rahit_spv.c_str(),
+  //                         rchit_spv.c_str(),
+  //                         rmiss_spv.c_str(),
+  //                         accel_[base_map_id].GetTraverseHandle(),
+  //                         eid_range_buf_[base_map_id],
+  //                         base_map->getPointsBuffer(),
+  //                         base_map->getEdgesBuffer(),
+  //                         mid_points_buf,
+  //                         mid_closest_eids_buf,
+  //                         mid_debug_counter_buf,
+  //                         static_cast<uint32_t>(query_map_id),
+  //                         static_cast<uint32_t>(tasks.size()));
+  //
+  //     rt_pass.run();
+  //
+  //     VkDeviceBuf mid_point_in_polygon_buf;
+  //     mid_point_in_polygon_buf.Init(sizeof(index_t) * tasks.size());
+  //
+  //     std::string finalize_spv = std::string(SHADER_DIR_NS) + "/pip_finalize_ns.spv";
+  //     PIPFinalizePassNS finalize_pass(finalize_spv.c_str(),
+  //                                     static_cast<uint32_t>(tasks.size()),
+  //                                     static_cast<uint32_t>(EXTERIOR_FACE_ID),
+  //                                     base_map->getEdgesBuffer(),
+  //                                     base_map->getPointsBuffer(),
+  //                                     mid_closest_eids_buf,
+  //                                     mid_point_in_polygon_buf);
+  //     finalize_pass.run();
+  //
+  //     auto mid_poly_ids = readBackStorageBuffer<polygon_id_t>(mid_point_in_polygon_buf, tasks.size());
+  //     if (mid_poly_ids.size() != tasks.size()) {
+  //       throw std::runtime_error("ComputeOutputPolygons(): failed to read midpoint polygon ids");
+  //     }
+  //
+  //     for (size_t i = 0; i < tasks.size(); ++i) {
+  //       xsect_edges_sorted[tasks[i].xsect_idx].mid_point_polygon_id = static_cast<polygon_id_t>(mid_poly_ids[i]);
+  //     }
+  //   }
+  //
+  //   if (rayjoin::ShouldDumpStage(config_.dump_results, "pipmid")) {
+  //     const auto out_dir = rayjoin::DumpSubdir(config_.dump_dir, "results_mid");
+  //     DumpComputeOutputPolygonsCSV(0, out_dir, "vulkan");
+  //     DumpComputeOutputPolygonsCSV(1, out_dir, "vulkan");
+  //   }
+  // }
   void ComputeOutputPolygons() override {
     using polygon_id_t = index_t;
 
     auto &ctx = this->ctx_;
 
-    // Read the shared intersection buffer once. We then sort/copy it separately for im=0 and im=1.
     auto xcnt = readBackStorageBuffer<uint32_t>(xsect_counter_buf_, 1);
     if (xcnt.empty()) {
       throw std::runtime_error("ComputeOutputPolygons(): failed to read xsect counter");
@@ -321,82 +995,158 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
       auto query_edges = readBackStorageBuffer<edge_t>(query_map->getEdgesBuffer(), query_map->get_edges_num());
       auto query_points = readBackStorageBuffer<point_t>(query_map->getPointsBuffer(), query_map->get_points_num());
 
-      auto eid_of = [im](const xsect_t &x) -> uint64_t { return (im == 0) ? x.eid0 : x.eid1; };
+      auto query_eid_of = [im](const xsect_t &x) -> uint64_t { return (im == 0) ? x.eid0 : x.eid1; };
 
-      auto dist2_from_edge_start = [&](const xsect_t &x) -> double {
-        const uint64_t eid = eid_of(x);
-        if (eid >= query_edges.size()) {
-          return std::numeric_limits<double>::infinity();
-        }
+      auto base_eid_of = [im](const xsect_t &x) -> uint64_t { return (im == 0) ? x.eid1 : x.eid0; };
 
-        const auto &e = query_edges[eid];
-        if (e.p1_idx >= query_points.size()) {
-          return std::numeric_limits<double>::infinity();
-        }
-
-        const auto &p1 = query_points[e.p1_idx];
-        const double dx = static_cast<double>(x.x) - static_cast<double>(p1.x);
-        const double dy = static_cast<double>(x.y) - static_cast<double>(p1.y);
-        return dx * dx + dy * dy;
-      };
-
-      std::sort(xsect_edges_sorted.begin(), xsect_edges_sorted.end(), [&](const xsect_t &a, const xsect_t &b) {
-        const uint64_t ea = eid_of(a);
-        const uint64_t eb = eid_of(b);
-        if (ea != eb) return ea < eb;
-        return dist2_from_edge_start(a) < dist2_from_edge_start(b);
+      std::stable_sort(xsect_edges_sorted.begin(), xsect_edges_sorted.end(), [&](const xsect_t &a, const xsect_t &b) {
+        return query_eid_of(a) < query_eid_of(b);
       });
 
+      std::vector<index_t> unique_eids;
+      unique_eids.reserve(xsect_edges_sorted.size());
+
+      for (const auto &x: xsect_edges_sorted) {
+        const index_t eid = static_cast<index_t>(query_eid_of(x));
+        if (unique_eids.empty() || unique_eids.back() != eid) {
+          unique_eids.push_back(eid);
+        }
+      }
+
+      std::vector<uint32_t> xsect_index(unique_eids.size() + 1, 0);
+      {
+        size_t pos = 0;
+        size_t group_idx = 0;
+        while (pos < xsect_edges_sorted.size()) {
+          const uint64_t eid = query_eid_of(xsect_edges_sorted[pos]);
+          size_t end = pos + 1;
+          while (end < xsect_edges_sorted.size() && query_eid_of(xsect_edges_sorted[end]) == eid) {
+            ++end;
+          }
+          xsect_index[group_idx + 1] = xsect_index[group_idx] + static_cast<uint32_t>(end - pos);
+          pos = end;
+          ++group_idx;
+        }
+      }
+
+      const uint32_t n_mid_points = xsect_index.back() - static_cast<uint32_t>(unique_eids.size());
+
       struct MidPointTask {
-        size_t xsect_idx;  // index into xsect_edges_sorted_[im]
+        size_t xsect_idx;
         point_t p;
       };
 
       std::vector<MidPointTask> tasks;
-      tasks.reserve(xsect_edges_sorted.size());
+      tasks.reserve(n_mid_points);
 
-      size_t begin = 0;
-      while (begin < xsect_edges_sorted.size()) {
-        const uint64_t eid = eid_of(xsect_edges_sorted[begin]);
-        size_t end = begin + 1;
-        while (end < xsect_edges_sorted.size() && eid_of(xsect_edges_sorted[end]) == eid) {
-          ++end;
+      for (auto &x: xsect_edges_sorted) {
+        x.mid_point_polygon_id = std::numeric_limits<polygon_id_t>::max();
+      }
+
+      auto dist2_from_edge_start = [&](const xsect_t &x) -> long double {
+        const uint64_t eid = query_eid_of(x);
+        if (eid >= query_edges.size()) {
+          return std::numeric_limits<long double>::infinity();
         }
 
+        const auto &e = query_edges[eid];
+        if (e.p1_idx >= query_points.size()) {
+          return std::numeric_limits<long double>::infinity();
+        }
+
+        const auto &p1 = query_points[e.p1_idx];
+
+        const long double dx = static_cast<long double>(x.x) - static_cast<long double>(p1.x);
+        const long double dy = static_cast<long double>(x.y) - static_cast<long double>(p1.y);
+
+        return dx * dx + dy * dy;
+      };
+
+      for (size_t group_idx = 0; group_idx < unique_eids.size(); ++group_idx) {
+        const size_t begin = xsect_index[group_idx];
+        const size_t end = xsect_index[group_idx + 1];
         const size_t n_xsect = end - begin;
-        if (n_xsect > 1) {
-          for (size_t i = begin; i + 1 < end; ++i) {
-            const auto &x1 = xsect_edges_sorted[i];
-            const auto &x2 = xsect_edges_sorted[i + 1];
 
-            point_t mp{};
-            mp.x = static_cast<coord_t>(static_cast<double>(x1.x) + (static_cast<double>(x2.x) - static_cast<double>(x1.x)) * 0.5);
-            mp.y = static_cast<coord_t>(static_cast<double>(x1.y) + (static_cast<double>(x2.y) - static_cast<double>(x1.y)) * 0.5);
-
-            tasks.push_back(MidPointTask{i, mp});
-          }
+        if (n_xsect <= 1) {
+          continue;
         }
 
-        begin = end;
+        struct LocalRef {
+          size_t src_idx;
+          long double d2;
+          uint64_t base_eid;
+          long double x;
+          long double y;
+        };
+
+        std::vector<LocalRef> refs;
+        refs.reserve(n_xsect);
+
+        for (size_t i = begin; i < end; ++i) {
+          const auto &x = xsect_edges_sorted[i];
+          refs.push_back(LocalRef{i, dist2_from_edge_start(x), base_eid_of(x), static_cast<long double>(x.x), static_cast<long double>(x.y)});
+        }
+
+        std::stable_sort(refs.begin(), refs.end(), [](const LocalRef &a, const LocalRef &b) {
+          if (a.d2 < b.d2) return true;
+          if (b.d2 < a.d2) return false;
+
+          // Revised tie-break: other-map eid low -> high
+          if (a.base_eid < b.base_eid) return true;
+          if (b.base_eid < a.base_eid) return false;
+
+          // Additional deterministic tie-breaks
+          if (a.x < b.x) return true;
+          if (b.x < a.x) return false;
+
+          if (a.y < b.y) return true;
+          if (b.y < a.y) return false;
+
+          return a.src_idx < b.src_idx;
+        });
+
+        std::vector<xsect_t> reordered;
+        reordered.reserve(n_xsect);
+        for (const auto &r: refs) {
+          reordered.push_back(xsect_edges_sorted[r.src_idx]);
+        }
+        for (size_t local_idx = 0; local_idx < n_xsect; ++local_idx) {
+          xsect_edges_sorted[begin + local_idx] = reordered[local_idx];
+        }
+
+        for (size_t local_idx = 0; local_idx + 1 < n_xsect; ++local_idx) {
+          const auto &x1 = xsect_edges_sorted[begin + local_idx];
+          const auto &x2 = xsect_edges_sorted[begin + local_idx + 1];
+
+          point_t mp{};
+          mp.x = static_cast<coord_t>(static_cast<double>(x1.x) + (static_cast<double>(x2.x) - static_cast<double>(x1.x)) * 0.5);
+          mp.y = static_cast<coord_t>(static_cast<double>(x1.y) + (static_cast<double>(x2.y) - static_cast<double>(x1.y)) * 0.5);
+
+          tasks.push_back(MidPointTask{begin + local_idx, mp});
+        }
       }
 
       if (tasks.empty()) {
         continue;
       }
 
-      VkStagingBuf mid_staging(sizeof(point_t) * tasks.size());
-      {
-        std::vector<point_t> host_mid_points;
-        host_mid_points.reserve(tasks.size());
-        for (const auto &t: tasks) {
-          host_mid_points.push_back(t.p);
-        }
-        mid_staging.Host2Stage(host_mid_points);
+      std::vector<point_t> host_mid_points;
+      host_mid_points.reserve(tasks.size());
+      for (const auto &t: tasks) {
+        host_mid_points.push_back(t.p);
       }
 
+      if (rayjoin::ShouldDumpStage(config_.dump_results, "pipmid")) {
+        const auto out_dir = rayjoin::DumpSubdir(config_.dump_dir, "results_midpoints");
+        DumpSortedMidPointsCSV(query_map_id, unique_eids, xsect_index, xsect_edges_sorted, host_mid_points, out_dir, "vulkan");
+      }
+
+      VkStagingBuf mid_staging(sizeof(point_t) * host_mid_points.size());
+      mid_staging.Host2Stage(host_mid_points);
+
       VkDeviceBuf mid_points_buf;
-      mid_points_buf.Init(sizeof(point_t) * tasks.size());
-      mid_staging.Stage2Device(mid_points_buf, sizeof(point_t) * tasks.size());
+      mid_points_buf.Init(sizeof(point_t) * host_mid_points.size());
+      mid_staging.Stage2Device(mid_points_buf, sizeof(point_t) * host_mid_points.size());
 
       std::string rgen_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rgen_ns.spv";
       std::string rint_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rint_ns.spv";
@@ -438,7 +1188,6 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
                                       base_map->getPointsBuffer(),
                                       mid_closest_eids_buf,
                                       mid_point_in_polygon_buf);
-
       finalize_pass.run();
 
       auto mid_poly_ids = readBackStorageBuffer<polygon_id_t>(mid_point_in_polygon_buf, tasks.size());
@@ -451,15 +1200,6 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
       }
     }
 
-    // Optional debug dumps
-    // DumpComputeOutputPolygonsCSV(0, "tmp/results_compute_output_polygons", "vulkan");
-    // DumpComputeOutputPolygonsCSV(1, "tmp/results_compute_output_polygons", "vulkan");
-
-    // if (rayjoin::ShouldDumpStage(config_.dump_results, "output")) {
-    //   DumpComputeOutputPolygonsCSV(0, rayjoin::DumpSubdir(config_.dump_dir, "results_compute_output_polygons"), "vulkan");
-    //
-    //   DumpComputeOutputPolygonsCSV(1, rayjoin::DumpSubdir(config_.dump_dir, "results_compute_output_polygons"), "vulkan");
-    // }
     if (rayjoin::ShouldDumpStage(config_.dump_results, "pipmid")) {
       const auto out_dir = rayjoin::DumpSubdir(config_.dump_dir, "results_mid");
       DumpComputeOutputPolygonsCSV(0, out_dir, "vulkan");
@@ -1048,6 +1788,80 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
 
     ofs.close();
     LOG(INFO) << "DumpComputeOutputPolygonsCSV: wrote " << path;
+  }
+
+  void DumpSortedMidPointsCSV(int query_map_id,
+                              const std::vector<index_t> &unique_eids,
+                              const std::vector<uint32_t> &xsect_index,
+                              const std::vector<xsect_t> &xsect_edges_sorted,
+                              const std::vector<point_t> &mid_points,
+                              const std::string &out_dir,
+                              const std::string &impl_tag) const {
+    namespace fs = std::filesystem;
+    fs::create_directories(out_dir);
+
+    const std::string path = out_dir + "/" + impl_tag + "_sorted_midpoints_map_" + std::to_string(query_map_id) + ".csv";
+
+    std::ofstream ofs(path);
+    if (!ofs) {
+      LOG(ERROR) << "DumpSortedMidPointsCSV: failed to open " << path;
+      return;
+    }
+
+    constexpr int kDumpDecimals = 7;
+    ofs << std::fixed << std::setprecision(kDumpDecimals);
+
+    ofs << "query_map_id,group_idx,eid_self,local_mid_idx,mid_idx,"
+           "eid_other_left,eid_other_right,"
+           "x1,y1,x2,y2,mid_x,mid_y\n";
+
+    size_t mid_idx = 0;
+
+    for (size_t group_idx = 0; group_idx < unique_eids.size(); ++group_idx) {
+      const uint32_t begin = xsect_index[group_idx];
+      const uint32_t end = xsect_index[group_idx + 1];
+      const uint32_t n_xsect = end - begin;
+
+      if (n_xsect <= 1) {
+        continue;
+      }
+
+      const index_t eid_self = unique_eids[group_idx];
+
+      for (uint32_t local_mid_idx = 0; local_mid_idx + 1 < n_xsect; ++local_mid_idx) {
+        const uint32_t left_idx = begin + local_mid_idx;
+        const uint32_t right_idx = begin + local_mid_idx + 1;
+
+        if (mid_idx >= mid_points.size()) {
+          LOG(ERROR) << "DumpSortedMidPointsCSV: midpoint index overflow";
+          ofs.close();
+          return;
+        }
+
+        const auto &x1 = xsect_edges_sorted[left_idx];
+        const auto &x2 = xsect_edges_sorted[right_idx];
+        const auto &mp = mid_points[mid_idx];
+
+        const index_t eid_other_left = static_cast<index_t>((query_map_id == 0) ? x1.eid1 : x1.eid0);
+        const index_t eid_other_right = static_cast<index_t>((query_map_id == 0) ? x2.eid1 : x2.eid0);
+
+        const double x1_dump = TruncateForDump(x1.x, kDumpDecimals);
+        const double y1_dump = TruncateForDump(x1.y, kDumpDecimals);
+        const double x2_dump = TruncateForDump(x2.x, kDumpDecimals);
+        const double y2_dump = TruncateForDump(x2.y, kDumpDecimals);
+        const double mx_dump = TruncateForDump(mp.x, kDumpDecimals);
+        const double my_dump = TruncateForDump(mp.y, kDumpDecimals);
+
+        ofs << query_map_id << "," << group_idx << "," << static_cast<long long>(eid_self) << "," << local_mid_idx << "," << mid_idx << ","
+            << static_cast<long long>(eid_other_left) << "," << static_cast<long long>(eid_other_right) << "," << x1_dump << "," << y1_dump << ","
+            << x2_dump << "," << y2_dump << "," << mx_dump << "," << my_dump << "\n";
+
+        ++mid_idx;
+      }
+    }
+
+    ofs.close();
+    LOG(INFO) << "DumpSortedMidPointsCSV: wrote " << path;
   }
 };
 

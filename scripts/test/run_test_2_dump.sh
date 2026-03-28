@@ -40,10 +40,12 @@ status=0
 pip_dir="${base_dir}/results_pip"
 lsi_dir="${base_dir}/results_lsi"
 mid_dir="${base_dir}/results_mid"
+midpoints_dir="${base_dir}/results_midpoints"
 
 pip_diff_dir="${pip_dir}/diffs"
 lsi_diff_dir="${lsi_dir}/diffs"
 mid_diff_dir="${mid_dir}/diffs"
+midpoints_diff_dir="${midpoints_dir}/diffs"
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${script_dir}/compare_files.sh"
@@ -68,6 +70,19 @@ run_compare "LSI" \
   "${lsi_dir}/optix_lsi.csv" \
   "${lsi_dir}/vulkan_lsi.csv" \
   "$lsi_diff_dir" || status=1
+
+# -------------------------
+# Midpoint sequence comparisons
+# -------------------------
+run_compare "Sorted midpoints map 0" \
+  "${midpoints_dir}/optix_sorted_midpoints_map_0.csv" \
+  "${midpoints_dir}/vulkan_sorted_midpoints_map_0.csv" \
+  "$midpoints_diff_dir" || status=1
+
+run_compare "Sorted midpoints map 1" \
+  "${midpoints_dir}/optix_sorted_midpoints_map_1.csv" \
+  "${midpoints_dir}/vulkan_sorted_midpoints_map_1.csv" \
+  "$midpoints_diff_dir" || status=1
 
 # -------------------------
 # Midpoint PIP comparisons
