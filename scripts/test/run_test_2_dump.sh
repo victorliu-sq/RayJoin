@@ -41,11 +41,15 @@ pip_dir="${base_dir}/results_pip"
 lsi_dir="${base_dir}/results_lsi"
 mid_dir="${base_dir}/results_mid"
 midpoints_dir="${base_dir}/results_midpoints"
+midpoint_closest_dir="${base_dir}/results_midpoint_closest"
+midpoint_finalize_dir="${base_dir}/results_midpoint_finalize"
 
 pip_diff_dir="${pip_dir}/diffs"
 lsi_diff_dir="${lsi_dir}/diffs"
 mid_diff_dir="${mid_dir}/diffs"
 midpoints_diff_dir="${midpoints_dir}/diffs"
+midpoint_closest_diff_dir="${midpoint_closest_dir}/diffs"
+midpoint_finalize_diff_dir="${midpoint_finalize_dir}/diffs"
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${script_dir}/compare_files.sh"
@@ -83,6 +87,32 @@ run_compare "Sorted midpoints map 1" \
   "${midpoints_dir}/optix_sorted_midpoints_map_1.csv" \
   "${midpoints_dir}/vulkan_sorted_midpoints_map_1.csv" \
   "$midpoints_diff_dir" || status=1
+
+# -------------------------
+# Midpoint closest-eid comparisons
+# -------------------------
+run_compare "Midpoint closest map 0" \
+  "${midpoint_closest_dir}/optix_midpoint_closest_map_0.csv" \
+  "${midpoint_closest_dir}/vulkan_midpoint_closest_map_0.csv" \
+  "$midpoint_closest_diff_dir" || status=1
+
+run_compare "Midpoint closest map 1" \
+  "${midpoint_closest_dir}/optix_midpoint_closest_map_1.csv" \
+  "${midpoint_closest_dir}/vulkan_midpoint_closest_map_1.csv" \
+  "$midpoint_closest_diff_dir" || status=1
+
+# -------------------------
+# Midpoint finalize comparisons
+# -------------------------
+run_compare "Midpoint finalize map 0" \
+  "${midpoint_finalize_dir}/optix_midpoint_finalize_map_0.csv" \
+  "${midpoint_finalize_dir}/vulkan_midpoint_finalize_map_0.csv" \
+  "$midpoint_finalize_diff_dir" || status=1
+
+run_compare "Midpoint finalize map 1" \
+  "${midpoint_finalize_dir}/optix_midpoint_finalize_map_1.csv" \
+  "${midpoint_finalize_dir}/vulkan_midpoint_finalize_map_1.csv" \
+  "$midpoint_finalize_diff_dir" || status=1
 
 # -------------------------
 # Midpoint PIP comparisons
