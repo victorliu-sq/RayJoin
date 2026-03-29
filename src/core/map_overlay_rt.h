@@ -741,8 +741,6 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
   //   ofs.close();
   //   LOG(INFO) << "DumpMidPointClosestEidsCSV: wrote " << path;
   // }
-
-
   void DumpMidPointClosestEidsCSV(int query_map_id,
                                   const scaling_t& scaling,
                                   const thrust::device_vector<index_t>& d_unique_eids,
@@ -801,26 +799,31 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
         const auto& x1 = h_xsects[left_idx];
         const auto& x2 = h_xsects[right_idx];
         const auto& mp = h_mid_points[mid_idx];
-        const auto closest_eid = h_closest[mid_idx];
-        const auto best_y = h_best_y[mid_idx];
+        const index_t closest_eid = h_closest[mid_idx];
+        const double best_y = h_best_y[mid_idx];
 
         const index_t eid_other_left = static_cast<index_t>(x1.eid[1 - query_map_id]);
         const index_t eid_other_right = static_cast<index_t>(x2.eid[1 - query_map_id]);
 
         const double mx_dump = TruncateForDump(scaling.UnscaleX(mp.x), kDumpDecimals);
         const double my_dump = TruncateForDump(scaling.UnscaleY(mp.y), kDumpDecimals);
-        const double best_y_dump = TruncateForDump(scaling.UnscaleY(best_y), kDumpDecimals);
 
         ofs << query_map_id << "," << group_idx << "," << static_cast<long long>(eid_self) << "," << local_mid_idx << "," << mid_idx << ","
             << static_cast<long long>(eid_other_left) << "," << static_cast<long long>(eid_other_right) << "," << mx_dump << "," << my_dump << ",";
 
         if (closest_eid == std::numeric_limits<index_t>::max()) {
-          ofs << -1;
-        } else {
-          ofs << static_cast<long long>(closest_eid);
+          ofs << -1 << ",inf\n";
+          continue;
         }
 
-        ofs << "," << best_y_dump << "\n";
+        ofs << static_cast<long long>(closest_eid) << ",";
+
+        if (!std::isfinite(best_y)) {
+          ofs << "inf\n";
+          continue;
+        }
+
+        ofs << TruncateForDump(scaling.UnscaleY(static_cast<internal_coord_t>(best_y)), kDumpDecimals) << "\n";
       }
     }
 
