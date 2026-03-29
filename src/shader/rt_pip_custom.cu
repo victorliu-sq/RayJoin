@@ -351,17 +351,35 @@ extern "C" __global__ void __raygen__pip_custom() {
     ray_origin.y = static_cast<float>(y);
     ray_origin.z = 0;
 
+    // optixTrace(params.traversable, ray_origin, ray_dir,
+    //            tmin,
+    //            tmax,
+    //            0,
+    //            OptixVisibilityMask(255),
+    //            OPTIX_RAY_FLAG_NONE,
+    //            SURFACE_RAY_TYPE,
+    //            RAY_TYPE_COUNT,
+    //            SURFACE_RAY_TYPE,
+    //            point_idx, best_y_storage.x, best_y_storage.y, best_e_eid);
+
+    // params.closest_eids[point_idx] = best_e_eid;
+
+    // Patch-Best y
     optixTrace(params.traversable, ray_origin, ray_dir,
-               tmin,
-               tmax,
-               0,
-               OptixVisibilityMask(255),
-               OPTIX_RAY_FLAG_NONE,
-               SURFACE_RAY_TYPE,
-               RAY_TYPE_COUNT,
-               SURFACE_RAY_TYPE,
-               point_idx, best_y_storage.x, best_y_storage.y, best_e_eid);
+              tmin,
+              tmax,
+              0,
+              OptixVisibilityMask(255),
+              OPTIX_RAY_FLAG_NONE,
+              SURFACE_RAY_TYPE,
+              RAY_TYPE_COUNT,
+              SURFACE_RAY_TYPE,
+              point_idx, best_y_storage.x, best_y_storage.y, best_e_eid);
+
+    double traced_best_y;
+    unpack64(best_y_storage.x, best_y_storage.y, &traced_best_y);
 
     params.closest_eids[point_idx] = best_e_eid;
+    params.best_ys[point_idx] = traced_best_y;
   }
 }

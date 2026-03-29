@@ -1,8 +1,7 @@
 #ifndef RT_LAUNCH_PARAMETERS_H
 #define RT_LAUNCH_PARAMETERS_H
-#include <thrust/tuple.h>
-
 #include <cstdint>
+#include <thrust/tuple.h>
 
 #include "config.h"
 #include "map/map.h"
@@ -20,7 +19,7 @@ struct LaunchParamsLSI {
   using map_t = dev::Map<internal_coord_t, coefficient_t>;
   using edge_t = typename map_t::edge_t;
   using point_t = typename map_t::point_t;
-using xsect_t = dev::Intersection<internal_coord_t>;
+  using xsect_t = dev::Intersection<internal_coord_t>;
 
   edge_t* base_edges;
   point_t* base_points;
@@ -30,15 +29,14 @@ using xsect_t = dev::Intersection<internal_coord_t>;
   ArrayView<edge_t> query_edges;  // ray gen map
   point_t* query_points;
 
-  Scaling<coord_t, internal_coord_t, detail::internal_coord<coord_t>::shift>
-      scaling;
+  Scaling<coord_t, internal_coord_t, detail::internal_coord<coord_t>::shift> scaling;
   // Used for BVH Traversable
   OptixTraversableHandle traversable;
 
   // Output
   dev::Queue<xsect_t, uint32_t> xsects;
 #ifndef NDEBUG
-  uint32_t *n_tests;
+  uint32_t* n_tests;
 #endif
 };
 
@@ -55,13 +53,15 @@ struct LaunchParamsPIP {
 
   int query_map_id;
   ArrayView<point_t> query_points;
-  Scaling<coord_t, internal_coord_t, detail::internal_coord<coord_t>::shift>
-      scaling;
+  Scaling<coord_t, internal_coord_t, detail::internal_coord<coord_t>::shift> scaling;
   // Used for BVH Traversable
   OptixTraversableHandle traversable;
 
   // Output
   index_t* closest_eids;
+
+  // Patch: besty;
+  double* best_ys;
 
 #ifndef NDEBUG
   uint32_t* hit_count;

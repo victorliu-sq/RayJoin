@@ -1,9 +1,8 @@
 
 #ifndef APP_PIP_RT_H
 #define APP_PIP_RT_H
-#include <thrust/host_vector.h>
-
 #include <fstream>
+#include <thrust/host_vector.h>
 #include <utility>
 
 #include "core/query_config.h"
@@ -14,7 +13,113 @@
 
 namespace rayjoin {
 
-template <typename CONTEXT_T>
+// template <typename CONTEXT_T>
+// class PIPRT : public PIP<CONTEXT_T> {
+//   using coord_t = typename CONTEXT_T::coord_t;
+//   using internal_coord_t = typename CONTEXT_T::internal_coord_t;
+//   using coefficient_t = typename CONTEXT_T::coefficient_t;
+//   using map_t = typename CONTEXT_T::map_t;
+//   using point_t = typename map_t::point_t;
+//
+//  public:
+//   explicit PIPRT(CONTEXT_T& ctx, std::shared_ptr<RTEngine> rt_engine)
+//       : PIP<CONTEXT_T>(ctx), rt_engine_(std::move(rt_engine)) {}
+//
+//   virtual ~PIPRT() = default;
+//
+//   void set_config(const QueryConfigRT& query_config) { config_ = query_config; }
+//
+//   void Query(Stream& stream, int query_map_id,
+//              ArrayView<point_t> d_query_points) {
+//     auto& ctx = this->ctx_;
+//     auto& scaling = ctx.get_scaling();
+//     auto base_map_id = 1 - query_map_id;
+//     auto d_base_map = ctx.get_map(base_map_id)->DeviceObject();
+//     auto points_num = d_query_points.size();
+//     auto module_id = ModuleIdentifier::MODULE_ID_PIP_CUSTOM;
+//
+//     this->closest_eids_.resize(points_num);
+//
+//     thrust::fill(this->closest_eids_.begin(), this->closest_eids_.end(),
+//                  DONTKNOW);
+//
+//     LaunchParamsPIP params;
+//     params.base_map_edges = d_base_map.get_edges().data();
+//     params.base_map_points = d_base_map.get_points().data();
+//     params.eid_range = thrust::raw_pointer_cast(config_.eid_range->data());
+//     params.query_map_id = query_map_id;
+//     params.query_points = d_query_points;
+//     params.scaling = scaling;
+//     params.traversable = config_.handle;
+//     params.closest_eids = thrust::raw_pointer_cast(this->closest_eids_.data());
+// #ifndef NDEBUG
+//     hit_count_.resize(points_num, 0);
+//     closer_count_.resize(points_num, 0);
+//     last_update_count_.resize(points_num, 0);
+//     fail_update_count_.resize(points_num, 0);
+//
+//     params.hit_count = ArrayView<uint32_t>(hit_count_).data();
+//     params.closer_count = ArrayView<uint32_t>(closer_count_).data();
+//     params.last_update_count = ArrayView<uint32_t>(last_update_count_).data();
+//     params.fail_update_count = ArrayView<uint32_t>(fail_update_count_).data();
+// #endif
+//     rt_engine_->CopyLaunchParams(stream, params);
+//     rt_engine_->Render(stream, module_id,
+//                        dim3{(unsigned int) points_num, 1, 1});
+//     stream.Sync();
+// #ifndef NDEBUG
+//     if (config_.profile) {
+//       thrust::host_vector<uint32_t> hit_count = hit_count_;
+//       uint32_t n_tests = 0;
+//
+//       for (auto& n : hit_count) {
+//         n_tests += n;
+//       }
+//       LOG(INFO) << "Total tests: " << n_tests;
+//     }
+// #endif
+//   }
+//
+//   void DumpStatistics(const char* path) {
+// #ifndef NDEBUG
+//     thrust::host_vector<uint32_t> hit_count = hit_count_;
+//     thrust::host_vector<uint32_t> closer_count = closer_count_;
+//     thrust::host_vector<uint32_t> last_update_count = last_update_count_;
+//     thrust::host_vector<uint32_t> fail_update_count = fail_update_count_;
+//
+//     std::ofstream ofs(path);
+//
+//     ofs << "point_idx,hit_count,closer_count,last_update_count,fail_update_"
+//            "count\n";
+//
+//     for (size_t point_idx = 0; point_idx < hit_count.size(); point_idx++) {
+//       ofs << point_idx << "," << hit_count[point_idx] << ","
+//           << closer_count[point_idx] << "," << last_update_count[point_idx]
+//           << "," << fail_update_count[point_idx] << "\n";
+//     }
+//
+//     ofs.close();
+// #else
+//     LOG(FATAL) << "DumpStatistics for PIP only works in debug mode";
+// #endif
+//   }
+//
+//   std::shared_ptr<RTEngine> get_rt_engine() { return rt_engine_; }
+//
+//  protected:
+//   std::shared_ptr<RTEngine> rt_engine_;
+//   QueryConfigRT config_;
+// #ifndef NDEBUG
+//   thrust::device_vector<uint32_t> hit_count_;
+//   thrust::device_vector<uint32_t> closer_count_;
+//   thrust::device_vector<uint32_t> last_update_count_;
+//   thrust::device_vector<uint32_t> fail_update_count_;
+// #endif
+// };
+
+
+// Patch: BestY
+template<typename CONTEXT_T>
 class PIPRT : public PIP<CONTEXT_T> {
   using coord_t = typename CONTEXT_T::coord_t;
   using internal_coord_t = typename CONTEXT_T::internal_coord_t;
@@ -23,15 +128,13 @@ class PIPRT : public PIP<CONTEXT_T> {
   using point_t = typename map_t::point_t;
 
  public:
-  explicit PIPRT(CONTEXT_T& ctx, std::shared_ptr<RTEngine> rt_engine)
-      : PIP<CONTEXT_T>(ctx), rt_engine_(std::move(rt_engine)) {}
+  explicit PIPRT(CONTEXT_T& ctx, std::shared_ptr<RTEngine> rt_engine) : PIP<CONTEXT_T>(ctx), rt_engine_(std::move(rt_engine)) {}
 
   virtual ~PIPRT() = default;
 
   void set_config(const QueryConfigRT& query_config) { config_ = query_config; }
 
-  void Query(Stream& stream, int query_map_id,
-             ArrayView<point_t> d_query_points) {
+  void Query(Stream& stream, int query_map_id, ArrayView<point_t> d_query_points) {
     auto& ctx = this->ctx_;
     auto& scaling = ctx.get_scaling();
     auto base_map_id = 1 - query_map_id;
@@ -40,9 +143,10 @@ class PIPRT : public PIP<CONTEXT_T> {
     auto module_id = ModuleIdentifier::MODULE_ID_PIP_CUSTOM;
 
     this->closest_eids_.resize(points_num);
+    best_ys_.resize(points_num);
 
-    thrust::fill(this->closest_eids_.begin(), this->closest_eids_.end(),
-                 DONTKNOW);
+    thrust::fill(this->closest_eids_.begin(), this->closest_eids_.end(), DONTKNOW);
+    thrust::fill(best_ys_.begin(), best_ys_.end(), std::numeric_limits<double>::infinity());
 
     LaunchParamsPIP params;
     params.base_map_edges = d_base_map.get_edges().data();
@@ -53,6 +157,8 @@ class PIPRT : public PIP<CONTEXT_T> {
     params.scaling = scaling;
     params.traversable = config_.handle;
     params.closest_eids = thrust::raw_pointer_cast(this->closest_eids_.data());
+    params.best_ys = thrust::raw_pointer_cast(best_ys_.data());
+
 #ifndef NDEBUG
     hit_count_.resize(points_num, 0);
     closer_count_.resize(points_num, 0);
@@ -64,22 +170,23 @@ class PIPRT : public PIP<CONTEXT_T> {
     params.last_update_count = ArrayView<uint32_t>(last_update_count_).data();
     params.fail_update_count = ArrayView<uint32_t>(fail_update_count_).data();
 #endif
+
     rt_engine_->CopyLaunchParams(stream, params);
-    rt_engine_->Render(stream, module_id,
-                       dim3{(unsigned int) points_num, 1, 1});
+    rt_engine_->Render(stream, module_id, dim3{(unsigned int) points_num, 1, 1});
     stream.Sync();
+
 #ifndef NDEBUG
     if (config_.profile) {
       thrust::host_vector<uint32_t> hit_count = hit_count_;
       uint32_t n_tests = 0;
-
-      for (auto& n : hit_count) {
-        n_tests += n;
-      }
+      for (auto& n: hit_count) n_tests += n;
       LOG(INFO) << "Total tests: " << n_tests;
     }
 #endif
   }
+
+  thrust::device_vector<double>& get_best_ys() { return best_ys_; }
+  const thrust::device_vector<double>& get_best_ys() const { return best_ys_; }
 
   void DumpStatistics(const char* path) {
 #ifndef NDEBUG
@@ -89,14 +196,11 @@ class PIPRT : public PIP<CONTEXT_T> {
     thrust::host_vector<uint32_t> fail_update_count = fail_update_count_;
 
     std::ofstream ofs(path);
-
-    ofs << "point_idx,hit_count,closer_count,last_update_count,fail_update_"
-           "count\n";
+    ofs << "point_idx,hit_count,closer_count,last_update_count,fail_update_count\n";
 
     for (size_t point_idx = 0; point_idx < hit_count.size(); point_idx++) {
-      ofs << point_idx << "," << hit_count[point_idx] << ","
-          << closer_count[point_idx] << "," << last_update_count[point_idx]
-          << "," << fail_update_count[point_idx] << "\n";
+      ofs << point_idx << "," << hit_count[point_idx] << "," << closer_count[point_idx] << "," << last_update_count[point_idx] << ","
+          << fail_update_count[point_idx] << "\n";
     }
 
     ofs.close();
@@ -110,6 +214,8 @@ class PIPRT : public PIP<CONTEXT_T> {
  protected:
   std::shared_ptr<RTEngine> rt_engine_;
   QueryConfigRT config_;
+  thrust::device_vector<double> best_ys_;
+
 #ifndef NDEBUG
   thrust::device_vector<uint32_t> hit_count_;
   thrust::device_vector<uint32_t> closer_count_;
@@ -117,7 +223,6 @@ class PIPRT : public PIP<CONTEXT_T> {
   thrust::device_vector<uint32_t> fail_update_count_;
 #endif
 };
-
 }  // namespace rayjoin
 
 #endif  // APP_PIP_RT_H
