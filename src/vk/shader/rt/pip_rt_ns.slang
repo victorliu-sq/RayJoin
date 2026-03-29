@@ -419,7 +419,7 @@ struct HitAttr {
 // Helpers
 // -----------------------------------------------------------------------------
 
-static const double kTieEps = 1.0e-12;
+static const double kTieEps = 1.0e-15;
 
 double min2_d(double a, double b) {
   return (a < b) ? a : b;

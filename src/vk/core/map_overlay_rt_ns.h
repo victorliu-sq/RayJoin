@@ -460,8 +460,10 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
           const auto &x2 = xsect_edges_sorted[begin + local_idx + 1];
 
           point_t mp{};
-          mp.x = static_cast<coord_t>(static_cast<double>(x1.x) + (static_cast<double>(x2.x) - static_cast<double>(x1.x)) * 0.5);
-          mp.y = static_cast<coord_t>(static_cast<double>(x1.y) + (static_cast<double>(x2.y) - static_cast<double>(x1.y)) * 0.5);
+          // mp.x = (x1.x + x2.x) * 0.5;
+          // mp.y = (x1.y + x2.y) * 0.5;
+          mp.x = x1.x + (x2.x - x1.x) * 0.5;
+          mp.y = x1.y + (x2.y - x1.y) * 0.5;
 
           tasks.push_back(MidPointTask{begin + local_idx, mp});
         }
@@ -1234,83 +1236,6 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
     ofs.close();
     LOG(INFO) << "DumpSortedMidPointsCSV: wrote " << path;
   }
-
-  // void DumpMidPointClosestEidsCSV(int query_map_id,
-  //                                 const std::vector<index_t> &unique_eids,
-  //                                 const std::vector<uint32_t> &xsect_index,
-  //                                 const std::vector<xsect_t> &xsect_edges_sorted,
-  //                                 const std::vector<point_t> &mid_points,
-  //                                 const std::vector<index_t> &mid_closest_eids,
-  //                                 const std::string &out_dir,
-  //                                 const std::string &impl_tag) const {
-  //   namespace fs = std::filesystem;
-  //   fs::create_directories(out_dir);
-  //
-  //   const std::string path = out_dir + "/" + impl_tag + "_midpoint_closest_map_" + std::to_string(query_map_id) + ".csv";
-  //
-  //   std::ofstream ofs(path);
-  //   if (!ofs) {
-  //     LOG(ERROR) << "DumpMidPointClosestEidsCSV: failed to open " << path;
-  //     return;
-  //   }
-  //
-  //   constexpr int kDumpDecimals = 7;
-  //   ofs << std::fixed << std::setprecision(kDumpDecimals);
-  //   ofs << "query_map_id,group_idx,eid_self,local_mid_idx,mid_idx,"
-  //          "eid_other_left,eid_other_right,mid_x,mid_y,closest_eid\n";
-  //
-  //   size_t mid_idx = 0;
-  //
-  //   for (size_t group_idx = 0; group_idx < unique_eids.size(); ++group_idx) {
-  //     const uint32_t begin = xsect_index[group_idx];
-  //     const uint32_t end = xsect_index[group_idx + 1];
-  //     const uint32_t n_xsect = end - begin;
-  //
-  //     if (n_xsect <= 1) {
-  //       continue;
-  //     }
-  //
-  //     const index_t eid_self = unique_eids[group_idx];
-  //
-  //     for (uint32_t local_mid_idx = 0; local_mid_idx + 1 < n_xsect; ++local_mid_idx) {
-  //       const uint32_t left_idx = begin + local_mid_idx;
-  //       const uint32_t right_idx = begin + local_mid_idx + 1;
-  //
-  //       if (mid_idx >= mid_points.size() || mid_idx >= mid_closest_eids.size()) {
-  //         LOG(ERROR) << "DumpMidPointClosestEidsCSV: midpoint index overflow";
-  //         ofs.close();
-  //         return;
-  //       }
-  //
-  //       const auto &x1 = xsect_edges_sorted[left_idx];
-  //       const auto &x2 = xsect_edges_sorted[right_idx];
-  //       const auto &mp = mid_points[mid_idx];
-  //       const auto closest_eid = mid_closest_eids[mid_idx];
-  //
-  //       const index_t eid_other_left = static_cast<index_t>((query_map_id == 0) ? x1.eid1 : x1.eid0);
-  //       const index_t eid_other_right = static_cast<index_t>((query_map_id == 0) ? x2.eid1 : x2.eid0);
-  //
-  //       const double mx_dump = TruncateForDump(mp.x, kDumpDecimals);
-  //       const double my_dump = TruncateForDump(mp.y, kDumpDecimals);
-  //
-  //       ofs << query_map_id << "," << group_idx << "," << static_cast<long long>(eid_self) << "," << local_mid_idx << "," << mid_idx << ","
-  //           << static_cast<long long>(eid_other_left) << "," << static_cast<long long>(eid_other_right) << "," << mx_dump << "," << my_dump << ",";
-  //
-  //       if (closest_eid == std::numeric_limits<index_t>::max()) {
-  //         ofs << -1;
-  //       } else {
-  //         ofs << static_cast<long long>(closest_eid);
-  //       }
-  //
-  //       ofs << "\n";
-  //
-  //       ++mid_idx;
-  //     }
-  //   }
-  //
-  //   ofs.close();
-  //   LOG(INFO) << "DumpMidPointClosestEidsCSV: wrote " << path;
-  // }
 
   void DumpMidPointClosestEidsCSV(int query_map_id,
                                   const std::vector<index_t> &unique_eids,

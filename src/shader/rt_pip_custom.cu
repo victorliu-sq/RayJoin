@@ -198,7 +198,7 @@ enum { SURFACE_RAY_TYPE = 0, RAY_TYPE_COUNT };
 extern "C" __constant__ rayjoin::LaunchParamsPIP params;
 
 static __forceinline__ __device__ double pipTieEps() {
-  return 1.0e-12;
+  return 1.0e-15;
 }
 
 static __forceinline__ __device__ bool nearlyEqualD(double a, double b) {
