@@ -394,6 +394,9 @@ StructuredBuffer<PointD> gQueryPoints;
 RWStructuredBuffer<uint> gClosestEids;
 
 [[vk::binding(7, 0)]]
+RWStructuredBuffer<double> gBestYs;
+
+[[vk::binding(8, 0)]]
 RWStructuredBuffer<uint> gDebugCounter;
 
 // -----------------------------------------------------------------------------
@@ -475,8 +478,7 @@ bool computeCandidateY(uint query_map_id, PointD src_p, EdgeD e, out double xsec
   double x_min = min2_d(p1.x, p2.x);
   double x_max = max2_d(p1.x, p2.x);
 
-  if (src_p.x < x_min || src_p.x > x_max ||
-      src_p.x == ((query_map_id == 0) ? x_min : x_max)) {
+  if (src_p.x < x_min || src_p.x > x_max || src_p.x == ((query_map_id == 0) ? x_min : x_max)) {
     xsect_y = 0.0;
     return false;
   }
@@ -489,12 +491,16 @@ bool computeCandidateY(uint query_map_id, PointD src_p, EdgeD e, out double xsec
   xsect_y = (-e.a * src_p.x - e.c) / e.b;
   double diff_y = src_p.y - xsect_y;
 
-  if (diff_y == 0.0) diff_y = (query_map_id == 0) ? -e.a : e.a;
-  if (diff_y == 0.0) diff_y = (query_map_id == 0) ? -e.b : e.b;
-  if (diff_y == 0.0) return false;
+  if (diff_y == 0.0)
+    diff_y = (query_map_id == 0) ? -e.a : e.a;
+  if (diff_y == 0.0)
+    diff_y = (query_map_id == 0) ? -e.b : e.b;
+  if (diff_y == 0.0)
+    return false;
 
   // current point is above the current edge
-  if (diff_y > 0.0) return false;
+  if (diff_y > 0.0)
+    return false;
 
   return true;
 }
@@ -531,6 +537,7 @@ void raygenMain() {
   TraceRay(gScene, RAY_FLAG_NONE, 0xFF, 0, 1, 0, ray, payload);
 
   gClosestEids[point_idx] = payload.bestEid;
+  gBestYs[point_idx] = unpackDoubleFromU32(payload.bestYLow, payload.bestYHigh);
 }
 
 // -----------------------------------------------------------------------------
@@ -564,9 +571,8 @@ void intersectionMain() {
   PointD src_p = gQueryPoints[point_idx];
   EidRange range = gEidRanges[prim_idx];
 
-  // IMPORTANT:
   // Do not locally reduce to one edge here.
-  // Report every valid candidate edge and let anyHit do the global OptiX-like reduction.
+  // Report every valid candidate edge and let anyHit do the global reduction.
   for (uint eid = range.first; eid < range.second; ++eid) {
     EdgeD e = gBaseEdges[eid];
 
@@ -584,7 +590,7 @@ void intersectionMain() {
     uint old6;
     InterlockedAdd(gDebugCounter[6], 1, old6);
 
-    // Constant hit t; we perform full reduction in payload.
+    // Constant hit t; reduction is done in anyHit via payload.bestY.
     ReportHit(0.0, 0, attr);
   }
 }

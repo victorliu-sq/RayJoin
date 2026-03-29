@@ -87,6 +87,9 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
 
       max_n_points = std::max(max_n_points, np);
       max_n_edges = std::max(max_n_edges, ne);
+
+      // besty
+      best_ys_buf_[im].Init(sizeof(double) * np);
     }
 
     // -------------------------------
@@ -188,9 +191,7 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
                               static_cast<uint32_t>(query_map_id),
                               static_cast<uint32_t>(query_map->get_edges_num()),
                               static_cast<uint32_t>(xsect_capacity_));
-
     pass.run();
-
 
     std::string finalize_spv = std::string(SHADER_DIR_NS) + "/lsi_finalize_ns.spv";
     LSIFinalizePassNS finalize_pass(finalize_spv.c_str(),
@@ -237,6 +238,21 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
     std::string rchit_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rchit_ns.spv";
     std::string rmiss_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rmiss_ns.spv";
 
+    // PIPRTPassNS rt_pass(rgen_spv.c_str(),
+    //                     rint_spv.c_str(),
+    //                     rahit_spv.c_str(),
+    //                     rchit_spv.c_str(),
+    //                     rmiss_spv.c_str(),
+    //                     accel_[base_map_id].GetTraverseHandle(),
+    //                     eid_range_buf_[base_map_id],
+    //                     base_map->getPointsBuffer(),
+    //                     base_map->getEdgesBuffer(),
+    //                     query_map->getPointsBuffer(),
+    //                     closest_eids_buf_[query_map_id],
+    //                     pip_debug_counter_buf_[query_map_id],
+    //                     static_cast<uint32_t>(query_map_id),
+    //                     static_cast<uint32_t>(map_point_count_[query_map_id]));
+
     PIPRTPassNS rt_pass(rgen_spv.c_str(),
                         rint_spv.c_str(),
                         rahit_spv.c_str(),
@@ -248,6 +264,7 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
                         base_map->getEdgesBuffer(),
                         query_map->getPointsBuffer(),
                         closest_eids_buf_[query_map_id],
+                        best_ys_buf_[query_map_id],
                         pip_debug_counter_buf_[query_map_id],
                         static_cast<uint32_t>(query_map_id),
                         static_cast<uint32_t>(map_point_count_[query_map_id]));
@@ -959,6 +976,274 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
   //     DumpComputeOutputPolygonsCSV(1, out_dir, "vulkan");
   //   }
   // }
+  // void ComputeOutputPolygons() override {
+  //   using polygon_id_t = index_t;
+  //
+  //   auto &ctx = this->ctx_;
+  //
+  //   auto xcnt = readBackStorageBuffer<uint32_t>(xsect_counter_buf_, 1);
+  //   if (xcnt.empty()) {
+  //     throw std::runtime_error("ComputeOutputPolygons(): failed to read xsect counter");
+  //   }
+  //
+  //   const uint32_t n_xsects = xcnt[0];
+  //   auto xsects_all = readBackStorageBuffer<xsect_t>(xsect_buf_, n_xsects);
+  //   if (xsects_all.size() != n_xsects) {
+  //     throw std::runtime_error("ComputeOutputPolygons(): failed to read xsect buffer");
+  //   }
+  //
+  //   for (int im = 0; im < 2; ++im) {
+  //     const int query_map_id = im;
+  //     const int base_map_id = 1 - im;
+  //
+  //     auto query_map = ctx.get_map(query_map_id);
+  //     auto base_map = ctx.get_map(base_map_id);
+  //
+  //     if (!query_map || !base_map) {
+  //       throw std::runtime_error("ComputeOutputPolygons(): null map");
+  //     }
+  //
+  //     auto &xsect_edges_sorted = xsect_edges_sorted_[im];
+  //     xsect_edges_sorted = xsects_all;
+  //
+  //     if (xsect_edges_sorted.empty()) {
+  //       continue;
+  //     }
+  //
+  //     auto query_edges = readBackStorageBuffer<edge_t>(query_map->getEdgesBuffer(), query_map->get_edges_num());
+  //     auto query_points = readBackStorageBuffer<point_t>(query_map->getPointsBuffer(), query_map->get_points_num());
+  //
+  //     auto query_eid_of = [im](const xsect_t &x) -> uint64_t { return (im == 0) ? x.eid0 : x.eid1; };
+  //
+  //     auto base_eid_of = [im](const xsect_t &x) -> uint64_t { return (im == 0) ? x.eid1 : x.eid0; };
+  //
+  //     std::stable_sort(xsect_edges_sorted.begin(), xsect_edges_sorted.end(), [&](const xsect_t &a, const xsect_t &b) {
+  //       return query_eid_of(a) < query_eid_of(b);
+  //     });
+  //
+  //     std::vector<index_t> unique_eids;
+  //     unique_eids.reserve(xsect_edges_sorted.size());
+  //
+  //     for (const auto &x: xsect_edges_sorted) {
+  //       const index_t eid = static_cast<index_t>(query_eid_of(x));
+  //       if (unique_eids.empty() || unique_eids.back() != eid) {
+  //         unique_eids.push_back(eid);
+  //       }
+  //     }
+  //
+  //     std::vector<uint32_t> xsect_index(unique_eids.size() + 1, 0);
+  //     {
+  //       size_t pos = 0;
+  //       size_t group_idx = 0;
+  //       while (pos < xsect_edges_sorted.size()) {
+  //         const uint64_t eid = query_eid_of(xsect_edges_sorted[pos]);
+  //         size_t end = pos + 1;
+  //         while (end < xsect_edges_sorted.size() && query_eid_of(xsect_edges_sorted[end]) == eid) {
+  //           ++end;
+  //         }
+  //         xsect_index[group_idx + 1] = xsect_index[group_idx] + static_cast<uint32_t>(end - pos);
+  //         pos = end;
+  //         ++group_idx;
+  //       }
+  //     }
+  //
+  //     const uint32_t n_mid_points = xsect_index.back() - static_cast<uint32_t>(unique_eids.size());
+  //
+  //     struct MidPointTask {
+  //       size_t xsect_idx;
+  //       point_t p;
+  //     };
+  //
+  //     std::vector<MidPointTask> tasks;
+  //     tasks.reserve(n_mid_points);
+  //
+  //     for (auto &x: xsect_edges_sorted) {
+  //       x.mid_point_polygon_id = std::numeric_limits<polygon_id_t>::max();
+  //     }
+  //
+  //     auto dist2_from_edge_start = [&](const xsect_t &x) -> long double {
+  //       const uint64_t eid = query_eid_of(x);
+  //       if (eid >= query_edges.size()) {
+  //         return std::numeric_limits<long double>::infinity();
+  //       }
+  //
+  //       const auto &e = query_edges[eid];
+  //       if (e.p1_idx >= query_points.size()) {
+  //         return std::numeric_limits<long double>::infinity();
+  //       }
+  //
+  //       const auto &p1 = query_points[e.p1_idx];
+  //
+  //       const long double dx = static_cast<long double>(x.x) - static_cast<long double>(p1.x);
+  //       const long double dy = static_cast<long double>(x.y) - static_cast<long double>(p1.y);
+  //
+  //       return dx * dx + dy * dy;
+  //     };
+  //
+  //     for (size_t group_idx = 0; group_idx < unique_eids.size(); ++group_idx) {
+  //       const size_t begin = xsect_index[group_idx];
+  //       const size_t end = xsect_index[group_idx + 1];
+  //       const size_t n_xsect = end - begin;
+  //
+  //       if (n_xsect <= 1) {
+  //         continue;
+  //       }
+  //
+  //       struct LocalRef {
+  //         size_t src_idx;
+  //         long double d2;
+  //         uint64_t base_eid;
+  //         long double x;
+  //         long double y;
+  //       };
+  //
+  //       std::vector<LocalRef> refs;
+  //       refs.reserve(n_xsect);
+  //
+  //       for (size_t i = begin; i < end; ++i) {
+  //         const auto &x = xsect_edges_sorted[i];
+  //         refs.push_back(LocalRef{i, dist2_from_edge_start(x), base_eid_of(x), static_cast<long double>(x.x), static_cast<long double>(x.y)});
+  //       }
+  //
+  //       std::stable_sort(refs.begin(), refs.end(), [](const LocalRef &a, const LocalRef &b) {
+  //         if (a.d2 < b.d2) return true;
+  //         if (b.d2 < a.d2) return false;
+  //
+  //         // Revised tie-break: other-map eid low -> high
+  //         if (a.base_eid < b.base_eid) return true;
+  //         if (b.base_eid < a.base_eid) return false;
+  //
+  //         // Additional deterministic tie-breaks
+  //         if (a.x < b.x) return true;
+  //         if (b.x < a.x) return false;
+  //
+  //         if (a.y < b.y) return true;
+  //         if (b.y < a.y) return false;
+  //
+  //         return a.src_idx < b.src_idx;
+  //       });
+  //
+  //       std::vector<xsect_t> reordered;
+  //       reordered.reserve(n_xsect);
+  //       for (const auto &r: refs) {
+  //         reordered.push_back(xsect_edges_sorted[r.src_idx]);
+  //       }
+  //       for (size_t local_idx = 0; local_idx < n_xsect; ++local_idx) {
+  //         xsect_edges_sorted[begin + local_idx] = reordered[local_idx];
+  //       }
+  //
+  //       for (size_t local_idx = 0; local_idx + 1 < n_xsect; ++local_idx) {
+  //         const auto &x1 = xsect_edges_sorted[begin + local_idx];
+  //         const auto &x2 = xsect_edges_sorted[begin + local_idx + 1];
+  //
+  //         point_t mp{};
+  //         mp.x = static_cast<coord_t>(static_cast<double>(x1.x) + (static_cast<double>(x2.x) - static_cast<double>(x1.x)) * 0.5);
+  //         mp.y = static_cast<coord_t>(static_cast<double>(x1.y) + (static_cast<double>(x2.y) - static_cast<double>(x1.y)) * 0.5);
+  //
+  //         tasks.push_back(MidPointTask{begin + local_idx, mp});
+  //       }
+  //     }
+  //
+  //     if (tasks.empty()) {
+  //       continue;
+  //     }
+  //
+  //     std::vector<point_t> host_mid_points;
+  //     host_mid_points.reserve(tasks.size());
+  //     for (const auto &t: tasks) {
+  //       host_mid_points.push_back(t.p);
+  //     }
+  //
+  //     if (rayjoin::ShouldDumpStage(config_.dump_results, "pipmid")) {
+  //       const auto out_dir = rayjoin::DumpSubdir(config_.dump_dir, "results_midpoints");
+  //       DumpSortedMidPointsCSV(query_map_id, unique_eids, xsect_index, xsect_edges_sorted, host_mid_points, out_dir, "vulkan");
+  //     }
+  //
+  //     VkStagingBuf mid_staging(sizeof(point_t) * host_mid_points.size());
+  //     mid_staging.Host2Stage(host_mid_points);
+  //
+  //     VkDeviceBuf mid_points_buf;
+  //     mid_points_buf.Init(sizeof(point_t) * host_mid_points.size());
+  //     mid_staging.Stage2Device(mid_points_buf, sizeof(point_t) * host_mid_points.size());
+  //
+  //     std::string rgen_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rgen_ns.spv";
+  //     std::string rint_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rint_ns.spv";
+  //     std::string rahit_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rahit_ns.spv";
+  //     std::string rchit_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rchit_ns.spv";
+  //     std::string rmiss_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rmiss_ns.spv";
+  //
+  //     VkDeviceBuf mid_closest_eids_buf;
+  //     mid_closest_eids_buf.Init(sizeof(index_t) * tasks.size());
+  //
+  //     VkDeviceBuf mid_debug_counter_buf;
+  //     mid_debug_counter_buf.Init(sizeof(uint32_t) * 8);
+  //
+  //     PIPRTPassNS rt_pass(rgen_spv.c_str(),
+  //                         rint_spv.c_str(),
+  //                         rahit_spv.c_str(),
+  //                         rchit_spv.c_str(),
+  //                         rmiss_spv.c_str(),
+  //                         accel_[base_map_id].GetTraverseHandle(),
+  //                         eid_range_buf_[base_map_id],
+  //                         base_map->getPointsBuffer(),
+  //                         base_map->getEdgesBuffer(),
+  //                         mid_points_buf,
+  //                         mid_closest_eids_buf,
+  //                         mid_debug_counter_buf,
+  //                         static_cast<uint32_t>(query_map_id),
+  //                         static_cast<uint32_t>(tasks.size()));
+  //
+  //     rt_pass.run();
+  //
+  //
+  //     // =========================================================================================
+  //     // Jiaxin Patch => Midpoint closest eids
+  //     auto mid_closest_eids = readBackStorageBuffer<index_t>(mid_closest_eids_buf, tasks.size());
+  //     if (mid_closest_eids.size() != tasks.size()) {
+  //       throw std::runtime_error("ComputeOutputPolygons(): failed to read midpoint closest eids");
+  //     }
+  //
+  //     if (rayjoin::ShouldDumpStage(config_.dump_results, "pipmid")) {
+  //       DumpMidPointClosestEidsCSV(query_map_id,
+  //                                  unique_eids,
+  //                                  xsect_index,
+  //                                  xsect_edges_sorted,
+  //                                  host_mid_points,
+  //                                  mid_closest_eids,
+  //                                  rayjoin::DumpSubdir(config_.dump_dir, "results_midpoint_closest"),
+  //                                  "vulkan");
+  //     }
+  //     // =========================================================================================
+  //
+  //     VkDeviceBuf mid_point_in_polygon_buf;
+  //     mid_point_in_polygon_buf.Init(sizeof(index_t) * tasks.size());
+  //
+  //     std::string finalize_spv = std::string(SHADER_DIR_NS) + "/pip_finalize_ns.spv";
+  //     PIPFinalizePassNS finalize_pass(finalize_spv.c_str(),
+  //                                     static_cast<uint32_t>(tasks.size()),
+  //                                     static_cast<uint32_t>(EXTERIOR_FACE_ID),
+  //                                     base_map->getEdgesBuffer(),
+  //                                     base_map->getPointsBuffer(),
+  //                                     mid_closest_eids_buf,
+  //                                     mid_point_in_polygon_buf);
+  //     finalize_pass.run();
+  //
+  //     auto mid_poly_ids = readBackStorageBuffer<polygon_id_t>(mid_point_in_polygon_buf, tasks.size());
+  //     if (mid_poly_ids.size() != tasks.size()) {
+  //       throw std::runtime_error("ComputeOutputPolygons(): failed to read midpoint polygon ids");
+  //     }
+  //
+  //     for (size_t i = 0; i < tasks.size(); ++i) {
+  //       xsect_edges_sorted[tasks[i].xsect_idx].mid_point_polygon_id = static_cast<polygon_id_t>(mid_poly_ids[i]);
+  //     }
+  //   }
+  //
+  //   if (rayjoin::ShouldDumpStage(config_.dump_results, "pipmid")) {
+  //     const auto out_dir = rayjoin::DumpSubdir(config_.dump_dir, "results_mid");
+  //     DumpComputeOutputPolygonsCSV(0, out_dir, "vulkan");
+  //     DumpComputeOutputPolygonsCSV(1, out_dir, "vulkan");
+  //   }
+  // }
   void ComputeOutputPolygons() override {
     using polygon_id_t = index_t;
 
@@ -1092,11 +1377,9 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
           if (a.d2 < b.d2) return true;
           if (b.d2 < a.d2) return false;
 
-          // Revised tie-break: other-map eid low -> high
           if (a.base_eid < b.base_eid) return true;
           if (b.base_eid < a.base_eid) return false;
 
-          // Additional deterministic tie-breaks
           if (a.x < b.x) return true;
           if (b.x < a.x) return false;
 
@@ -1158,6 +1441,9 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
       VkDeviceBuf mid_closest_eids_buf;
       mid_closest_eids_buf.Init(sizeof(index_t) * tasks.size());
 
+      VkDeviceBuf mid_best_ys_buf;
+      mid_best_ys_buf.Init(sizeof(double) * tasks.size());
+
       VkDeviceBuf mid_debug_counter_buf;
       mid_debug_counter_buf.Init(sizeof(uint32_t) * 8);
 
@@ -1172,18 +1458,21 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
                           base_map->getEdgesBuffer(),
                           mid_points_buf,
                           mid_closest_eids_buf,
+                          mid_best_ys_buf,
                           mid_debug_counter_buf,
                           static_cast<uint32_t>(query_map_id),
                           static_cast<uint32_t>(tasks.size()));
 
       rt_pass.run();
 
-
-      // =========================================================================================
-      // Jiaxin Patch => Midpoint closest eids
       auto mid_closest_eids = readBackStorageBuffer<index_t>(mid_closest_eids_buf, tasks.size());
       if (mid_closest_eids.size() != tasks.size()) {
         throw std::runtime_error("ComputeOutputPolygons(): failed to read midpoint closest eids");
+      }
+
+      auto mid_best_ys = readBackStorageBuffer<double>(mid_best_ys_buf, tasks.size());
+      if (mid_best_ys.size() != tasks.size()) {
+        throw std::runtime_error("ComputeOutputPolygons(): failed to read midpoint best ys");
       }
 
       if (rayjoin::ShouldDumpStage(config_.dump_results, "pipmid")) {
@@ -1193,10 +1482,10 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
                                    xsect_edges_sorted,
                                    host_mid_points,
                                    mid_closest_eids,
+                                   mid_best_ys,
                                    rayjoin::DumpSubdir(config_.dump_dir, "results_midpoint_closest"),
                                    "vulkan");
       }
-      // =========================================================================================
 
       VkDeviceBuf mid_point_in_polygon_buf;
       mid_point_in_polygon_buf.Init(sizeof(index_t) * tasks.size());
@@ -1227,6 +1516,7 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
       DumpComputeOutputPolygonsCSV(1, out_dir, "vulkan");
     }
   }
+
 
   void WriteResult(const char *path) override {
     using polygon_id_t = index_t;
@@ -1436,6 +1726,9 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
 
   // pip_debug
   VkDeviceBuf pip_debug_counter_buf_[2];
+
+  // besty
+  std::array<VkDeviceBuf, 2> best_ys_buf_;
 
   // --------------------------------
   // Build Index
@@ -1885,12 +2178,90 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
     LOG(INFO) << "DumpSortedMidPointsCSV: wrote " << path;
   }
 
+  // void DumpMidPointClosestEidsCSV(int query_map_id,
+  //                                 const std::vector<index_t> &unique_eids,
+  //                                 const std::vector<uint32_t> &xsect_index,
+  //                                 const std::vector<xsect_t> &xsect_edges_sorted,
+  //                                 const std::vector<point_t> &mid_points,
+  //                                 const std::vector<index_t> &mid_closest_eids,
+  //                                 const std::string &out_dir,
+  //                                 const std::string &impl_tag) const {
+  //   namespace fs = std::filesystem;
+  //   fs::create_directories(out_dir);
+  //
+  //   const std::string path = out_dir + "/" + impl_tag + "_midpoint_closest_map_" + std::to_string(query_map_id) + ".csv";
+  //
+  //   std::ofstream ofs(path);
+  //   if (!ofs) {
+  //     LOG(ERROR) << "DumpMidPointClosestEidsCSV: failed to open " << path;
+  //     return;
+  //   }
+  //
+  //   constexpr int kDumpDecimals = 7;
+  //   ofs << std::fixed << std::setprecision(kDumpDecimals);
+  //   ofs << "query_map_id,group_idx,eid_self,local_mid_idx,mid_idx,"
+  //          "eid_other_left,eid_other_right,mid_x,mid_y,closest_eid\n";
+  //
+  //   size_t mid_idx = 0;
+  //
+  //   for (size_t group_idx = 0; group_idx < unique_eids.size(); ++group_idx) {
+  //     const uint32_t begin = xsect_index[group_idx];
+  //     const uint32_t end = xsect_index[group_idx + 1];
+  //     const uint32_t n_xsect = end - begin;
+  //
+  //     if (n_xsect <= 1) {
+  //       continue;
+  //     }
+  //
+  //     const index_t eid_self = unique_eids[group_idx];
+  //
+  //     for (uint32_t local_mid_idx = 0; local_mid_idx + 1 < n_xsect; ++local_mid_idx) {
+  //       const uint32_t left_idx = begin + local_mid_idx;
+  //       const uint32_t right_idx = begin + local_mid_idx + 1;
+  //
+  //       if (mid_idx >= mid_points.size() || mid_idx >= mid_closest_eids.size()) {
+  //         LOG(ERROR) << "DumpMidPointClosestEidsCSV: midpoint index overflow";
+  //         ofs.close();
+  //         return;
+  //       }
+  //
+  //       const auto &x1 = xsect_edges_sorted[left_idx];
+  //       const auto &x2 = xsect_edges_sorted[right_idx];
+  //       const auto &mp = mid_points[mid_idx];
+  //       const auto closest_eid = mid_closest_eids[mid_idx];
+  //
+  //       const index_t eid_other_left = static_cast<index_t>((query_map_id == 0) ? x1.eid1 : x1.eid0);
+  //       const index_t eid_other_right = static_cast<index_t>((query_map_id == 0) ? x2.eid1 : x2.eid0);
+  //
+  //       const double mx_dump = TruncateForDump(mp.x, kDumpDecimals);
+  //       const double my_dump = TruncateForDump(mp.y, kDumpDecimals);
+  //
+  //       ofs << query_map_id << "," << group_idx << "," << static_cast<long long>(eid_self) << "," << local_mid_idx << "," << mid_idx << ","
+  //           << static_cast<long long>(eid_other_left) << "," << static_cast<long long>(eid_other_right) << "," << mx_dump << "," << my_dump << ",";
+  //
+  //       if (closest_eid == std::numeric_limits<index_t>::max()) {
+  //         ofs << -1;
+  //       } else {
+  //         ofs << static_cast<long long>(closest_eid);
+  //       }
+  //
+  //       ofs << "\n";
+  //
+  //       ++mid_idx;
+  //     }
+  //   }
+  //
+  //   ofs.close();
+  //   LOG(INFO) << "DumpMidPointClosestEidsCSV: wrote " << path;
+  // }
+
   void DumpMidPointClosestEidsCSV(int query_map_id,
                                   const std::vector<index_t> &unique_eids,
                                   const std::vector<uint32_t> &xsect_index,
                                   const std::vector<xsect_t> &xsect_edges_sorted,
                                   const std::vector<point_t> &mid_points,
                                   const std::vector<index_t> &mid_closest_eids,
+                                  const std::vector<double> &mid_best_ys,
                                   const std::string &out_dir,
                                   const std::string &impl_tag) const {
     namespace fs = std::filesystem;
@@ -1907,7 +2278,7 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
     constexpr int kDumpDecimals = 7;
     ofs << std::fixed << std::setprecision(kDumpDecimals);
     ofs << "query_map_id,group_idx,eid_self,local_mid_idx,mid_idx,"
-           "eid_other_left,eid_other_right,mid_x,mid_y,closest_eid\n";
+           "eid_other_left,eid_other_right,mid_x,mid_y,closest_eid,best_y\n";
 
     size_t mid_idx = 0;
 
@@ -1926,7 +2297,7 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
         const uint32_t left_idx = begin + local_mid_idx;
         const uint32_t right_idx = begin + local_mid_idx + 1;
 
-        if (mid_idx >= mid_points.size() || mid_idx >= mid_closest_eids.size()) {
+        if (mid_idx >= mid_points.size() || mid_idx >= mid_closest_eids.size() || mid_idx >= mid_best_ys.size()) {
           LOG(ERROR) << "DumpMidPointClosestEidsCSV: midpoint index overflow";
           ofs.close();
           return;
@@ -1936,15 +2307,14 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
         const auto &x2 = xsect_edges_sorted[right_idx];
         const auto &mp = mid_points[mid_idx];
         const auto closest_eid = mid_closest_eids[mid_idx];
+        const auto best_y = mid_best_ys[mid_idx];
 
         const index_t eid_other_left = static_cast<index_t>((query_map_id == 0) ? x1.eid1 : x1.eid0);
         const index_t eid_other_right = static_cast<index_t>((query_map_id == 0) ? x2.eid1 : x2.eid0);
 
-        const double mx_dump = TruncateForDump(mp.x, kDumpDecimals);
-        const double my_dump = TruncateForDump(mp.y, kDumpDecimals);
-
         ofs << query_map_id << "," << group_idx << "," << static_cast<long long>(eid_self) << "," << local_mid_idx << "," << mid_idx << ","
-            << static_cast<long long>(eid_other_left) << "," << static_cast<long long>(eid_other_right) << "," << mx_dump << "," << my_dump << ",";
+            << static_cast<long long>(eid_other_left) << "," << static_cast<long long>(eid_other_right) << "," << TruncateForDump(mp.x, kDumpDecimals)
+            << "," << TruncateForDump(mp.y, kDumpDecimals) << ",";
 
         if (closest_eid == std::numeric_limits<index_t>::max()) {
           ofs << -1;
@@ -1952,7 +2322,7 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
           ofs << static_cast<long long>(closest_eid);
         }
 
-        ofs << "\n";
+        ofs << "," << TruncateForDump(best_y, kDumpDecimals) << "\n";
 
         ++mid_idx;
       }
