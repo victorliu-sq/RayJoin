@@ -795,7 +795,6 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
   AccelStructScene accel_[2];
   void DebugPrintAABBs(std::shared_ptr<map_t> map, const VkDeviceBuf &aabbBuf, const VkDeviceBuf &eidRangeBuf, uint32_t edge_count) const {
     const uint32_t checkCount = std::min<uint32_t>(edge_count, 10);
-
     auto gpuAABBs = readBackStorageBuffer<VkAabbPositionsKHR>(aabbBuf, checkCount);
     auto gpuRanges = readBackStorageBuffer<EidRange>(eidRangeBuf, checkCount);
     auto gpuEdges = readBackStorageBuffer<edge_t>(map->getEdgesBuffer(), edge_count);

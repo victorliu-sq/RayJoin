@@ -197,22 +197,6 @@ enum { SURFACE_RAY_TYPE = 0, RAY_TYPE_COUNT };
 
 extern "C" __constant__ rayjoin::LaunchParamsPIP params;
 
-static __forceinline__ __device__ double pipTieEps() {
-  return 1.0e-15;
-}
-
-static __forceinline__ __device__ bool nearlyEqualD(double a, double b) {
-  return fabs(a - b) <= pipTieEps();
-}
-
-static __forceinline__ __device__ bool definitelyLessD(double a, double b) {
-  return a < (b - pipTieEps());
-}
-
-static __forceinline__ __device__ bool definitelyGreaterD(double a, double b) {
-  return a > (b + pipTieEps());
-}
-
 extern "C" __global__ void __intersection__pip_custom() {
   using coefficient_t = rayjoin::coefficient_t;
   using internal_coord_t = typename rayjoin::LaunchParamsPIP::internal_coord_t;
@@ -248,8 +232,8 @@ extern "C" __global__ void __intersection__pip_custom() {
     auto x_max = max(p1.x, p2.x);
 
     /*
-     * Is point outside x bounds of this edge?  Use simulation of simplicity:
-     * shift map 1 by epsilon relative to map 0.  This also eliminates vertical
+     * Is point outside x bounds of this edge? Use simulation of simplicity:
+     * shift map 1 by epsilon relative to map 0. This also eliminates vertical
      * edges.
      */
     if (x_src_p < x_min || x_src_p > x_max ||
@@ -279,19 +263,19 @@ extern "C" __global__ void __intersection__pip_custom() {
       continue;
     }
 
-    if (definitelyGreaterD(xsect_y, best_y)) {
+    if (xsect_y > best_y) {
 #ifndef NDEBUG
       params.fail_update_count[point_idx]++;
 #endif
       continue;
     }
 
-    if (nearlyEqualD(xsect_y, best_y)) {
+    if (xsect_y == best_y) {
       auto& best_e = params.base_map_edges[best_e_eid];
       auto current_e_slope = (double)e.a / e.b;
       auto best_e_slope = (double)best_e.a / best_e.b;
 
-      if (!nearlyEqualD(current_e_slope, best_e_slope)) {
+      if (current_e_slope != best_e_slope) {
         bool flag = current_e_slope > best_e_slope;
 
         /* If im==0 we want the bigger slope, if im==1, the smaller. */
@@ -351,30 +335,16 @@ extern "C" __global__ void __raygen__pip_custom() {
     ray_origin.y = static_cast<float>(y);
     ray_origin.z = 0;
 
-    // optixTrace(params.traversable, ray_origin, ray_dir,
-    //            tmin,
-    //            tmax,
-    //            0,
-    //            OptixVisibilityMask(255),
-    //            OPTIX_RAY_FLAG_NONE,
-    //            SURFACE_RAY_TYPE,
-    //            RAY_TYPE_COUNT,
-    //            SURFACE_RAY_TYPE,
-    //            point_idx, best_y_storage.x, best_y_storage.y, best_e_eid);
-
-    // params.closest_eids[point_idx] = best_e_eid;
-
-    // Patch-Best y
     optixTrace(params.traversable, ray_origin, ray_dir,
-              tmin,
-              tmax,
-              0,
-              OptixVisibilityMask(255),
-              OPTIX_RAY_FLAG_NONE,
-              SURFACE_RAY_TYPE,
-              RAY_TYPE_COUNT,
-              SURFACE_RAY_TYPE,
-              point_idx, best_y_storage.x, best_y_storage.y, best_e_eid);
+               tmin,
+               tmax,
+               0,
+               OptixVisibilityMask(255),
+               OPTIX_RAY_FLAG_NONE,
+               SURFACE_RAY_TYPE,
+               RAY_TYPE_COUNT,
+               SURFACE_RAY_TYPE,
+               point_idx, best_y_storage.x, best_y_storage.y, best_e_eid);
 
     double traced_best_y;
     unpack64(best_y_storage.x, best_y_storage.y, &traced_best_y);
