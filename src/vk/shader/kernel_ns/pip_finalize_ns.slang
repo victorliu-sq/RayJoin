@@ -24,26 +24,26 @@ struct LaunchParamsPIPFinalize {
   uint _pad1;
 };
 
-[[vk::binding(0, 0)]]
-StructuredBuffer<LaunchParamsPIPFinalize> gParamsBuf;
+[[vk::push_constant]]
+ConstantBuffer<LaunchParamsPIPFinalize> gParams;
 
-[[vk::binding(1, 0)]]
+[[vk::binding(0, 0)]]
 StructuredBuffer<EdgeD> gBaseEdges;
 
-[[vk::binding(2, 0)]]
+[[vk::binding(1, 0)]]
 StructuredBuffer<PointD> gBasePoints;
 
-[[vk::binding(3, 0)]]
+[[vk::binding(2, 0)]]
 StructuredBuffer<uint> gClosestEids;
 
-[[vk::binding(4, 0)]]
+[[vk::binding(3, 0)]]
 RWStructuredBuffer<uint> gPointInPolygon;
 
 [shader("compute")]
 [numthreads(256, 1, 1)]
 void main(uint3 tid: SV_DispatchThreadID) {
   uint idx = tid.x;
-  LaunchParamsPIPFinalize params = gParamsBuf[0];
+  LaunchParamsPIPFinalize params = gParams;
 
   if (idx >= params.point_count)
     return;
@@ -59,7 +59,6 @@ void main(uint3 tid: SV_DispatchThreadID) {
   PointD p1 = gBasePoints[uint(e.p1_idx)];
   PointD p2 = gBasePoints[uint(e.p2_idx)];
 
-  // Same rule as DeviceObject::get_face_id(e)
   uint poly_id = (p1.x < p2.x) ? uint(e.right_polygon_id) : uint(e.left_polygon_id);
 
   gPointInPolygon[idx] = poly_id;

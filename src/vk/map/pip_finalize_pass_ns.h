@@ -13,6 +13,7 @@
 
 namespace rayjoin {
 namespace vk {
+
 class PIPFinalizePassNS : public VkComputeEngineBase {
  public:
   struct LaunchParamsPIPFinalize {
@@ -35,7 +36,6 @@ class PIPFinalizePassNS : public VkComputeEngineBase {
     createPipelineLayout();
     createPipeline(spv_path);
     allocateDescriptors();
-    uploadParams();
     recordDescriptors();
   }
 
@@ -66,7 +66,7 @@ class PIPFinalizePassNS : public VkComputeEngineBase {
 
   void allocateDescriptors() override {
     VkDescriptorPoolSize sizes[1]{};
-    sizes[0] = {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 5};
+    sizes[0] = {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 4};
 
     VkDescriptorPoolCreateInfo pi{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
     pi.maxSets = 1;
@@ -84,13 +84,12 @@ class PIPFinalizePassNS : public VkComputeEngineBase {
   }
 
   void recordDescriptors() override {
-    VkDescriptorBufferInfo paramsInfo{m_paramsBuf.Buf(), 0, sizeof(LaunchParamsPIPFinalize)};
     VkDescriptorBufferInfo baseEdgesInfo{m_baseEdgesBuf.Buf(), 0, VK_WHOLE_SIZE};
     VkDescriptorBufferInfo basePointsInfo{m_basePointsBuf.Buf(), 0, VK_WHOLE_SIZE};
     VkDescriptorBufferInfo closestEidsInfo{m_closestEidsBuf.Buf(), 0, VK_WHOLE_SIZE};
     VkDescriptorBufferInfo pointInPolygonInfo{m_pointInPolygonBuf.Buf(), 0, VK_WHOLE_SIZE};
 
-    VkWriteDescriptorSet wr[5]{};
+    VkWriteDescriptorSet wr[4]{};
 
     auto set_sb = [&](int i, uint32_t binding, VkDescriptorBufferInfo* info) {
       wr[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -101,18 +100,19 @@ class PIPFinalizePassNS : public VkComputeEngineBase {
       wr[i].pBufferInfo = info;
     };
 
-    set_sb(0, 0, &paramsInfo);
-    set_sb(1, 1, &baseEdgesInfo);
-    set_sb(2, 2, &basePointsInfo);
-    set_sb(3, 3, &closestEidsInfo);
-    set_sb(4, 4, &pointInPolygonInfo);
+    set_sb(0, 0, &baseEdgesInfo);
+    set_sb(1, 1, &basePointsInfo);
+    set_sb(2, 2, &closestEidsInfo);
+    set_sb(3, 3, &pointInPolygonInfo);
 
-    vkUpdateDescriptorSets(m_ctx.device, 5, wr, 0, nullptr);
+    vkUpdateDescriptorSets(m_ctx.device, 4, wr, 0, nullptr);
   }
 
   void recordDispatch(VkCommandBuffer cmd) override {
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeline);
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeLayout, 0, 1, &m_descSet, 0, nullptr);
+
+    vkCmdPushConstants(cmd, m_pipeLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(LaunchParamsPIPFinalize), &m_params);
 
     const uint32_t groupCountX = (m_params.point_count + 255u) / 256u;
     vkCmdDispatch(cmd, groupCountX, 1, 1);
@@ -120,37 +120,33 @@ class PIPFinalizePassNS : public VkComputeEngineBase {
 
  private:
   void createDescriptorSetLayout() {
-    VkDescriptorSetLayoutBinding bindings[5]{};
+    VkDescriptorSetLayoutBinding bindings[4]{};
 
     bindings[0] = MakeBinding(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT);
     bindings[1] = MakeBinding(1, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT);
     bindings[2] = MakeBinding(2, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT);
     bindings[3] = MakeBinding(3, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT);
-    bindings[4] = MakeBinding(4, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1, VK_SHADER_STAGE_COMPUTE_BIT);
 
     VkDescriptorSetLayoutCreateInfo ci{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
-    ci.bindingCount = 5;
+    ci.bindingCount = 4;
     ci.pBindings = bindings;
 
     VK_CHECK(vkCreateDescriptorSetLayout(m_ctx.device, &ci, nullptr, &m_setLayout));
   }
 
   void createPipelineLayout() {
+    VkPushConstantRange pcr{};
+    pcr.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    pcr.offset = 0;
+    pcr.size = sizeof(LaunchParamsPIPFinalize);
+
     VkPipelineLayoutCreateInfo ci{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
     ci.setLayoutCount = 1;
     ci.pSetLayouts = &m_setLayout;
+    ci.pushConstantRangeCount = 1;
+    ci.pPushConstantRanges = &pcr;
 
     VK_CHECK(vkCreatePipelineLayout(m_ctx.device, &ci, nullptr, &m_pipeLayout));
-  }
-
-  void uploadParams() {
-    m_paramsBuf.Init(sizeof(LaunchParamsPIPFinalize));
-
-    VkStagingBuf staging(sizeof(LaunchParamsPIPFinalize));
-    std::vector<uint8_t> bytes(sizeof(LaunchParamsPIPFinalize));
-    std::memcpy(bytes.data(), &m_params, sizeof(LaunchParamsPIPFinalize));
-    staging.Host2Stage(bytes);
-    staging.Stage2Device(m_paramsBuf, sizeof(LaunchParamsPIPFinalize));
   }
 
   static VkDescriptorSetLayoutBinding MakeBinding(uint32_t binding, VkDescriptorType type, uint32_t count, VkShaderStageFlags stages) {
@@ -169,10 +165,9 @@ class PIPFinalizePassNS : public VkComputeEngineBase {
   const VkDeviceBuf& m_pointInPolygonBuf;
 
   LaunchParamsPIPFinalize m_params{};
-  VkDeviceBuf m_paramsBuf{};
 };
+
 }  // namespace vk
 }  // namespace rayjoin
-
 
 #endif  // RAYJOIN_PIP_FINALIZE_PASS_NS_H

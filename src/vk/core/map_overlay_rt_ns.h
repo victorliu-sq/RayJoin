@@ -5,7 +5,7 @@
 #include "query_config.h"
 #include "vk/core/lsi_rt.h"
 #include "vk/engine/vk_buffer.h"
-#include "vk/map/lsi_finalize_pass_ns.h"
+#include "vk/map/_NOUSE_lsi_finalize_pass_ns.h"
 #include "vk/map/lsi_rt_pass.h"
 #include "vk/map/map.h"
 #include "vk/map/pip_finalize_pass_ns.h"
@@ -199,18 +199,40 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
                               static_cast<uint32_t>(xsect_capacity_));
     pass.run();
 
+    // std::string finalize_spv = std::string(SHADER_DIR_NS) + "/lsi_finalize_ns.spv";
+    // LSIFinalizePassNS finalize_pass(finalize_spv.c_str(),
+    //                                 static_cast<uint32_t>(query_map_id),
+    //                                 static_cast<uint32_t>(query_map->get_edges_num()),
+    //                                 static_cast<uint32_t>(xsect_capacity_),
+    //                                 base_map->getEdgesBuffer(),
+    //                                 base_map->getPointsBuffer(),
+    //                                 query_map->getEdgesBuffer(),
+    //                                 query_map->getPointsBuffer(),
+    //                                 xsect_buf_,
+    //                                 xsect_counter_buf_);
+    // finalize_pass.run();
+
     std::string finalize_spv = std::string(SHADER_DIR_NS) + "/lsi_finalize_ns.spv";
-    LSIFinalizePassNS finalize_pass(finalize_spv.c_str(),
-                                    static_cast<uint32_t>(query_map_id),
-                                    static_cast<uint32_t>(query_map->get_edges_num()),
-                                    static_cast<uint32_t>(xsect_capacity_),
-                                    base_map->getEdgesBuffer(),
-                                    base_map->getPointsBuffer(),
-                                    query_map->getEdgesBuffer(),
-                                    query_map->getPointsBuffer(),
-                                    xsect_buf_,
-                                    xsect_counter_buf_);
-    finalize_pass.run();
+
+    struct LaunchParamsLSI {
+      int32_t query_map_id;
+      uint32_t query_edge_count;
+      uint32_t xsect_capacity;
+      uint32_t _pad0;
+    };
+
+    RunComputePass(static_cast<uint32_t>(xsect_capacity_),
+                   finalize_spv.c_str(),
+                   LaunchParamsLSI{.query_map_id = query_map_id,
+                                   .query_edge_count = static_cast<uint32_t>(query_map->get_edges_num()),
+                                   .xsect_capacity = static_cast<uint32_t>(xsect_capacity_),
+                                   ._pad0 = 0u},
+                   base_map->getEdgesBuffer(),
+                   base_map->getPointsBuffer(),
+                   query_map->getEdgesBuffer(),
+                   query_map->getPointsBuffer(),
+                   xsect_buf_,
+                   xsect_counter_buf_);
 
     // this->DebugPrintLSIProfiling(query_map_id);
     // this->DebugPrintIntersectionsDetailed(query_map_id);
@@ -282,17 +304,37 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
     // ------------------------------------------------------------
     // Finalize pass: closest_eid -> polygon_id
     // ------------------------------------------------------------
+    // std::string finalize_spv = std::string(SHADER_DIR_NS) + "/pip_finalize_ns.spv";
+
+    // PIPFinalizePassNS finalize_pass(finalize_spv.c_str(),
+    //                                 static_cast<uint32_t>(map_point_count_[query_map_id]),
+    //                                 static_cast<uint32_t>(EXTERIOR_FACE_ID),
+    //                                 base_map->getEdgesBuffer(),
+    //                                 base_map->getPointsBuffer(),
+    //                                 closest_eids_buf_[query_map_id],
+    //                                 point_in_polygon_buf_[query_map_id]);
+    //
+    // finalize_pass.run();
+
     std::string finalize_spv = std::string(SHADER_DIR_NS) + "/pip_finalize_ns.spv";
 
-    PIPFinalizePassNS finalize_pass(finalize_spv.c_str(),
-                                    static_cast<uint32_t>(map_point_count_[query_map_id]),
-                                    static_cast<uint32_t>(EXTERIOR_FACE_ID),
-                                    base_map->getEdgesBuffer(),
-                                    base_map->getPointsBuffer(),
-                                    closest_eids_buf_[query_map_id],
-                                    point_in_polygon_buf_[query_map_id]);
+    struct LaunchParamsPIPFinalize {
+      uint32_t point_count;
+      uint32_t exterior_face_id;
+      uint32_t _pad0;
+      uint32_t _pad1;
+    };
 
-    finalize_pass.run();
+    RunComputePass(static_cast<uint32_t>(map_point_count_[query_map_id]),
+                   finalize_spv.c_str(),
+                   LaunchParamsPIPFinalize{.point_count = static_cast<uint32_t>(map_point_count_[query_map_id]),
+                                           .exterior_face_id = static_cast<uint32_t>(EXTERIOR_FACE_ID),
+                                           ._pad0 = 0u,
+                                           ._pad1 = 0u},
+                   base_map->getEdgesBuffer(),
+                   base_map->getPointsBuffer(),
+                   closest_eids_buf_[query_map_id],
+                   point_in_polygon_buf_[query_map_id]);
 
     // Compare results from Vulkan and Optix
     // DumpPIPResultsCSV(query_map_id, "tmp/results_pip", "vulkan");
