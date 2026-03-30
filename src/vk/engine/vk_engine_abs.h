@@ -53,11 +53,11 @@ class VkComputeEngineBase {
   VkDescriptorSet m_descSet = VK_NULL_HANDLE;
 };
 
-class VkRayTracingEngine {
+class VkRTEngineBase {
  public:
-  VkRayTracingEngine() : m_ctx(GetVkComputeContext()) {}
+  VkRTEngineBase() : m_ctx(GetVkComputeContext()) {}
 
-  virtual ~VkRayTracingEngine() {
+  virtual ~VkRTEngineBase() {
     if (m_pipeline) vkDestroyPipeline(m_ctx.device, m_pipeline, nullptr);
     if (m_pipeLayout) vkDestroyPipelineLayout(m_ctx.device, m_pipeLayout, nullptr);
     if (m_setLayout) vkDestroyDescriptorSetLayout(m_ctx.device, m_setLayout, nullptr);
