@@ -10,7 +10,6 @@
 
 namespace rayjoin {
 namespace vk {
-
 class LSIFinalizePassNS : public VkComputeEngineBase {
  public:
   struct LaunchParamsLSI {
@@ -35,15 +34,14 @@ class LSIFinalizePassNS : public VkComputeEngineBase {
       m_params{static_cast<int32_t>(query_map_id), query_edge_count, xsect_capacity, 0}, m_xsectCapacity(xsect_capacity) {
     createPipeline(spvPath);
     allocateDescriptors();
-    uploadParams();
     recordDescriptors();
   }
 
  protected:
   void createPipeline(const char* spvPath) override {
-    VkDescriptorSetLayoutBinding b[7]{};
+    VkDescriptorSetLayoutBinding b[6]{};
 
-    for (uint32_t i = 0; i < 7; ++i) {
+    for (uint32_t i = 0; i < 6; ++i) {
       b[i].binding = i;
       b[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
       b[i].descriptorCount = 1;
@@ -52,15 +50,22 @@ class LSIFinalizePassNS : public VkComputeEngineBase {
 
     VkDescriptorSetLayoutCreateInfo dsl{};
     dsl.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    dsl.bindingCount = 7;
+    dsl.bindingCount = 6;
     dsl.pBindings = b;
 
     VK_CHECK(vkCreateDescriptorSetLayout(m_ctx.device, &dsl, nullptr, &m_setLayout));
+
+    VkPushConstantRange pcr{};
+    pcr.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    pcr.offset = 0;
+    pcr.size = sizeof(LaunchParamsLSI);
 
     VkPipelineLayoutCreateInfo pl{};
     pl.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pl.setLayoutCount = 1;
     pl.pSetLayouts = &m_setLayout;
+    pl.pushConstantRangeCount = 1;
+    pl.pPushConstantRanges = &pcr;
 
     VK_CHECK(vkCreatePipelineLayout(m_ctx.device, &pl, nullptr, &m_pipeLayout));
 
@@ -89,7 +94,7 @@ class LSIFinalizePassNS : public VkComputeEngineBase {
 
   void allocateDescriptors() override {
     VkDescriptorPoolSize sizes[] = {
-        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 7},
+        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 6},
     };
 
     VkDescriptorPoolCreateInfo ci{};
@@ -110,7 +115,6 @@ class LSIFinalizePassNS : public VkComputeEngineBase {
   }
 
   void recordDescriptors() override {
-    VkDescriptorBufferInfo paramsInfo{m_paramsDev.Buf(), 0, VK_WHOLE_SIZE};
     VkDescriptorBufferInfo baseEdgesInfo{m_baseEdgesDev.Buf(), 0, VK_WHOLE_SIZE};
     VkDescriptorBufferInfo basePointsInfo{m_basePointsDev.Buf(), 0, VK_WHOLE_SIZE};
     VkDescriptorBufferInfo queryEdgesInfo{m_queryEdgesDev.Buf(), 0, VK_WHOLE_SIZE};
@@ -118,8 +122,8 @@ class LSIFinalizePassNS : public VkComputeEngineBase {
     VkDescriptorBufferInfo xsectsInfo{m_xsectsDev.Buf(), 0, VK_WHOLE_SIZE};
     VkDescriptorBufferInfo xsectCounterInfo{m_xsectCounterDev.Buf(), 0, VK_WHOLE_SIZE};
 
-    VkWriteDescriptorSet wr[7]{};
-    for (int i = 0; i < 7; ++i) {
+    VkWriteDescriptorSet wr[6]{};
+    for (int i = 0; i < 6; ++i) {
       wr[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
       wr[i].dstSet = m_descSet;
       wr[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -127,15 +131,14 @@ class LSIFinalizePassNS : public VkComputeEngineBase {
       wr[i].dstBinding = i;
     }
 
-    wr[0].pBufferInfo = &paramsInfo;
-    wr[1].pBufferInfo = &baseEdgesInfo;
-    wr[2].pBufferInfo = &basePointsInfo;
-    wr[3].pBufferInfo = &queryEdgesInfo;
-    wr[4].pBufferInfo = &queryPointsInfo;
-    wr[5].pBufferInfo = &xsectsInfo;
-    wr[6].pBufferInfo = &xsectCounterInfo;
+    wr[0].pBufferInfo = &baseEdgesInfo;
+    wr[1].pBufferInfo = &basePointsInfo;
+    wr[2].pBufferInfo = &queryEdgesInfo;
+    wr[3].pBufferInfo = &queryPointsInfo;
+    wr[4].pBufferInfo = &xsectsInfo;
+    wr[5].pBufferInfo = &xsectCounterInfo;
 
-    vkUpdateDescriptorSets(m_ctx.device, 7, wr, 0, nullptr);
+    vkUpdateDescriptorSets(m_ctx.device, 6, wr, 0, nullptr);
   }
 
   void recordDispatch(VkCommandBuffer cmd) override {
@@ -150,18 +153,10 @@ class LSIFinalizePassNS : public VkComputeEngineBase {
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeline);
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeLayout, 0, 1, &m_descSet, 0, nullptr);
 
+    vkCmdPushConstants(cmd, m_pipeLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(LaunchParamsLSI), &m_params);
+
     uint32_t groups = (m_xsectCapacity + 255u) / 256u;
     vkCmdDispatch(cmd, groups, 1, 1);
-  }
-
- private:
-  void uploadParams() {
-    m_paramsDev.Init(sizeof(LaunchParamsLSI));
-    VkStagingBuf staging(sizeof(LaunchParamsLSI));
-    std::vector<uint8_t> bytes(sizeof(LaunchParamsLSI));
-    std::memcpy(bytes.data(), &m_params, sizeof(LaunchParamsLSI));
-    staging.Host2Stage(bytes);
-    staging.Stage2Device(m_paramsDev, sizeof(LaunchParamsLSI));
   }
 
  private:
@@ -173,7 +168,6 @@ class LSIFinalizePassNS : public VkComputeEngineBase {
   const VkDeviceBuf& m_xsectCounterDev;
 
   LaunchParamsLSI m_params{};
-  VkDeviceBuf m_paramsDev{};
   uint32_t m_xsectCapacity{};
 };
 

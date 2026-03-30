@@ -35,25 +35,25 @@ struct LaunchParamsLSI {
   uint _pad0;
 };
 
-[[vk::binding(0, 0)]]
-StructuredBuffer<LaunchParamsLSI> gParamsBuf;
+[[vk::push_constant]]
+ConstantBuffer<LaunchParamsLSI> gParams;
 
-[[vk::binding(1, 0)]]
+[[vk::binding(0, 0)]]
 StructuredBuffer<EdgeD> gBaseEdges;
 
-[[vk::binding(2, 0)]]
+[[vk::binding(1, 0)]]
 StructuredBuffer<PointD> gBasePoints;
 
-[[vk::binding(3, 0)]]
+[[vk::binding(2, 0)]]
 StructuredBuffer<EdgeD> gQueryEdges;
 
-[[vk::binding(4, 0)]]
+[[vk::binding(3, 0)]]
 StructuredBuffer<PointD> gQueryPoints;
 
-[[vk::binding(5, 0)]]
+[[vk::binding(4, 0)]]
 RWStructuredBuffer<Intersection> gXsects;
 
-[[vk::binding(6, 0)]]
+[[vk::binding(5, 0)]]
 StructuredBuffer<uint> gXsectCounter;
 
 double min2_d(double a, double b) {
@@ -77,7 +77,7 @@ double max4_d(double a, double b, double c, double d) {
 void main(uint3 tid: SV_DispatchThreadID) {
   uint idx = tid.x;
 
-  LaunchParamsLSI params = gParamsBuf[0];
+  LaunchParamsLSI params = gParams;
   uint nXsects = gXsectCounter[0];
 
   if (idx >= params.xsect_capacity)
@@ -103,9 +103,7 @@ void main(uint3 tid: SV_DispatchThreadID) {
 
   double denom = base_e.a * query_e.b - query_e.a * base_e.b;
 
-  // Parallel / degenerate safeguard.
   if (denom == 0.0) {
-    // leave x/y unchanged
     gXsects[idx] = xsect;
     return;
   }
@@ -113,7 +111,6 @@ void main(uint3 tid: SV_DispatchThreadID) {
   double x = (query_e.c * base_e.b - base_e.c * query_e.b) / denom;
   double y = (query_e.a * base_e.c - base_e.a * query_e.c) / denom;
 
-  // Clamp to bbox of both segments, same spirit as the old finalize pass.
   double t;
 
   t = min4_d(base_e_p1.x, base_e_p2.x, query_e_p1.x, query_e_p2.x);
