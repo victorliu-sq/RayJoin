@@ -39,12 +39,6 @@ struct Intersection {
   uint pad;
 };
 
-struct FillPrimitivesParams {
-  uint32_t numEdges;
-  uint32_t maxIter;
-  float areaEnlarge;
-  uint32_t pad;
-};
 
 template<typename CONTEXT_NS_T>
   requires ContextNSType<CONTEXT_NS_T>
@@ -146,39 +140,27 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
 
       std::string spvPath = std::string(SHADER_DIR_NS) + "/fill_primitives_ns.spv";
 
-      // fill_primitives_ns_pass_ = std::make_unique<FillPrimitivesNS>(
-      //     spvPath.c_str(), map->getPointsBuffer(), map->getEdgesBuffer(), aabbs_buf_, eid_range_buf_[im], map_edge_count_[im], ag_iter,
-      //     area_enlarge);
-      // fill_primitives_ns_pass_->run();
+      struct FillPrimitivesParams {
+        uint32_t numEdges;
+        uint32_t maxIter;
+        float areaEnlarge;
+        uint32_t pad;
+      };
 
-
-      FillPrimitivesParams pc{static_cast<uint32_t>(map_edge_count_[im]), static_cast<uint32_t>(ag_iter), area_enlarge, 0u};
-
-      fill_primitives_ns_pass_ = std::make_unique<FillPrimitivesNS<FillPrimitivesParams>>(
-          spvPath.c_str(), pc, map->getPointsBuffer(), map->getEdgesBuffer(), aabbs_buf_, eid_range_buf_[im]);
-
-      fill_primitives_ns_pass_->run();
-
-
-      // FillPrimitivesNS::PushConstants pc{static_cast<uint32_t>(map_edge_count_[im]), static_cast<uint32_t>(ag_iter), area_enlarge, 0u};
-      //
-      // fill_primitives_ns_pass_ =
-      //     std::make_unique<FillPrimitivesNS>(spvPath.c_str(), pc, map->getPointsBuffer(), map->getEdgesBuffer(), aabbs_buf_, eid_range_buf_[im]);
-      //
-      // fill_primitives_ns_pass_->run();
+      RunComputePass(
+          static_cast<uint32_t>(map_edge_count_[im]),
+          spvPath.c_str(),
+          FillPrimitivesParams{.numEdges = static_cast<uint32_t>(map_edge_count_[im]), .maxIter = ag_iter, .areaEnlarge = area_enlarge, .pad = 0},
+          map->getPointsBuffer(),
+          map->getEdgesBuffer(),
+          aabbs_buf_,
+          eid_range_buf_[im]);
 
       // DEBUG
       // DebugPrintAABBs(map, aabbs_buf_, eid_range_buf_[im], map_edge_count_[im]);
 
       LOG(INFO) << "Map-" << im << " builds " << map_edge_count_[im] << " primtives.";
       accel_[im].BuildAccelCustom(aabbs_buf_, map_edge_count_[im]);
-
-      // traverse_handles_[im] = rt_engine_->BuildAccelCustom(aabbs_buf_, map_edge_count_[im]);
-      // traverse_handles_[im] = rt_engine_->BuildAccelCustom(aabbs_buf_, map_edge_count_[im]);
-
-      // if (config_.fau) {
-      //   clearBuffer(aabbs_buf_);
-      // }
     }
   }
 
@@ -815,7 +797,7 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
 
   // --------------------------------
   // Build Index
-  std::unique_ptr<FillPrimitivesNS<FillPrimitivesParams>> fill_primitives_ns_pass_;
+  // std::unique_ptr<FillPrimitivesNS<FillPrimitivesParams>> fill_primitives_ns_pass_;
   AccelStructScene accel_[2];
   void DebugPrintAABBs(std::shared_ptr<map_t> map, const VkDeviceBuf &aabbBuf, const VkDeviceBuf &eidRangeBuf, uint32_t edge_count) const {
     const uint32_t checkCount = std::min<uint32_t>(edge_count, 10);

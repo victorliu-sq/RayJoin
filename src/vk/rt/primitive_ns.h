@@ -10,17 +10,18 @@ namespace rayjoin {
 namespace vk {
 
 template<typename ParamsT>
-class FillPrimitivesNS : public VkComputeEngineBase {
+class VkComputeEngine : public VkComputeEngineBase {
  public:
-  using Params = ParamsT;
+  using params_t = ParamsT;
 
   template<typename... Buffers>
-  FillPrimitivesNS(const char* spvPath, const Params& params, const Buffers&... buffers) : m_params(params), m_buffers{std::cref(buffers)...} {
-    static_assert(std::is_trivially_copyable_v<Params>, "ParamsT must be trivially copyable for vkCmdPushConstants");
+  VkComputeEngine(uint32_t n, const char* spvPath, const params_t& params, const Buffers&... buffers) :
+      m_n(n), m_params(params), m_buffers{std::cref(buffers)...} {
+    static_assert(std::is_trivially_copyable_v<params_t>, "ParamsT must be trivially copyable for vkCmdPushConstants");
     static_assert((std::is_same_v<std::remove_cvref_t<Buffers>, VkDeviceBuf> && ...), "All buffers must be VkDeviceBuf");
 
     if (m_buffers.empty()) {
-      throw std::runtime_error("FillPrimitivesNS requires at least one buffer");
+      throw std::runtime_error("VkComputeEngine requires at least one buffer");
     }
 
     createPipeline(spvPath);
@@ -29,7 +30,8 @@ class FillPrimitivesNS : public VkComputeEngineBase {
   }
 
  private:
-  Params m_params;
+  uint32_t m_n;
+  params_t m_params;
   std::vector<std::reference_wrapper<const VkDeviceBuf>> m_buffers;
 
   void createPipeline(const char* spvPath) override {
@@ -56,7 +58,7 @@ class FillPrimitivesNS : public VkComputeEngineBase {
     VkPushConstantRange pcr{};
     pcr.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     pcr.offset = 0;
-    pcr.size = sizeof(Params);
+    pcr.size = sizeof(params_t);
 
     VkPipelineLayoutCreateInfo pl{};
     pl.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -157,13 +159,19 @@ class FillPrimitivesNS : public VkComputeEngineBase {
 
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeLayout, 0, 1, &m_descSet, 0, nullptr);
 
-    vkCmdPushConstants(cmd, m_pipeLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(Params), &m_params);
+    vkCmdPushConstants(cmd, m_pipeLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(params_t), &m_params);
 
-    const uint32_t groups = (m_params.numEdges + 63u) / 64u;
+    const uint32_t groups = (m_n + 63u) / 64u;
     vkCmdDispatch(cmd, groups, 1, 1);
   }
 };
 
+
+template<typename ParamsT, typename... Buffers>
+void RunComputePass(uint32_t n, const char* spvPath, const ParamsT& params, const Buffers&... buffers) {
+  VkComputeEngine<ParamsT> pass(n, spvPath, params, buffers...);
+  pass.run();
+}
 }  // namespace vk
 }  // namespace rayjoin
 
