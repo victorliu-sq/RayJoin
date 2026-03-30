@@ -1,18 +1,18 @@
 #ifndef RAYJOIN_MAP_OVERLAY_RT_NS_H
 #define RAYJOIN_MAP_OVERLAY_RT_NS_H
 
+#include "../engine/vk_compute_engine.h"
 #include "map_overlay_ns.h"
 #include "query_config.h"
 #include "vk/core/lsi_rt.h"
 #include "vk/engine/vk_buffer.h"
 #include "vk/map/_NOUSE_lsi_finalize_pass_ns.h"
+#include "vk/map/_NOUSE_pip_finalize_pass_ns.h"
 #include "vk/map/lsi_rt_pass.h"
 #include "vk/map/map.h"
-#include "vk/map/pip_finalize_pass_ns.h"
 #include "vk/map/pip_rt_pass.h"
 #include "vk/map/vk_debug_readback.h"
 #include "vk/rt/as_scene.h"
-#include "vk/rt/primitive_ns.h"
 #include "vk/rt/rt_engine.h"
 
 //////////////////////////////////////////////////
@@ -597,15 +597,35 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
       VkDeviceBuf mid_point_in_polygon_buf;
       mid_point_in_polygon_buf.Init(sizeof(index_t) * tasks.size());
 
+      // std::string finalize_spv = std::string(SHADER_DIR_NS) + "/pip_finalize_ns.spv";
+      // PIPFinalizePassNS finalize_pass(finalize_spv.c_str(),
+      //                                 static_cast<uint32_t>(tasks.size()),
+      //                                 static_cast<uint32_t>(EXTERIOR_FACE_ID),
+      //                                 base_map->getEdgesBuffer(),
+      //                                 base_map->getPointsBuffer(),
+      //                                 mid_closest_eids_buf,
+      //                                 mid_point_in_polygon_buf);
+      // finalize_pass.run();
+
       std::string finalize_spv = std::string(SHADER_DIR_NS) + "/pip_finalize_ns.spv";
-      PIPFinalizePassNS finalize_pass(finalize_spv.c_str(),
-                                      static_cast<uint32_t>(tasks.size()),
-                                      static_cast<uint32_t>(EXTERIOR_FACE_ID),
-                                      base_map->getEdgesBuffer(),
-                                      base_map->getPointsBuffer(),
-                                      mid_closest_eids_buf,
-                                      mid_point_in_polygon_buf);
-      finalize_pass.run();
+
+      struct LaunchParamsPIPFinalize {
+        uint32_t point_count;
+        uint32_t exterior_face_id;
+        uint32_t _pad0;
+        uint32_t _pad1;
+      };
+
+      RunComputePass(static_cast<uint32_t>(tasks.size()),
+                     finalize_spv.c_str(),
+                     LaunchParamsPIPFinalize{.point_count = static_cast<uint32_t>(tasks.size()),
+                                             .exterior_face_id = static_cast<uint32_t>(EXTERIOR_FACE_ID),
+                                             ._pad0 = 0u,
+                                             ._pad1 = 0u},
+                     base_map->getEdgesBuffer(),
+                     base_map->getPointsBuffer(),
+                     mid_closest_eids_buf,
+                     mid_point_in_polygon_buf);
 
       auto mid_poly_ids = readBackStorageBuffer<polygon_id_t>(mid_point_in_polygon_buf, tasks.size());
       if (mid_poly_ids.size() != tasks.size()) {

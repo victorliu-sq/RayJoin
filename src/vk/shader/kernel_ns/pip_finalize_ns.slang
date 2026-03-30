@@ -40,7 +40,7 @@ StructuredBuffer<uint> gClosestEids;
 RWStructuredBuffer<uint> gPointInPolygon;
 
 [shader("compute")]
-[numthreads(256, 1, 1)]
+[numthreads(64, 1, 1)]
 void main(uint3 tid: SV_DispatchThreadID) {
   uint idx = tid.x;
   LaunchParamsPIPFinalize params = gParams;
