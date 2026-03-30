@@ -6,6 +6,7 @@
 #include "query_config.h"
 #include "vk/core/lsi_rt.h"
 #include "vk/engine/vk_buffer.h"
+#include "vk/engine/vk_rt_engine.h"
 #include "vk/map/_NOUSE_lsi_finalize_pass_ns.h"
 #include "vk/map/_NOUSE_pip_finalize_pass_ns.h"
 #include "vk/map/lsi_rt_pass.h"
@@ -174,45 +175,35 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
       throw std::runtime_error("IntersectEdge(): null map");
     }
 
+    // std::string rgen_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rgen_ns.spv";
+    // std::string rint_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rint_ns.spv";
+    // std::string rahit_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rahit_ns.spv";
+    // std::string rchit_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rchit_ns.spv";
+    // std::string rmiss_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rmiss_ns.spv";
+    //
+    // LSIIntersectRTPassNS pass(rgen_spv.c_str(),
+    //                           rint_spv.c_str(),
+    //                           rahit_spv.c_str(),
+    //                           rchit_spv.c_str(),
+    //                           rmiss_spv.c_str(),
+    //                           accel_[base_map_id].GetTraverseHandle(),
+    //                           eid_range_buf_[base_map_id],
+    //                           base_map->getPointsBuffer(),
+    //                           base_map->getEdgesBuffer(),
+    //                           query_map->getPointsBuffer(),
+    //                           query_map->getEdgesBuffer(),
+    //                           xsect_buf_,
+    //                           xsect_counter_buf_,
+    //                           prof_counter_buf_,
+    //                           static_cast<uint32_t>(query_map_id),
+    //                           static_cast<uint32_t>(query_map->get_edges_num()),
+    //                           static_cast<uint32_t>(xsect_capacity_));
+    // pass.run();
     std::string rgen_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rgen_ns.spv";
     std::string rint_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rint_ns.spv";
     std::string rahit_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rahit_ns.spv";
     std::string rchit_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rchit_ns.spv";
     std::string rmiss_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rmiss_ns.spv";
-
-    LSIIntersectRTPassNS pass(rgen_spv.c_str(),
-                              rint_spv.c_str(),
-                              rahit_spv.c_str(),
-                              rchit_spv.c_str(),
-                              rmiss_spv.c_str(),
-                              accel_[base_map_id].GetTraverseHandle(),
-                              eid_range_buf_[base_map_id],
-                              base_map->getPointsBuffer(),
-                              base_map->getEdgesBuffer(),
-                              query_map->getPointsBuffer(),
-                              query_map->getEdgesBuffer(),
-                              xsect_buf_,
-                              xsect_counter_buf_,
-                              prof_counter_buf_,
-                              static_cast<uint32_t>(query_map_id),
-                              static_cast<uint32_t>(query_map->get_edges_num()),
-                              static_cast<uint32_t>(xsect_capacity_));
-    pass.run();
-
-    // std::string finalize_spv = std::string(SHADER_DIR_NS) + "/lsi_finalize_ns.spv";
-    // LSIFinalizePassNS finalize_pass(finalize_spv.c_str(),
-    //                                 static_cast<uint32_t>(query_map_id),
-    //                                 static_cast<uint32_t>(query_map->get_edges_num()),
-    //                                 static_cast<uint32_t>(xsect_capacity_),
-    //                                 base_map->getEdgesBuffer(),
-    //                                 base_map->getPointsBuffer(),
-    //                                 query_map->getEdgesBuffer(),
-    //                                 query_map->getPointsBuffer(),
-    //                                 xsect_buf_,
-    //                                 xsect_counter_buf_);
-    // finalize_pass.run();
-
-    std::string finalize_spv = std::string(SHADER_DIR_NS) + "/lsi_finalize_ns.spv";
 
     struct LaunchParamsLSI {
       int32_t query_map_id;
@@ -221,12 +212,41 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
       uint32_t _pad0;
     };
 
+    RunRTPass(rgen_spv.c_str(),
+              rint_spv.c_str(),
+              rahit_spv.c_str(),
+              rchit_spv.c_str(),
+              rmiss_spv.c_str(),
+              accel_[base_map_id].GetTraverseHandle(),
+              LaunchParamsLSI{.query_map_id = static_cast<int32_t>(query_map_id),
+                              .query_edge_count = static_cast<uint32_t>(query_map->get_edges_num()),
+                              .xsect_capacity = static_cast<uint32_t>(xsect_capacity_),
+                              ._pad0 = 0u},
+              static_cast<uint32_t>(query_map->get_edges_num()),
+              base_map->getEdgesBuffer(),  // binding 1 -> gBaseEdges
+              base_map->getPointsBuffer(),  // binding 2 -> gBasePoints
+              eid_range_buf_[base_map_id],  // binding 3 -> gEidRanges
+              query_map->getEdgesBuffer(),  // binding 4 -> gQueryEdges
+              query_map->getPointsBuffer(),  // binding 5 -> gQueryPoints
+              xsect_buf_,  // binding 6 -> gXsects
+              xsect_counter_buf_,  // binding 7 -> gXsectCounter
+              prof_counter_buf_);  // binding 8 -> gTestCounter
+
+    std::string finalize_spv = std::string(SHADER_DIR_NS) + "/lsi_finalize_ns.spv";
+
+    struct LaunchParamsLSIFinalize {
+      int32_t query_map_id;
+      uint32_t query_edge_count;
+      uint32_t xsect_capacity;
+      uint32_t _pad0;
+    };
+
     RunComputePass(static_cast<uint32_t>(xsect_capacity_),
                    finalize_spv.c_str(),
-                   LaunchParamsLSI{.query_map_id = query_map_id,
-                                   .query_edge_count = static_cast<uint32_t>(query_map->get_edges_num()),
-                                   .xsect_capacity = static_cast<uint32_t>(xsect_capacity_),
-                                   ._pad0 = 0u},
+                   LaunchParamsLSIFinalize{.query_map_id = query_map_id,
+                                           .query_edge_count = static_cast<uint32_t>(query_map->get_edges_num()),
+                                           .xsect_capacity = static_cast<uint32_t>(xsect_capacity_),
+                                           ._pad0 = 0u},
                    base_map->getEdgesBuffer(),
                    base_map->getPointsBuffer(),
                    query_map->getEdgesBuffer(),

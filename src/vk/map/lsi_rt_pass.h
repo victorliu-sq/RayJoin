@@ -6,7 +6,7 @@
 
 namespace rayjoin {
 namespace vk {
-class LSIIntersectRTPassNS : public VkRayTracingEngine {
+class LSIIntersectRTPassNS : public VkRTEngineBase {
  public:
   struct LaunchParamsLSI {
     int32_t query_map_id;

@@ -372,7 +372,7 @@
 //   VkShaderModule m_rmiss = VK_NULL_HANDLE;
 // };
 
-class PIPRTPassNS : public rayjoin::vk::VkRayTracingEngine {
+class PIPRTPassNS : public rayjoin::vk::VkRTEngineBase {
  public:
   struct LaunchParamsPIP {
     int32_t query_map_id;
