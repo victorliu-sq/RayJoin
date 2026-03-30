@@ -16,13 +16,13 @@
 namespace rayjoin {
 namespace vk {
 
-class EdgeInitPassI64RAII : public VkComputeEngine {
+class EdgeInitPassI64RAII : public VkComputeEngineBase {
  public:
   EdgeInitPassI64RAII(const char* spvPath, const VkDeviceBuf& pointsDev,
                       const VkDeviceBuf& chainsDev, const VkDeviceBuf& rowDev,
                       const VkDeviceBuf& edgesDev, uint32_t numPoints,
                       uint32_t numChains)
-      : VkComputeEngine(),
+      : VkComputeEngineBase(),
         m_pointsDev(pointsDev),
         m_chainsDev(chainsDev),
         m_rowDev(rowDev),

@@ -11,10 +11,9 @@
 #include "vk/engine/vk_buffer.h"
 #include "vk/engine/vk_engine_abs.h"
 
-
 namespace rayjoin {
 namespace vk {
-class PIPFinalizePassNS : public VkComputeEngine {
+class PIPFinalizePassNS : public VkComputeEngineBase {
  public:
   struct LaunchParamsPIPFinalize {
     uint32_t point_count;

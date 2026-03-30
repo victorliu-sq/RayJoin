@@ -11,7 +11,7 @@
 namespace rayjoin {
 namespace vk {
 
-class LSIFinalizePassNS : public VkComputeEngine {
+class LSIFinalizePassNS : public VkComputeEngineBase {
  public:
   struct LaunchParamsLSI {
     int32_t query_map_id;
@@ -30,7 +30,7 @@ class LSIFinalizePassNS : public VkComputeEngine {
                     const VkDeviceBuf& queryPointsDev,
                     const VkDeviceBuf& xsectsDev,
                     const VkDeviceBuf& xsectCounterDev) :
-      VkComputeEngine(), m_baseEdgesDev(baseEdgesDev), m_basePointsDev(basePointsDev), m_queryEdgesDev(queryEdgesDev),
+      VkComputeEngineBase(), m_baseEdgesDev(baseEdgesDev), m_basePointsDev(basePointsDev), m_queryEdgesDev(queryEdgesDev),
       m_queryPointsDev(queryPointsDev), m_xsectsDev(xsectsDev), m_xsectCounterDev(xsectCounterDev),
       m_params{static_cast<int32_t>(query_map_id), query_edge_count, xsect_capacity, 0}, m_xsectCapacity(xsect_capacity) {
     createPipeline(spvPath);

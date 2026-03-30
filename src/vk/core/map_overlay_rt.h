@@ -16,17 +16,13 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
   using map_t = typename CONTEXT_T::map_t;
 
  public:
-  explicit MapOverlayRT(CONTEXT_T &ctx) : MapOverlay<CONTEXT_T>(ctx) {
-    rt_engine_ = std::make_shared<RTEngine>();
-    this->lsi_ = std::make_shared<LSIRT<CONTEXT_T>>(ctx, rt_engine_);
-    // this->pip_ = std::make_shared<PIPRT<CONTEXT_T>>(ctx, rt_engine_);
-  }
+  explicit MapOverlayRT(CONTEXT_T &ctx) : MapOverlay<CONTEXT_T>(ctx) {}
 
   void set_config(const QueryConfigRT &config) { config_ = config; }
 
   void Init() override {
     auto &ctx = this->ctx_;
-    auto &lsi = this->lsi_;
+    // auto &lsi = this->lsi_;
     auto &vk_ctx = GetVkComputeContext();
     // -------------------------------
     // Scan maps
@@ -68,25 +64,6 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     size_t n_edges = map_edge_count_[0] + map_edge_count_[1];
     (void) n_edges;
     (void) vk_ctx;
-
-    // Initialize LSI
-    lsi->Init(ctx.get_edge_num() * config_.xsect_factor);
-
-    // TODO: enable pip (disabled for now)
-    // this->pip_->Init(max_n_points);
-
-
-    // -------------------------------
-    // Initialize RT Engine
-    // -------------------------------
-    rt_engine_->Init();
-
-    std::string rgen_spv = std::string(SHADER_DIR) + "/rt/lsi_rgen.spv";
-    std::string rint_spv = std::string(SHADER_DIR) + "/rt/lsi_rint.spv";
-    std::string rahit_spv = std::string(SHADER_DIR) + "/rt/lsi_rahit.spv";
-    std::string rchit_spv = std::string(SHADER_DIR) + "/rt/lsi_rchit.spv";
-    std::string rmiss_spv = std::string(SHADER_DIR) + "/rt/lsi_rmiss.spv";
-    rt_engine_->InitLSIPipeline(rgen_spv.c_str(), rint_spv.c_str(), rahit_spv.c_str(), rchit_spv.c_str(), rmiss_spv.c_str());
   }
 
   void BuildIndex() override {
@@ -115,7 +92,7 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
       DebugPrintAABBs(map, aabbs_buf_, eid_range_buf_[im], map_edge_count_[im]);
 
       LOG(INFO) << "Map-" << im << " builds " << map_edge_count_[im] << " primtives.";
-      traverse_handles_[im] = rt_engine_->BuildAccelCustom(aabbs_buf_, map_edge_count_[im]);
+      // traverse_handles_[im] = rt_engine_->BuildAccelCustom(aabbs_buf_, map_edge_count_[im]);
       // traverse_handles_[im] = rt_engine_->BuildAccelCustom(aabbs_buf_, map_edge_count_[im]);
 
       // if (config_.fau) {
@@ -126,15 +103,15 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
 
   void IntersectEdge(int query_map_id) override {
     int base_map_id = 1 - query_map_id;
-    auto lsi = std::dynamic_pointer_cast<LSIRT<CONTEXT_T>>(this->lsi_);
+    // auto lsi = std::dynamic_pointer_cast<LSIRT<CONTEXT_T>>(this->lsi_);
 
     config_.eid_range = &eid_range_buf_[base_map_id];
     config_.handle = traverse_handles_[base_map_id];
 
-    lsi->set_config(config_);
-    lsi->Query(query_map_id);
+    // lsi->set_config(config_);
+    // lsi->Query(query_map_id);
 
-    DebugPrintIntersectionsDetailed(query_map_id);
+    // DebugPrintIntersectionsDetailed(query_map_id);
   }
 
   void LocateVerticesInOtherMap(int query_map_id) override {}
@@ -149,7 +126,7 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
   // -------------------------------
   // RT-Engine
   // -------------------------------
-  std::shared_ptr<RTEngine> rt_engine_;
+  // std::shared_ptr<RTEngine> rt_engine_;
 
   // -------------------------------
   // GPU buffers
@@ -224,437 +201,6 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
       LOG(INFO) << "eid=" << eid << " edge=(" << x1 << "," << y1 << ") -> (" << x2 << "," << y2 << ")"
                 << " AABB=[(" << aabb.minX << "," << aabb.minY << ") (" << aabb.maxX << "," << aabb.maxY << ")]"
                 << " contains=" << (inside ? "YES" : "NO");
-    }
-  }
-
- private:
-  void DebugPrintIntersections(int query_map_id, uint32_t max_print = 20) const {
-    using lsi_t = LSIRT<CONTEXT_T>;
-
-    auto lsi = std::dynamic_pointer_cast<lsi_t>(this->lsi_);
-    if (!lsi) {
-      LOG(ERROR) << "DebugPrintIntersections: failed to cast lsi_ to LSIRT";
-      return;
-    }
-
-    int base_map_id = 1 - query_map_id;
-    auto query_map = this->ctx_.get_map(query_map_id);
-    auto base_map = this->ctx_.get_map(base_map_id);
-
-    if (!query_map || !base_map) {
-      LOG(ERROR) << "DebugPrintIntersections: null map";
-      return;
-    }
-
-    // ------------------------------------------------------------------------
-    // Read back intersection count from GPU
-    // ------------------------------------------------------------------------
-    auto xsectCountVec = readBackStorageBuffer<uint32_t>(lsi->get_xsect_counter_buffer(), 1);
-
-    if (xsectCountVec.empty()) {
-      LOG(ERROR) << "DebugPrintIntersections: failed to read xsect counter";
-      return;
-    }
-
-    uint32_t n_xsects = xsectCountVec[0];
-    LOG(INFO) << "DebugPrintIntersections: query_map_id=" << query_map_id << ", base_map_id=" << base_map_id
-              << ", gpu intersection count=" << n_xsects;
-
-    auto dbg = readBackStorageBuffer<uint32_t>(lsi->get_prof_counter_buffer(), 8);
-    if (!dbg.empty()) {
-      LOG(INFO) << "LSI DBG:"
-                << " raygen=" << dbg[0] << " miss=" << (dbg.size() > 1 ? dbg[1] : 0) << " inter=" << (dbg.size() > 2 ? dbg[2] : 0)
-                << " writes=" << (dbg.size() > 3 ? dbg[3] : 0) << " last_eid=" << (dbg.size() > 4 ? dbg[4] : 0)
-                << " last_prim=" << (dbg.size() > 5 ? dbg[5] : 0);
-    }
-
-    if (n_xsects == 0) {
-      LOG(INFO) << "DebugPrintIntersections: no intersections reported";
-      return;
-    }
-
-    uint32_t n_print = std::min<uint32_t>(n_xsects, max_print);
-
-    // ------------------------------------------------------------------------
-    // Read back first N intersections
-    // ------------------------------------------------------------------------
-    auto gpuXsects = readBackStorageBuffer<IntersectionR>(lsi->get_xsect_buffer(), n_print);
-
-    if (gpuXsects.size() != n_print) {
-      LOG(ERROR) << "DebugPrintIntersections: failed to read xsect buffer";
-      return;
-    }
-
-    // ------------------------------------------------------------------------
-    // Read back both maps' edges/points/scaling
-    // ------------------------------------------------------------------------
-    auto queryEdges = readBackStorageBuffer<EdgeInt64>(query_map->getEdgesBuffer(), query_map->get_edges_num());
-    auto baseEdges = readBackStorageBuffer<EdgeInt64>(base_map->getEdgesBuffer(), base_map->get_edges_num());
-
-    auto queryPts = readBackStorageBuffer<DstPointI64>(query_map->getPointsBuffer(), query_map->get_points_num());
-    auto basePts = readBackStorageBuffer<DstPointI64>(base_map->getPointsBuffer(), base_map->get_points_num());
-
-    auto queryScaling = readBackStorageBuffer<Scaling<double, int64_t>>(query_map->getScalingBuffer(), 1)[0];
-
-    auto baseScaling = readBackStorageBuffer<Scaling<double, int64_t>>(base_map->getScalingBuffer(), 1)[0];
-
-    // ------------------------------------------------------------------------
-    // Small local CPU checker that mirrors the sign-side logic
-    // ------------------------------------------------------------------------
-    auto subedge = [](const DstPointI64 &p, const EdgeInt64 &e) -> long long {
-      return static_cast<long long>(p.x) * static_cast<long long>(e.a) + static_cast<long long>(p.y) * static_cast<long long>(e.b) + e.c;
-    };
-
-    auto cpu_intersect_test = [&](const EdgeInt64 &e1,
-                                  const DstPointI64 &e1_p1,
-                                  const DstPointI64 &e1_p2,
-                                  const EdgeInt64 &e2,
-                                  const DstPointI64 &e2_p1,
-                                  const DstPointI64 &e2_p2) -> bool {
-      auto e2_p1_agst_e1 = subedge(e2_p1, e1);
-      auto e2_p2_agst_e1 = subedge(e2_p2, e1);
-      auto e1_p1_agst_e2 = subedge(e1_p1, e2);
-      auto e1_p2_agst_e2 = subedge(e1_p2, e2);
-
-      if (e1_p1_agst_e2 == 0) e1_p1_agst_e2 = -e2.a;
-      if (e1_p1_agst_e2 == 0) e1_p1_agst_e2 = -e2.b;
-      if (e1_p1_agst_e2 == 0) return false;
-
-      if (e1_p2_agst_e2 == 0) e1_p2_agst_e2 = -e2.a;
-      if (e1_p2_agst_e2 == 0) e1_p2_agst_e2 = -e2.b;
-      if (e1_p2_agst_e2 == 0) return false;
-
-      if ((e1_p1_agst_e2 > 0 && e1_p2_agst_e2 > 0) || (e1_p1_agst_e2 < 0 && e1_p2_agst_e2 < 0)) {
-        return false;
-      }
-
-      if (e2_p1_agst_e1 == 0) e2_p1_agst_e1 = e1.a;
-      if (e2_p1_agst_e1 == 0) e2_p1_agst_e1 = e1.b;
-      if (e2_p1_agst_e1 == 0) return false;
-
-      if (e2_p2_agst_e1 == 0) e2_p2_agst_e1 = e1.a;
-      if (e2_p2_agst_e1 == 0) e2_p2_agst_e1 = e1.b;
-      if (e2_p2_agst_e1 == 0) return false;
-
-      if ((e2_p1_agst_e1 > 0 && e2_p2_agst_e1 > 0) || (e2_p1_agst_e1 < 0 && e2_p2_agst_e1 < 0)) {
-        return false;
-      }
-
-      bool same_dir = (e1_p1.x == e2_p1.x && e1_p1.y == e2_p1.y && e1_p2.x == e2_p2.x && e1_p2.y == e2_p2.y);
-
-      bool opp_dir = (e1_p1.x == e2_p2.x && e1_p1.y == e2_p2.y && e1_p2.x == e2_p1.x && e1_p2.y == e2_p1.y);
-
-      if (same_dir || opp_dir) return false;
-
-      return true;
-    };
-
-    LOG(INFO) << "DebugPrintIntersections: printing first " << n_print << " intersections";
-
-    for (uint32_t i = 0; i < n_print; ++i) {
-      const auto &x = gpuXsects[i];
-
-      // ----------------------------------------------------------------------
-      // IMPORTANT:
-      // Adjust these two lines if your Intersection struct uses different field
-      // names. The logic assumes eid0/eid1 correspond to map0/map1.
-      // ----------------------------------------------------------------------
-      uint32_t query_eid = (query_map_id == 0) ? x.eid0 : x.eid1;
-      uint32_t base_eid = (query_map_id == 0) ? x.eid1 : x.eid0;
-
-      bool eid_ok = (query_eid < queryEdges.size()) && (base_eid < baseEdges.size());
-
-      if (!eid_ok) {
-        LOG(ERROR) << "  [" << i << "] invalid eids"
-                   << " query_eid=" << query_eid << " base_eid=" << base_eid << " queryEdges.size=" << queryEdges.size()
-                   << " baseEdges.size=" << baseEdges.size();
-        continue;
-      }
-
-      const auto &qe = queryEdges[query_eid];
-      const auto &be = baseEdges[base_eid];
-
-      const auto &qp1 = queryPts[qe.p1_idx];
-      const auto &qp2 = queryPts[qe.p2_idx];
-      const auto &bp1 = basePts[be.p1_idx];
-      const auto &bp2 = basePts[be.p2_idx];
-
-      bool cpu_ok = cpu_intersect_test(qe, qp1, qp2, be, bp1, bp2);
-
-      double qx1 = queryScaling.UnscaleX(qp1.x);
-      double qy1 = queryScaling.UnscaleY(qp1.y);
-      double qx2 = queryScaling.UnscaleX(qp2.x);
-      double qy2 = queryScaling.UnscaleY(qp2.y);
-
-      double bx1 = baseScaling.UnscaleX(bp1.x);
-      double by1 = baseScaling.UnscaleY(bp1.y);
-      double bx2 = baseScaling.UnscaleX(bp2.x);
-      double by2 = baseScaling.UnscaleY(bp2.y);
-
-      LOG(INFO) << "  [" << i << "]"
-                << " query_eid=" << query_eid << " base_eid=" << base_eid << " cpu_intersect=" << (cpu_ok ? "YES" : "NO") << " | query=(" << qx1
-                << "," << qy1 << ") -> (" << qx2 << "," << qy2 << ")"
-                << " | base=(" << bx1 << "," << by1 << ") -> (" << bx2 << "," << by2 << ")";
-    }
-  }
-
-  void DebugPrintIntersectionsDetailed(int query_map_id, uint32_t max_print = 20) const {
-    using lsi_t = LSIRT<CONTEXT_T>;
-
-    auto lsi = std::dynamic_pointer_cast<lsi_t>(this->lsi_);
-    if (!lsi) {
-      LOG(ERROR) << "DebugPrintIntersectionsDetailed: failed to cast lsi_ to LSIRT";
-      return;
-    }
-
-    const int base_map_id = 1 - query_map_id;
-    auto query_map = this->ctx_.get_map(query_map_id);
-    auto base_map = this->ctx_.get_map(base_map_id);
-
-    if (!query_map || !base_map) {
-      LOG(ERROR) << "DebugPrintIntersectionsDetailed: null map"
-                 << " query_map_id=" << query_map_id << " base_map_id=" << base_map_id;
-      return;
-    }
-
-    // --------------------------------------------------------------------------
-    // Read back GPU counters
-    // --------------------------------------------------------------------------
-    auto xsectCountVec = readBackStorageBuffer<uint32_t>(lsi->get_xsect_counter_buffer(), 1);
-
-    if (xsectCountVec.empty()) {
-      LOG(ERROR) << "DebugPrintIntersectionsDetailed: failed to read xsect counter";
-      return;
-    }
-
-    const uint32_t n_xsects = xsectCountVec[0];
-    LOG(INFO) << "DebugPrintIntersectionsDetailed:"
-              << " query_map_id=" << query_map_id << " base_map_id=" << base_map_id << " gpu intersection count=" << n_xsects;
-
-    auto dbg = readBackStorageBuffer<uint32_t>(lsi->get_prof_counter_buffer(), 8);
-    if (!dbg.empty()) {
-      LOG(INFO) << "LSI DBG:"
-                << " raygen=" << (dbg.size() > 0 ? dbg[0] : 0) << " miss=" << (dbg.size() > 1 ? dbg[1] : 0)
-                << " inter=" << (dbg.size() > 2 ? dbg[2] : 0) << " writes=" << (dbg.size() > 3 ? dbg[3] : 0)
-                << " last_eid=" << (dbg.size() > 4 ? dbg[4] : 0) << " last_prim=" << (dbg.size() > 5 ? dbg[5] : 0)
-                << " tested_base_edges=" << (dbg.size() > 6 ? dbg[6] : 0);
-    }
-
-    if (n_xsects == 0) {
-      LOG(INFO) << "DebugPrintIntersectionsDetailed: no intersections reported";
-      return;
-    }
-
-    const uint32_t n_print = std::min<uint32_t>(n_xsects, max_print);
-
-    // --------------------------------------------------------------------------
-    // Read back first N GPU intersections
-    // --------------------------------------------------------------------------
-    auto gpuXsects = readBackStorageBuffer<IntersectionR>(lsi->get_xsect_buffer(), n_print);
-
-    if (gpuXsects.size() != n_print) {
-      LOG(ERROR) << "DebugPrintIntersectionsDetailed: failed to read xsect buffer"
-                 << " expected=" << n_print << " actual=" << gpuXsects.size();
-      return;
-    }
-
-    // --------------------------------------------------------------------------
-    // Read back map data
-    // --------------------------------------------------------------------------
-    auto queryEdges = readBackStorageBuffer<EdgeInt64>(query_map->getEdgesBuffer(), query_map->get_edges_num());
-    auto baseEdges = readBackStorageBuffer<EdgeInt64>(base_map->getEdgesBuffer(), base_map->get_edges_num());
-
-    auto queryPts = readBackStorageBuffer<DstPointI64>(query_map->getPointsBuffer(), query_map->get_points_num());
-    auto basePts = readBackStorageBuffer<DstPointI64>(base_map->getPointsBuffer(), base_map->get_points_num());
-
-    auto queryScaling = readBackStorageBuffer<Scaling<double, int64_t>>(query_map->getScalingBuffer(), 1)[0];
-    auto baseScaling = readBackStorageBuffer<Scaling<double, int64_t>>(base_map->getScalingBuffer(), 1)[0];
-
-    // --------------------------------------------------------------------------
-    // CPU helpers that mirror shader math exactly
-    // --------------------------------------------------------------------------
-    auto subedge = [](const DstPointI64 &p, const EdgeInt64 &e) -> int64_t {
-      return static_cast<int64_t>(p.x) * static_cast<int64_t>(e.a) + static_cast<int64_t>(p.y) * static_cast<int64_t>(e.b) +
-             static_cast<int64_t>(e.c);
-    };
-
-    auto point_equals = [](const DstPointI64 &a, const DstPointI64 &b) -> bool { return a.x == b.x && a.y == b.y; };
-
-    struct CpuIntersectDebug {
-      int64_t e2_p1_agst_e1_raw = 0;
-      int64_t e2_p2_agst_e1_raw = 0;
-      int64_t e1_p1_agst_e2_raw = 0;
-      int64_t e1_p2_agst_e2_raw = 0;
-
-      int64_t e2_p1_agst_e1_final = 0;
-      int64_t e2_p2_agst_e1_final = 0;
-      int64_t e1_p1_agst_e2_final = 0;
-      int64_t e1_p2_agst_e2_final = 0;
-
-      bool e1_same_side_of_e2 = false;
-      bool e2_same_side_of_e1 = false;
-      bool same_dir = false;
-      bool opp_dir = false;
-      bool identical_edge = false;
-      bool zero_length_reject = false;
-      bool result = false;
-    };
-
-    auto cpu_intersect_test_debug = [&](const EdgeInt64 &e1,
-                                        const DstPointI64 &e1_p1,
-                                        const DstPointI64 &e1_p2,
-                                        const EdgeInt64 &e2,
-                                        const DstPointI64 &e2_p1,
-                                        const DstPointI64 &e2_p2,
-                                        CpuIntersectDebug &d) -> bool {
-      d = CpuIntersectDebug{};
-
-      d.e2_p1_agst_e1_raw = subedge(e2_p1, e1);
-      d.e2_p2_agst_e1_raw = subedge(e2_p2, e1);
-      d.e1_p1_agst_e2_raw = subedge(e1_p1, e2);
-      d.e1_p2_agst_e2_raw = subedge(e1_p2, e2);
-
-      d.e2_p1_agst_e1_final = d.e2_p1_agst_e1_raw;
-      d.e2_p2_agst_e1_final = d.e2_p2_agst_e1_raw;
-      d.e1_p1_agst_e2_final = d.e1_p1_agst_e2_raw;
-      d.e1_p2_agst_e2_final = d.e1_p2_agst_e2_raw;
-
-      // e1_p1 is on e2
-      if (d.e1_p1_agst_e2_final == 0) d.e1_p1_agst_e2_final = -static_cast<int64_t>(e2.a);
-      if (d.e1_p1_agst_e2_final == 0) d.e1_p1_agst_e2_final = -static_cast<int64_t>(e2.b);
-      if (d.e1_p1_agst_e2_final == 0) {
-        d.zero_length_reject = true;
-        d.result = false;
-        return false;
-      }
-
-      if (d.e1_p2_agst_e2_final == 0) d.e1_p2_agst_e2_final = -static_cast<int64_t>(e2.a);
-      if (d.e1_p2_agst_e2_final == 0) d.e1_p2_agst_e2_final = -static_cast<int64_t>(e2.b);
-      if (d.e1_p2_agst_e2_final == 0) {
-        d.zero_length_reject = true;
-        d.result = false;
-        return false;
-      }
-
-      d.e1_same_side_of_e2 = ((d.e1_p1_agst_e2_final > 0 && d.e1_p2_agst_e2_final > 0) || (d.e1_p1_agst_e2_final < 0 && d.e1_p2_agst_e2_final < 0));
-      if (d.e1_same_side_of_e2) {
-        d.result = false;
-        return false;
-      }
-
-      // e2_p1 is on e1
-      if (d.e2_p1_agst_e1_final == 0) d.e2_p1_agst_e1_final = static_cast<int64_t>(e1.a);
-      if (d.e2_p1_agst_e1_final == 0) d.e2_p1_agst_e1_final = static_cast<int64_t>(e1.b);
-      if (d.e2_p1_agst_e1_final == 0) {
-        d.zero_length_reject = true;
-        d.result = false;
-        return false;
-      }
-
-      if (d.e2_p2_agst_e1_final == 0) d.e2_p2_agst_e1_final = static_cast<int64_t>(e1.a);
-      if (d.e2_p2_agst_e1_final == 0) d.e2_p2_agst_e1_final = static_cast<int64_t>(e1.b);
-      if (d.e2_p2_agst_e1_final == 0) {
-        d.zero_length_reject = true;
-        d.result = false;
-        return false;
-      }
-
-      d.e2_same_side_of_e1 = ((d.e2_p1_agst_e1_final > 0 && d.e2_p2_agst_e1_final > 0) || (d.e2_p1_agst_e1_final < 0 && d.e2_p2_agst_e1_final < 0));
-      if (d.e2_same_side_of_e1) {
-        d.result = false;
-        return false;
-      }
-
-      d.same_dir = point_equals(e1_p1, e2_p1) && point_equals(e1_p2, e2_p2);
-      d.opp_dir = point_equals(e1_p1, e2_p2) && point_equals(e1_p2, e2_p1);
-      d.identical_edge = d.same_dir || d.opp_dir;
-
-      if (d.identical_edge) {
-        d.result = false;
-        return false;
-      }
-
-      d.result = true;
-      return true;
-    };
-
-    LOG(INFO) << "DebugPrintIntersectionsDetailed: printing first " << n_print << " GPU-written intersections with full CPU predicate trace";
-
-    for (uint32_t i = 0; i < n_print; ++i) {
-      const auto &x = gpuXsects[i];
-
-      // Reconstruct the same role mapping the shader used:
-      // if query_map_id == 0:
-      //   x.eid0 = query_eid, x.eid1 = base_eid
-      // else:
-      //   x.eid0 = base_eid, x.eid1 = query_eid
-      const uint32_t query_eid = static_cast<uint32_t>((query_map_id == 0) ? x.eid0 : x.eid1);
-      const uint32_t base_eid = static_cast<uint32_t>((query_map_id == 0) ? x.eid1 : x.eid0);
-
-      const bool eid_ok = (query_eid < queryEdges.size()) && (base_eid < baseEdges.size());
-
-      if (!eid_ok) {
-        LOG(ERROR) << "  [" << i << "] invalid eid mapping"
-                   << " query_eid=" << query_eid << " base_eid=" << base_eid << " queryEdges.size=" << queryEdges.size()
-                   << " baseEdges.size=" << baseEdges.size() << " raw eid0=" << x.eid0 << " raw eid1=" << x.eid1;
-        continue;
-      }
-
-      const EdgeInt64 &qe = queryEdges[query_eid];
-      const EdgeInt64 &be = baseEdges[base_eid];
-
-      if (qe.p1_idx >= queryPts.size() || qe.p2_idx >= queryPts.size() || be.p1_idx >= basePts.size() || be.p2_idx >= basePts.size()) {
-        LOG(ERROR) << "  [" << i << "] invalid point index"
-                   << " query_eid=" << query_eid << " base_eid=" << base_eid << " qe.p1_idx=" << qe.p1_idx << " qe.p2_idx=" << qe.p2_idx
-                   << " be.p1_idx=" << be.p1_idx << " be.p2_idx=" << be.p2_idx << " queryPts.size=" << queryPts.size()
-                   << " basePts.size=" << basePts.size();
-        continue;
-      }
-
-      const DstPointI64 &qp1 = queryPts[qe.p1_idx];
-      const DstPointI64 &qp2 = queryPts[qe.p2_idx];
-      const DstPointI64 &bp1 = basePts[be.p1_idx];
-      const DstPointI64 &bp2 = basePts[be.p2_idx];
-
-      CpuIntersectDebug d{};
-      const bool cpu_ok = cpu_intersect_test_debug(qe, qp1, qp2, be, bp1, bp2, d);
-
-      const double qx1 = queryScaling.UnscaleX(qp1.x);
-      const double qy1 = queryScaling.UnscaleY(qp1.y);
-      const double qx2 = queryScaling.UnscaleX(qp2.x);
-      const double qy2 = queryScaling.UnscaleY(qp2.y);
-
-      const double bx1 = baseScaling.UnscaleX(bp1.x);
-      const double by1 = baseScaling.UnscaleY(bp1.y);
-      const double bx2 = baseScaling.UnscaleX(bp2.x);
-      const double by2 = baseScaling.UnscaleY(bp2.y);
-
-      LOG(INFO) << "  [" << i << "]"
-                << " raw_eid0=" << x.eid0 << " raw_eid1=" << x.eid1 << " | query_eid=" << query_eid << " base_eid=" << base_eid
-                << " | cpu_intersect=" << (cpu_ok ? "YES" : "NO") << " | query=(" << qx1 << "," << qy1 << ") -> (" << qx2 << "," << qy2 << ")"
-                << " | base=(" << bx1 << "," << by1 << ") -> (" << bx2 << "," << by2 << ")";
-
-      LOG(INFO) << "    query edge coeffs: a=" << qe.a << " b=" << qe.b << " c=" << qe.c << " p1_idx=" << qe.p1_idx << " p2_idx=" << qe.p2_idx
-                << " | base edge coeffs: a=" << be.a << " b=" << be.b << " c=" << be.c << " p1_idx=" << be.p1_idx << " p2_idx=" << be.p2_idx;
-
-      LOG(INFO) << "    raw subedge:"
-                << " e2_p1_agst_e1=" << d.e2_p1_agst_e1_raw << " e2_p2_agst_e1=" << d.e2_p2_agst_e1_raw << " e1_p1_agst_e2=" << d.e1_p1_agst_e2_raw
-                << " e1_p2_agst_e2=" << d.e1_p2_agst_e2_raw;
-
-      LOG(INFO) << "    final subedge after tie-break:"
-                << " e2_p1_agst_e1=" << d.e2_p1_agst_e1_final << " e2_p2_agst_e1=" << d.e2_p2_agst_e1_final
-                << " e1_p1_agst_e2=" << d.e1_p1_agst_e2_final << " e1_p2_agst_e2=" << d.e1_p2_agst_e2_final;
-
-      LOG(INFO) << "    decisions:"
-                << " e1_same_side_of_e2=" << (d.e1_same_side_of_e2 ? "YES" : "NO") << " e2_same_side_of_e1=" << (d.e2_same_side_of_e1 ? "YES" : "NO")
-                << " same_dir=" << (d.same_dir ? "YES" : "NO") << " opp_dir=" << (d.opp_dir ? "YES" : "NO")
-                << " identical_edge=" << (d.identical_edge ? "YES" : "NO") << " zero_length_reject=" << (d.zero_length_reject ? "YES" : "NO")
-                << " final=" << (d.result ? "YES" : "NO");
-
-      if (!cpu_ok) {
-        LOG(ERROR) << "    GPU wrote this pair, but CPU predicate rejected it"
-                   << " query_eid=" << query_eid << " base_eid=" << base_eid << " raw_eid0=" << x.eid0 << " raw_eid1=" << x.eid1;
-      }
     }
   }
 };

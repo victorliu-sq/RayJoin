@@ -11,7 +11,7 @@
 namespace rayjoin {
 namespace vk {
 
-class LSIFinalizePassRAII : public VkComputeEngine {
+class LSIFinalizePassRAII : public VkComputeEngineBase {
  public:
   LSIFinalizePassRAII(const char* spvPath,
                       const VkDeviceBuf& paramsDev,
@@ -22,7 +22,7 @@ class LSIFinalizePassRAII : public VkComputeEngine {
                       const VkDeviceBuf& xsectsDev,
                       const VkDeviceBuf& xsectCounterDev,
                       uint32_t xsectCapacity) :
-      VkComputeEngine(), m_paramsDev(paramsDev), m_baseEdgesDev(baseEdgesDev), m_basePointsDev(basePointsDev), m_queryEdgesDev(queryEdgesDev),
+      VkComputeEngineBase(), m_paramsDev(paramsDev), m_baseEdgesDev(baseEdgesDev), m_basePointsDev(basePointsDev), m_queryEdgesDev(queryEdgesDev),
       m_queryPointsDev(queryPointsDev), m_xsectsDev(xsectsDev), m_xsectCounterDev(xsectCounterDev), m_xsectCapacity(xsectCapacity) {
     createPipeline(spvPath);
     allocateDescriptors();

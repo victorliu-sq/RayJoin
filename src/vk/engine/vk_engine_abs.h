@@ -4,11 +4,11 @@
 
 namespace rayjoin {
 namespace vk {
-class VkComputeEngine {
+class VkComputeEngineBase {
  public:
-  VkComputeEngine() : m_ctx(GetVkComputeContext()) {}
+  VkComputeEngineBase() : m_ctx(GetVkComputeContext()) {}
 
-  virtual ~VkComputeEngine() {
+  virtual ~VkComputeEngineBase() {
     if (m_pipeline) {
       vkDestroyPipeline(m_ctx.device, m_pipeline, nullptr);
     }

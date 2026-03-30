@@ -39,6 +39,13 @@ struct Intersection {
   uint pad;
 };
 
+struct FillPrimitivesParams {
+  uint32_t numEdges;
+  uint32_t maxIter;
+  float areaEnlarge;
+  uint32_t pad;
+};
+
 template<typename CONTEXT_NS_T>
   requires ContextNSType<CONTEXT_NS_T>
 class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
@@ -139,9 +146,26 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
 
       std::string spvPath = std::string(SHADER_DIR_NS) + "/fill_primitives_ns.spv";
 
-      fill_primitives_ns_pass_ = std::make_unique<FillPrimitivesNS>(
-          spvPath.c_str(), map->getPointsBuffer(), map->getEdgesBuffer(), aabbs_buf_, eid_range_buf_[im], map_edge_count_[im], ag_iter, area_enlarge);
+      // fill_primitives_ns_pass_ = std::make_unique<FillPrimitivesNS>(
+      //     spvPath.c_str(), map->getPointsBuffer(), map->getEdgesBuffer(), aabbs_buf_, eid_range_buf_[im], map_edge_count_[im], ag_iter,
+      //     area_enlarge);
+      // fill_primitives_ns_pass_->run();
+
+
+      FillPrimitivesParams pc{static_cast<uint32_t>(map_edge_count_[im]), static_cast<uint32_t>(ag_iter), area_enlarge, 0u};
+
+      fill_primitives_ns_pass_ = std::make_unique<FillPrimitivesNS<FillPrimitivesParams>>(
+          spvPath.c_str(), pc, map->getPointsBuffer(), map->getEdgesBuffer(), aabbs_buf_, eid_range_buf_[im]);
+
       fill_primitives_ns_pass_->run();
+
+
+      // FillPrimitivesNS::PushConstants pc{static_cast<uint32_t>(map_edge_count_[im]), static_cast<uint32_t>(ag_iter), area_enlarge, 0u};
+      //
+      // fill_primitives_ns_pass_ =
+      //     std::make_unique<FillPrimitivesNS>(spvPath.c_str(), pc, map->getPointsBuffer(), map->getEdgesBuffer(), aabbs_buf_, eid_range_buf_[im]);
+      //
+      // fill_primitives_ns_pass_->run();
 
       // DEBUG
       // DebugPrintAABBs(map, aabbs_buf_, eid_range_buf_[im], map_edge_count_[im]);
@@ -791,10 +815,11 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
 
   // --------------------------------
   // Build Index
-  std::unique_ptr<FillPrimitivesNS> fill_primitives_ns_pass_;
+  std::unique_ptr<FillPrimitivesNS<FillPrimitivesParams>> fill_primitives_ns_pass_;
   AccelStructScene accel_[2];
   void DebugPrintAABBs(std::shared_ptr<map_t> map, const VkDeviceBuf &aabbBuf, const VkDeviceBuf &eidRangeBuf, uint32_t edge_count) const {
     const uint32_t checkCount = std::min<uint32_t>(edge_count, 10);
+
     auto gpuAABBs = readBackStorageBuffer<VkAabbPositionsKHR>(aabbBuf, checkCount);
     auto gpuRanges = readBackStorageBuffer<EidRange>(eidRangeBuf, checkCount);
     auto gpuEdges = readBackStorageBuffer<edge_t>(map->getEdgesBuffer(), edge_count);

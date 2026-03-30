@@ -6,48 +6,37 @@
 #include "vk/engine/vk_engine_abs.h"
 #include "vk/engine/vk_helpers.h"
 
-
 namespace rayjoin {
 namespace vk {
-class FillPrimitivesNS : public VkComputeEngine {
+
+template<typename ParamsT>
+class FillPrimitivesNS : public VkComputeEngineBase {
  public:
-  FillPrimitivesNS(const char* spvPath,
-                   const VkDeviceBuf& points,
-                   const VkDeviceBuf& edges,
-                   const VkDeviceBuf& aabbs,
-                   const VkDeviceBuf& eidRange,
-                   uint32_t numEdges,
-                   uint32_t maxIter,
-                   float areaEnlarge) :
-      m_points(points), m_edges(edges), m_aabbs(aabbs), m_eidRange(eidRange), m_numEdges(numEdges), m_maxIter(maxIter), m_areaEnlarge(areaEnlarge) {
+  using Params = ParamsT;
+
+  template<typename... Buffers>
+  FillPrimitivesNS(const char* spvPath, const Params& params, const Buffers&... buffers) : m_params(params), m_buffers{std::cref(buffers)...} {
+    static_assert(std::is_trivially_copyable_v<Params>, "ParamsT must be trivially copyable for vkCmdPushConstants");
+    static_assert((std::is_same_v<std::remove_cvref_t<Buffers>, VkDeviceBuf> && ...), "All buffers must be VkDeviceBuf");
+
+    if (m_buffers.empty()) {
+      throw std::runtime_error("FillPrimitivesNS requires at least one buffer");
+    }
+
     createPipeline(spvPath);
     allocateDescriptors();
     recordDescriptors();
   }
 
  private:
-  struct PushConstants {
-    uint32_t numEdges;
-    uint32_t maxIter;
-    float areaEnlarge;
-    uint32_t pad;
-  };
-
-  const VkDeviceBuf& m_points;
-  const VkDeviceBuf& m_edges;
-  const VkDeviceBuf& m_aabbs;
-  const VkDeviceBuf& m_eidRange;
-
-  uint32_t m_numEdges;
-  uint32_t m_maxIter;
-  float m_areaEnlarge;
+  Params m_params;
+  std::vector<std::reference_wrapper<const VkDeviceBuf>> m_buffers;
 
   void createPipeline(const char* spvPath) override {
-    // ------------------------------------------------
-    // Create DescriptorSetLayout
-    VkDescriptorSetLayoutBinding bindings[4]{};
+    const uint32_t bufferCount = static_cast<uint32_t>(m_buffers.size());
 
-    for (uint32_t i = 0; i < 4; ++i) {
+    std::vector<VkDescriptorSetLayoutBinding> bindings(bufferCount);
+    for (uint32_t i = 0; i < bufferCount; ++i) {
       bindings[i].binding = i;
       bindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
       bindings[i].descriptorCount = 1;
@@ -59,20 +48,16 @@ class FillPrimitivesNS : public VkComputeEngine {
     dsl.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     dsl.pNext = nullptr;
     dsl.flags = 0;
-    dsl.bindingCount = 4;
-    dsl.pBindings = bindings;
+    dsl.bindingCount = bufferCount;
+    dsl.pBindings = bindings.data();
 
     VK_CHECK(vkCreateDescriptorSetLayout(m_ctx.device, &dsl, nullptr, &m_setLayout));
 
-    // ------------------------------------------------
-    // Create PushConstantRange
     VkPushConstantRange pcr{};
     pcr.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     pcr.offset = 0;
-    pcr.size = sizeof(PushConstants);
+    pcr.size = sizeof(Params);
 
-    // ------------------------------------------------
-    // PipelineLayout = DesciptorSetLayout + PushConstantsRange
     VkPipelineLayoutCreateInfo pl{};
     pl.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pl.pNext = nullptr;
@@ -84,22 +69,20 @@ class FillPrimitivesNS : public VkComputeEngine {
 
     VK_CHECK(vkCreatePipelineLayout(m_ctx.device, &pl, nullptr, &m_pipeLayout));
 
-    // ------------------------------------------------
-    // Load Shader Module
     auto spirv = readSpvU32(spvPath);
     if (spirv.empty()) {
       throw std::runtime_error(std::string("Failed to load SPIR-V: ") + spvPath);
     }
+
     VkShaderModuleCreateInfo sm{};
     sm.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     sm.pNext = nullptr;
     sm.flags = 0;
     sm.codeSize = spirv.size() * sizeof(uint32_t);
     sm.pCode = spirv.data();
+
     VK_CHECK(vkCreateShaderModule(m_ctx.device, &sm, nullptr, &m_shader));
 
-    // ------------------------------------------------
-    // Create Shader Stage
     VkPipelineShaderStageCreateInfo stage{};
     stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     stage.pNext = nullptr;
@@ -109,8 +92,6 @@ class FillPrimitivesNS : public VkComputeEngine {
     stage.pName = "main";
     stage.pSpecializationInfo = nullptr;
 
-    // ------------------------------------------------
-    // Pipeline = PipelineLayout + Shader Module + Shader Stage
     VkComputePipelineCreateInfo cp{};
     cp.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
     cp.pNext = nullptr;
@@ -119,19 +100,22 @@ class FillPrimitivesNS : public VkComputeEngine {
     cp.layout = m_pipeLayout;
     cp.basePipelineHandle = VK_NULL_HANDLE;
     cp.basePipelineIndex = -1;
+
     VK_CHECK(vkCreateComputePipelines(m_ctx.device, VK_NULL_HANDLE, 1, &cp, nullptr, &m_pipeline));
   }
 
   void allocateDescriptors() override {
-    VkDescriptorPoolSize sizes[] = {
-        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 4},
-    };
+    const uint32_t bufferCount = static_cast<uint32_t>(m_buffers.size());
+
+    VkDescriptorPoolSize size{};
+    size.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    size.descriptorCount = bufferCount;
 
     VkDescriptorPoolCreateInfo ci{};
     ci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     ci.maxSets = 1;
     ci.poolSizeCount = 1;
-    ci.pPoolSizes = sizes;
+    ci.pPoolSizes = &size;
 
     VK_CHECK(vkCreateDescriptorPool(m_ctx.device, &ci, nullptr, &m_descPool));
 
@@ -145,33 +129,27 @@ class FillPrimitivesNS : public VkComputeEngine {
   }
 
   void recordDescriptors() override {
-    VkDescriptorBufferInfo pInfo{m_points.Buf(), 0, VK_WHOLE_SIZE};
-    VkDescriptorBufferInfo eInfo{m_edges.Buf(), 0, VK_WHOLE_SIZE};
-    VkDescriptorBufferInfo aInfo{m_aabbs.Buf(), 0, VK_WHOLE_SIZE};
-    VkDescriptorBufferInfo rInfo{m_eidRange.Buf(), 0, VK_WHOLE_SIZE};
+    const uint32_t bufferCount = static_cast<uint32_t>(m_buffers.size());
 
-    VkWriteDescriptorSet wr[4]{};
+    std::vector<VkDescriptorBufferInfo> infos(bufferCount);
+    std::vector<VkWriteDescriptorSet> wr(bufferCount);
 
-    for (int i = 0; i < 4; ++i) {
+    for (uint32_t i = 0; i < bufferCount; ++i) {
+      infos[i] = VkDescriptorBufferInfo{m_buffers[i].get().Buf(), 0, VK_WHOLE_SIZE};
+
       wr[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+      wr[i].pNext = nullptr;
       wr[i].dstSet = m_descSet;
+      wr[i].dstBinding = i;
+      wr[i].dstArrayElement = 0;
       wr[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
       wr[i].descriptorCount = 1;
+      wr[i].pBufferInfo = &infos[i];
+      wr[i].pImageInfo = nullptr;
+      wr[i].pTexelBufferView = nullptr;
     }
 
-    wr[0].dstBinding = 0;
-    wr[0].pBufferInfo = &pInfo;
-
-    wr[1].dstBinding = 1;
-    wr[1].pBufferInfo = &eInfo;
-
-    wr[2].dstBinding = 2;
-    wr[2].pBufferInfo = &aInfo;
-
-    wr[3].dstBinding = 3;
-    wr[3].pBufferInfo = &rInfo;
-
-    vkUpdateDescriptorSets(m_ctx.device, 4, wr, 0, nullptr);
+    vkUpdateDescriptorSets(m_ctx.device, bufferCount, wr.data(), 0, nullptr);
   }
 
   void recordDispatch(VkCommandBuffer cmd) override {
@@ -179,11 +157,9 @@ class FillPrimitivesNS : public VkComputeEngine {
 
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeLayout, 0, 1, &m_descSet, 0, nullptr);
 
-    PushConstants pc{m_numEdges, m_maxIter, m_areaEnlarge, 0};
+    vkCmdPushConstants(cmd, m_pipeLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(Params), &m_params);
 
-    vkCmdPushConstants(cmd, m_pipeLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstants), &pc);
-
-    const uint32_t groups = (m_numEdges + 63u) / 64u;
+    const uint32_t groups = (m_params.numEdges + 63u) / 64u;
     vkCmdDispatch(cmd, groups, 1, 1);
   }
 };

@@ -35,17 +35,17 @@ namespace rayjoin {
       uint32_t pad0;
     };
 
-    class ScalePointsPassD2I64RAII : public VkComputeEngine {
+    class ScalePointsPassD2I64RAII : public VkComputeEngineBase {
     public:
       ScalePointsPassD2I64RAII(
           const char *spvPath, const VkDeviceBuf &srcBuffer, const VkDeviceBuf &dstBuffer, const VkDeviceBuf &scalingBuffer, uint32_t count) :
-          VkComputeEngine(), m_srcDevice(srcBuffer), m_dstDevice(dstBuffer), m_scalingDevice(scalingBuffer), m_count(count) {
+          VkComputeEngineBase(), m_srcDevice(srcBuffer), m_dstDevice(dstBuffer), m_scalingDevice(scalingBuffer), m_count(count) {
         createPipeline(spvPath);
         allocateDescriptors();
         recordDescriptors();
       }
 
-      void run() override { VkComputeEngine::run(); }
+      void run() override { VkComputeEngineBase::run(); }
 
     protected:
       /* ---------- Pipeline ---------- */

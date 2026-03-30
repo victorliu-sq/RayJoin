@@ -7,13 +7,13 @@
 
 namespace rayjoin {
 namespace vk {
-class FillPrimitives : public VkComputeEngine {
+class FillPrimitives : public VkComputeEngineBase {
  public:
   FillPrimitives(const char* spvPath, const VkDeviceBuf& points,
                  const VkDeviceBuf& edges, const VkDeviceBuf& scaling,
                  const VkDeviceBuf& aabbs, const VkDeviceBuf& eidRange,
                  uint32_t numEdges, uint32_t maxIter, float areaEnlarge)
-      : VkComputeEngine(),
+      : VkComputeEngineBase(),
         m_points(points),
         m_edges(edges),
         m_scaling(scaling),

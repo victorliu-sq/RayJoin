@@ -14,7 +14,7 @@
 namespace rayjoin {
 namespace vk {
 
-class EdgeInitPassRAIINS : public VkComputeEngine {
+class EdgeInitPassRAIINS : public VkComputeEngineBase {
  public:
   EdgeInitPassRAIINS(const VkDeviceBuf& pointsDev,
                      const VkDeviceBuf& chainsDev,
@@ -22,7 +22,7 @@ class EdgeInitPassRAIINS : public VkComputeEngine {
                      const VkDeviceBuf& edgesDev,
                      uint32_t numPoints,
                      uint32_t numChains) :
-      VkComputeEngine(), m_pointsDev(pointsDev), m_chainsDev(chainsDev), m_rowDev(rowDev), m_edgesDev(edgesDev), m_numPoints(numPoints),
+      VkComputeEngineBase(), m_pointsDev(pointsDev), m_chainsDev(chainsDev), m_rowDev(rowDev), m_edgesDev(edgesDev), m_numPoints(numPoints),
       m_numChains(numChains) {
     m_numEdges = m_numPoints - m_numChains;
     createPipeline();
