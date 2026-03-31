@@ -184,10 +184,10 @@ void RunOverlay(const rayjoin::OverlayConfig& config) {
   ctx.InitMaps(query_config);
 
   timer_next("Init");
-  // overlay->Init();
+  overlay->Init();
 
   timer_next("Build Index");
-  // overlay->BuildIndex();
+  overlay->BuildIndex();
 
   timer_next("Intersection edges");
   // overlay->IntersectEdge(0);

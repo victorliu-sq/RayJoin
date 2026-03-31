@@ -72,6 +72,33 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     this->pip_->Init(max_n_points);
   }
 
+  // void BuildIndex() override {
+  //   auto& ctx = this->ctx_;
+  //   auto& stream = ctx.get_stream();
+  //   const auto& scaling = ctx.get_scaling();
+  //   auto win_size = config_.win;
+  //   auto ag_iter = config_.ag_iter;
+  //   auto area_enlarge = config_.enlarge;
+  //
+  //   FOR2 {
+  //     auto d_map = ctx.get_map(im)->DeviceObject();
+  //     if (config_.ag == 0) {
+  //       FillPrimitives(stream, d_map, scaling, aabbs_, *eid_range_[im]);
+  //     } else if (config_.ag == 1) {
+  //       FillPrimitivesGroupNew(stream, d_map, scaling, ag_iter, area_enlarge, aabbs_, *eid_range_[im]);
+  //     } else if (config_.ag == 2) {
+  //       FillPrimitivesGroup(stream, d_map, scaling, win_size, area_enlarge, aabbs_, *eid_range_[im]);
+  //     }
+  //     traverse_handles_[im] = rt_engine_->BuildAccelCustom(stream, ArrayView<OptixAabb>(aabbs_));
+  //
+  //     stream.Sync();
+  //     if (config_.fau) {
+  //       aabbs_.resize(0);
+  //       aabbs_.shrink_to_fit();
+  //     }
+  //   };
+  // }
+
   void BuildIndex() override {
     auto& ctx = this->ctx_;
     auto& stream = ctx.get_stream();
@@ -80,8 +107,12 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     auto ag_iter = config_.ag_iter;
     auto area_enlarge = config_.enlarge;
 
+    const bool dump_index = rayjoin::ShouldDumpStage(config_.dump_results, "index");
+    const std::string index_dir = rayjoin::DumpSubdir(config_.dump_dir, "results_index");
+
     FOR2 {
       auto d_map = ctx.get_map(im)->DeviceObject();
+
       if (config_.ag == 0) {
         FillPrimitives(stream, d_map, scaling, aabbs_, *eid_range_[im]);
       } else if (config_.ag == 1) {
@@ -89,6 +120,13 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
       } else if (config_.ag == 2) {
         FillPrimitivesGroup(stream, d_map, scaling, win_size, area_enlarge, aabbs_, *eid_range_[im]);
       }
+
+      stream.Sync();
+
+      if (dump_index) {
+        DumpIndexResultsCSV(im, index_dir, "optix");
+      }
+
       traverse_handles_[im] = rt_engine_->BuildAccelCustom(stream, ArrayView<OptixAabb>(aabbs_));
 
       stream.Sync();
@@ -424,6 +462,40 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
   thrust::device_vector<OptixAabb> aabbs_;
   std::shared_ptr<thrust::device_vector<thrust::pair<size_t, size_t>>> eid_range_[2];
 
+  void DumpIndexResultsCSV(int map_id, const std::string& out_dir, const std::string& impl_tag) const {
+    namespace fs = std::filesystem;
+    fs::create_directories(out_dir);
+
+    thrust::host_vector<OptixAabb> h_aabbs = aabbs_;
+    thrust::host_vector<thrust::pair<size_t, size_t>> h_ranges = *eid_range_[map_id];
+
+    if (h_aabbs.size() != h_ranges.size()) {
+      LOG(ERROR) << "DumpIndexResultsCSV: size mismatch for map_id=" << map_id << " aabbs=" << h_aabbs.size() << " ranges=" << h_ranges.size();
+      return;
+    }
+
+    const std::string path = out_dir + "/" + impl_tag + "_index_map_" + std::to_string(map_id) + ".csv";
+
+    std::ofstream ofs(path);
+    if (!ofs) {
+      LOG(ERROR) << "DumpIndexResultsCSV: failed to open " << path;
+      return;
+    }
+
+    ofs << "map_id,primitive_id,min_x,min_y,min_z,max_x,max_y,max_z,eid_begin,eid_end\n";
+    ofs << std::fixed << std::setprecision(9);
+
+    for (size_t i = 0; i < h_aabbs.size(); ++i) {
+      const auto& a = h_aabbs[i];
+      const auto& r = h_ranges[i];
+
+      ofs << map_id << "," << i << "," << a.minX << "," << a.minY << "," << a.minZ << "," << a.maxX << "," << a.maxY << "," << a.maxZ << ","
+          << static_cast<unsigned long long>(r.first) << "," << static_cast<unsigned long long>(r.second) << "\n";
+    }
+
+    ofs.close();
+    LOG(INFO) << "DumpIndexResultsCSV: wrote " << path;
+  }
 
   void DumpPIPResultsCSV(int query_map_id, const std::string& out_dir, const std::string& impl_tag) const {
     namespace fs = std::filesystem;
@@ -661,86 +733,6 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     LOG(INFO) << "DumpSortedMidPointsCSV: wrote " << path;
   }
 
-  // void DumpMidPointClosestEidsCSV(int query_map_id,
-  //                                 const scaling_t& scaling,
-  //                                 const thrust::device_vector<index_t>& d_unique_eids,
-  //                                 const thrust::device_vector<uint32_t>& d_xsect_index,
-  //                                 const thrust::device_vector<typename CONTEXT_T::map_t::point_t>& d_mid_points,
-  //                                 const thrust::device_vector<xsect_t>& d_xsect_edges_sorted,
-  //                                 const thrust::device_vector<index_t>& d_mid_point_closest_eid,
-  //                                 const std::string& out_dir,
-  //                                 const std::string& impl_tag) const {
-  //   namespace fs = std::filesystem;
-  //   fs::create_directories(out_dir);
-  //
-  //   thrust::host_vector<index_t> h_unique_eids = d_unique_eids;
-  //   thrust::host_vector<uint32_t> h_xsect_index = d_xsect_index;
-  //   thrust::host_vector<typename CONTEXT_T::map_t::point_t> h_mid_points = d_mid_points;
-  //   thrust::host_vector<xsect_t> h_xsects = d_xsect_edges_sorted;
-  //   thrust::host_vector<index_t> h_closest = d_mid_point_closest_eid;
-  //
-  //   const std::string path = out_dir + "/" + impl_tag + "_midpoint_closest_map_" + std::to_string(query_map_id) + ".csv";
-  //
-  //   std::ofstream ofs(path);
-  //   if (!ofs) {
-  //     LOG(ERROR) << "DumpMidPointClosestEidsCSV: failed to open " << path;
-  //     return;
-  //   }
-  //
-  //   constexpr int kDumpDecimals = 7;
-  //   ofs << std::fixed << std::setprecision(kDumpDecimals);
-  //   ofs << "query_map_id,group_idx,eid_self,local_mid_idx,mid_idx,"
-  //          "eid_other_left,eid_other_right,mid_x,mid_y,closest_eid\n";
-  //
-  //   for (size_t group_idx = 0; group_idx < h_unique_eids.size(); ++group_idx) {
-  //     const uint32_t begin = h_xsect_index[group_idx];
-  //     const uint32_t end = h_xsect_index[group_idx + 1];
-  //     const uint32_t n_xsect = end - begin;
-  //
-  //     if (n_xsect <= 1) {
-  //       continue;
-  //     }
-  //
-  //     const index_t eid_self = h_unique_eids[group_idx];
-  //
-  //     for (uint32_t local_mid_idx = 0; local_mid_idx + 1 < n_xsect; ++local_mid_idx) {
-  //       const uint32_t left_idx = begin + local_mid_idx;
-  //       const uint32_t right_idx = begin + local_mid_idx + 1;
-  //       const uint32_t mid_idx = begin + local_mid_idx - static_cast<uint32_t>(group_idx);
-  //
-  //       if (mid_idx >= h_mid_points.size() || mid_idx >= h_closest.size()) {
-  //         LOG(ERROR) << "DumpMidPointClosestEidsCSV: midpoint index overflow";
-  //         ofs.close();
-  //         return;
-  //       }
-  //
-  //       const auto& x1 = h_xsects[left_idx];
-  //       const auto& x2 = h_xsects[right_idx];
-  //       const auto& mp = h_mid_points[mid_idx];
-  //       const auto closest_eid = h_closest[mid_idx];
-  //
-  //       const index_t eid_other_left = static_cast<index_t>(x1.eid[1 - query_map_id]);
-  //       const index_t eid_other_right = static_cast<index_t>(x2.eid[1 - query_map_id]);
-  //
-  //       const double mx_dump = TruncateForDump(scaling.UnscaleX(mp.x), kDumpDecimals);
-  //       const double my_dump = TruncateForDump(scaling.UnscaleY(mp.y), kDumpDecimals);
-  //
-  //       ofs << query_map_id << "," << group_idx << "," << static_cast<long long>(eid_self) << "," << local_mid_idx << "," << mid_idx << ","
-  //           << static_cast<long long>(eid_other_left) << "," << static_cast<long long>(eid_other_right) << "," << mx_dump << "," << my_dump << ",";
-  //
-  //       if (closest_eid == std::numeric_limits<index_t>::max()) {
-  //         ofs << -1;
-  //       } else {
-  //         ofs << static_cast<long long>(closest_eid);
-  //       }
-  //
-  //       ofs << "\n";
-  //     }
-  //   }
-  //
-  //   ofs.close();
-  //   LOG(INFO) << "DumpMidPointClosestEidsCSV: wrote " << path;
-  // }
   void DumpMidPointClosestEidsCSV(int query_map_id,
                                   const scaling_t& scaling,
                                   const thrust::device_vector<index_t>& d_unique_eids,
