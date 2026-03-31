@@ -1,5 +1,6 @@
 #ifndef RAYJOIN_MAP_MAP_H
 #define RAYJOIN_MAP_MAP_H
+#include <filesystem>
 #include <thrust/device_vector.h>
 
 #include "map/bounding_box.h"
@@ -17,13 +18,13 @@ namespace dev {
 
 // EdgeEquation stores the coefficients of the supporting line of an edge,
 // independent of the segment endpoints.
-template <typename COEFFICIENT_T>
+template<typename COEFFICIENT_T>
 struct EdgeEquation {
   COEFFICIENT_T a, b, c;  // ax + by + c=0; b >= 0
 
   EdgeEquation() = default;
 
-  template <typename POINT_T>
+  template<typename POINT_T>
   DEV_HOST EdgeEquation(const POINT_T& p1, const POINT_T& p2) {
     a = p1.y - p2.y;
     b = p2.x - p1.x;
@@ -39,14 +40,14 @@ struct EdgeEquation {
   }
 };
 
-template <typename COEFFICIENT_T>
+template<typename COEFFICIENT_T>
 struct __builtin_align__(16) Edge : public EdgeEquation<COEFFICIENT_T> {
   index_t eid;
   index_t p1_idx, p2_idx;
   index_t left_polygon_id, right_polygon_id;
 };
 
-template <typename COORD_T, typename COEFFICIENT_T>
+template<typename COORD_T, typename COEFFICIENT_T>
 class Map {
  public:
   using coord_t = COORD_T;
@@ -56,8 +57,7 @@ class Map {
 
   Map() = default;
 
-  DEV_HOST Map(char id, ArrayView<point_t> points, ArrayView<edge_t> edges)
-      : id_(id), points_(points), edges_(edges) {}
+  DEV_HOST Map(char id, ArrayView<point_t> points, ArrayView<edge_t> edges) : id_(id), points_(points), edges_(edges) {}
 
   DEV_HOST_INLINE int get_id() const { return id_; }
 
@@ -65,13 +65,9 @@ class Map {
 
   DEV_HOST_INLINE size_t get_edges_num() const { return edges_.size(); }
 
-  DEV_INLINE const point_t& get_point(size_t point_idx) const {
-    return points_[point_idx];
-  }
+  DEV_INLINE const point_t& get_point(size_t point_idx) const { return points_[point_idx]; }
 
-  DEV_INLINE const edge_t& get_edge(size_t edge_idx) const {
-    return edges_[edge_idx];
-  }
+  DEV_INLINE const edge_t& get_edge(size_t edge_idx) const { return edges_[edge_idx]; }
 
   DEV_HOST_INLINE ArrayView<point_t> get_points() const { return points_; }
 
@@ -95,7 +91,7 @@ class Map {
 
 }  // namespace dev
 
-template <typename COORD_T, typename COEFFICIENT_T>
+template<typename COORD_T, typename COEFFICIENT_T>
 class Map {
  public:
   using coord_t = COORD_T;
@@ -106,33 +102,30 @@ class Map {
 
   explicit Map(int id) : id_(id) {}
 
-  template <typename SRC_COORD_T>
-  void LoadFrom(
-      Stream& stream, const Scaling<SRC_COORD_T, COORD_T>& scaling,
-      const pinned_vector<typename cuda_vec<SRC_COORD_T>::type_2d>& points,
-      const pinned_vector<edge_t>& edges) {
+  template<typename SRC_COORD_T>
+  void LoadFrom(Stream& stream,
+                const Scaling<SRC_COORD_T, COORD_T>& scaling,
+                const pinned_vector<typename cuda_vec<SRC_COORD_T>::type_2d>& points,
+                const pinned_vector<edge_t>& edges) {
     points_.resize(points.size());
     edges_ = edges;
 
-    ArrayView<typename PlanarGraph<SRC_COORD_T>::point_t> src_points(
-        points);  // src_points is pinned memory
+    ArrayView<typename PlanarGraph<SRC_COORD_T>::point_t> src_points(points);  // src_points is pinned memory
     ArrayView<point_t> dst_points(points_);
 
-    ForEach(stream, src_points.size(),
-            [=] __device__(size_t point_idx) mutable {
-              auto x = src_points[point_idx].x;
-              auto y = src_points[point_idx].y;
+    ForEach(stream, src_points.size(), [=] __device__(size_t point_idx) mutable {
+      auto x = src_points[point_idx].x;
+      auto y = src_points[point_idx].y;
 
-              dst_points[point_idx].x = scaling.ScaleX(x);
-              dst_points[point_idx].y = scaling.ScaleY(y);
-            });
+      dst_points[point_idx].x = scaling.ScaleX(x);
+      dst_points[point_idx].y = scaling.ScaleY(y);
+    });
 
     // copy to device and calculate edge equations
     LaunchKernel(
         stream,
         [=] __device__(ArrayView<point_t> points, ArrayView<edge_t> edges) {
-          for (unsigned int eid = TID_1D; eid < edges.size();
-               eid += TOTAL_THREADS_1D) {
+          for (unsigned int eid = TID_1D; eid < edges.size(); eid += TOTAL_THREADS_1D) {
             auto& e = edges[eid];
             const auto& p1 = points[e.p1_idx];
             const auto& p2 = points[e.p2_idx];
@@ -154,24 +147,22 @@ class Map {
             }
           }
         },
-        ArrayView<point_t>(points_), ArrayView<edge_t>(edges_));
+        ArrayView<point_t>(points_),
+        ArrayView<edge_t>(edges_));
 
     stream.Sync();
   }
 
-  template <typename SRC_COORD_T>
-  void LoadFrom(Stream& stream, const Scaling<SRC_COORD_T, COORD_T>& scaling,
-                const PlanarGraph<SRC_COORD_T>& pgraph) {
+  template<typename SRC_COORD_T>
+  void LoadFrom(Stream& stream, const Scaling<SRC_COORD_T, COORD_T>& scaling, const PlanarGraph<SRC_COORD_T>& pgraph) {
     points_.resize(pgraph.points.size());
     edges_.resize(pgraph.points.size() - pgraph.chains.size());
 
-    ArrayView<typename PlanarGraph<SRC_COORD_T>::point_t> src_points(
-        pgraph.points);
+    ArrayView<typename PlanarGraph<SRC_COORD_T>::point_t> src_points(pgraph.points);
     ArrayView<point_t> dst_points(points_);
 
     LaunchKernel(stream, [=] __device__() mutable {
-      for (auto point_idx = TID_1D; point_idx < src_points.size();
-           point_idx += TOTAL_THREADS_1D) {
+      for (auto point_idx = TID_1D; point_idx < src_points.size(); point_idx += TOTAL_THREADS_1D) {
         auto x = src_points[point_idx].x;
         auto y = src_points[point_idx].y;
 
@@ -192,12 +183,10 @@ class Map {
           auto n_warps = TOTAL_THREADS_1D / 32;
           auto lane_id = threadIdx.x % 32;
 
-          for (size_t ichain = warp_id; ichain < v_chains.size();
-               ichain += n_warps) {
+          for (size_t ichain = warp_id; ichain < v_chains.size(); ichain += n_warps) {
             const auto& chain = v_chains[ichain];
 
-            for (auto p_idx = v_row_index[ichain] + lane_id;
-                 p_idx < v_row_index[ichain + 1] - 1; p_idx += 32) {
+            for (auto p_idx = v_row_index[ichain] + lane_id; p_idx < v_row_index[ichain + 1] - 1; p_idx += 32) {
               auto eid = p_idx - ichain;  // n points n-1 edges
               auto& e = edges[eid];
 
@@ -228,7 +217,8 @@ class Map {
             }
           }
         },
-        ArrayView<point_t>(points_), ArrayView<edge_t>(edges_));
+        ArrayView<point_t>(points_),
+        ArrayView<edge_t>(edges_));
 
     stream.Sync();
   }
@@ -245,10 +235,7 @@ class Map {
     }
   }
 
-  dev_map_t DeviceObject() const {
-    return dev_map_t(id_, ArrayView<point_t>(points_),
-                     ArrayView<edge_t>(edges_));
-  }
+  dev_map_t DeviceObject() const { return dev_map_t(id_, ArrayView<point_t>(points_), ArrayView<edge_t>(edges_)); }
 
   char get_id() const { return id_; }
 
@@ -276,9 +263,7 @@ class Map {
     return ipol;
   }
 
-  std::string ScaledEndpointsToString(size_t eid) const {
-    return ScaledEndpointsToString(get_edge(eid));
-  }
+  std::string ScaledEndpointsToString(size_t eid) const { return ScaledEndpointsToString(get_edge(eid)); }
 
   std::string ScaledEndpointsToString(const edge_t& e) const {
     auto& p1 = get_point(e.p1_idx);
@@ -287,22 +272,20 @@ class Map {
     std::string s;
     s.resize(1024);
 
-    auto n = snprintf(const_cast<char*>(s.c_str()), s.size(),
-                      "(%ld, %ld) - (%ld, %ld)", p1.x, p1.y, p2.x, p2.y);
+    auto n = snprintf(const_cast<char*>(s.c_str()), s.size(), "(%ld, %ld) - (%ld, %ld)", p1.x, p1.y, p2.x, p2.y);
 
     s.resize(n);
 
     return s;
   }
 
-  template <typename SCALING_T>
+  template<typename SCALING_T>
   std::string EndpointsToString(size_t eid, const SCALING_T& scaling) const {
     return EndpointsToString(get_edge(eid), scaling);
   }
 
-  template <typename SCALING_T>
-  std::string EndpointsToString(const edge_t& e,
-                                const SCALING_T& scaling) const {
+  template<typename SCALING_T>
+  std::string EndpointsToString(const edge_t& e, const SCALING_T& scaling) const {
     auto p1_idx = e.p1_idx;
     auto p2_idx = e.p2_idx;
     auto p1 = get_point(p1_idx);
@@ -315,8 +298,7 @@ class Map {
     std::string s;
     s.resize(1024);
 
-    auto n = snprintf(const_cast<char*>(s.c_str()), s.size(),
-                      "(%.8lf, %.8lf) - (%.8lf, %.8lf)", x1, y1, x2, y2);
+    auto n = snprintf(const_cast<char*>(s.c_str()), s.size(), "(%.8lf, %.8lf) - (%.8lf, %.8lf)", x1, y1, x2, y2);
 
     s.resize(n);
 
@@ -338,6 +320,32 @@ class Map {
   thrust::device_vector<edge_t> edges_;
   pinned_vector<point_t> h_points_;  // For debugging
   pinned_vector<edge_t> h_edges_;
+
+ public:
+  void DumpScalingPointsCSV(const std::string& out_dir, const std::string& impl_tag) {
+    namespace fs = std::filesystem;
+
+    fs::create_directories(out_dir);
+
+    D2H();
+
+    const std::string path = out_dir + "/" + impl_tag + "_scaling_map_" + std::to_string(id_) + ".csv";
+
+    std::ofstream ofs(path);
+    if (!ofs) {
+      LOG(ERROR) << "DumpScalingPointsCSV: failed to open " << path;
+      return;
+    }
+    ofs << "map_id,point_id,x,y\n";
+
+    for (size_t point_id = 0; point_id < h_points_.size(); ++point_id) {
+      const auto& p = h_points_[point_id];
+      ofs << id_ << "," << point_id << "," << static_cast<long long>(p.x) << "," << static_cast<long long>(p.y) << "\n";
+    }
+
+    ofs.close();
+    LOG(INFO) << "DumpScalingPointsCSV: wrote " << path;
+  }
 };
 
 }  // namespace rayjoin

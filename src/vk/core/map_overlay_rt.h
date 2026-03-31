@@ -89,7 +89,7 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
                                                                area_enlarge);
       fill_primitives_pass_->run();
 
-      DebugPrintAABBs(map, aabbs_buf_, eid_range_buf_[im], map_edge_count_[im]);
+      // DebugPrintAABBs(map, aabbs_buf_, eid_range_buf_[im], map_edge_count_[im]);
 
       LOG(INFO) << "Map-" << im << " builds " << map_edge_count_[im] << " primtives.";
       // traverse_handles_[im] = rt_engine_->BuildAccelCustom(aabbs_buf_, map_edge_count_[im]);
@@ -156,53 +156,53 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
   VkAccelerationStructureKHR traverse_handles_[2];
   // Queue<xsect_t> xsect_queue_;
 
-  void DebugPrintAABBs(std::shared_ptr<map_t> map, const VkDeviceBuf &aabbBuf, const VkDeviceBuf &eidRangeBuf, uint32_t edge_count) const {
-    uint32_t checkCount = std::min<uint32_t>(edge_count, 10);
-
-    auto gpuAABBs = readBackStorageBuffer<VkAabbPositionsKHR>(aabbBuf, checkCount);
-
-    auto gpuRanges = readBackStorageBuffer<EidRange>(eidRangeBuf, checkCount);
-
-    auto gpuEdges = readBackStorageBuffer<EdgeInt64>(map->getEdgesBuffer(), edge_count);
-
-    auto gpuPts = readBackStorageBuffer<DstPointI64>(map->getPointsBuffer(), map->get_points_num());
-
-    auto scaling = readBackStorageBuffer<Scaling<double, int64_t>>(map->getScalingBuffer(), 1)[0];
-
-    LOG(INFO) << "Debug AABB validation (first " << checkCount << " primitives):";
-
-    for (uint32_t i = 0; i < checkCount; i++) {
-      const auto &aabb = gpuAABBs[i];
-      const auto &range = gpuRanges[i];
-
-      uint32_t eid = range.first;
-
-      const auto &e = gpuEdges[eid];
-
-      auto &p1 = gpuPts[e.p1_idx];
-      auto &p2 = gpuPts[e.p2_idx];
-
-      double x1 = scaling.UnscaleX(p1.x);
-      double y1 = scaling.UnscaleY(p1.y);
-
-      double x2 = scaling.UnscaleX(p2.x);
-      double y2 = scaling.UnscaleY(p2.y);
-
-      double minx = std::min(x1, x2);
-      double maxx = std::max(x1, x2);
-      double miny = std::min(y1, y2);
-      double maxy = std::max(y1, y2);
-
-      bool inside = (minx >= aabb.minX && maxx <= aabb.maxX && miny >= aabb.minY && maxy <= aabb.maxY);
-
-      LOG(INFO) << "AABB=[(" << aabb.minX << "," << aabb.minY << "," << aabb.minZ << ") (" << aabb.maxX << "," << aabb.maxY << "," << aabb.maxZ
-                << ")]";
-
-      LOG(INFO) << "eid=" << eid << " edge=(" << x1 << "," << y1 << ") -> (" << x2 << "," << y2 << ")"
-                << " AABB=[(" << aabb.minX << "," << aabb.minY << ") (" << aabb.maxX << "," << aabb.maxY << ")]"
-                << " contains=" << (inside ? "YES" : "NO");
-    }
-  }
+  // void DebugPrintAABBs(std::shared_ptr<map_t> map, const VkDeviceBuf &aabbBuf, const VkDeviceBuf &eidRangeBuf, uint32_t edge_count) const {
+  //   uint32_t checkCount = std::min<uint32_t>(edge_count, 10);
+  //
+  //   auto gpuAABBs = readBackStorageBuffer<VkAabbPositionsKHR>(aabbBuf, checkCount);
+  //
+  //   auto gpuRanges = readBackStorageBuffer<EidRange>(eidRangeBuf, checkCount);
+  //
+  //   auto gpuEdges = readBackStorageBuffer<EdgeInt64>(map->getEdgesBuffer(), edge_count);
+  //
+  //   auto gpuPts = readBackStorageBuffer<DstPointI64>(map->getPointsBuffer(), map->get_points_num());
+  //
+  //   auto scaling = readBackStorageBuffer<Scaling<double, int64_t>>(map->getScalingBuffer(), 1)[0];
+  //
+  //   LOG(INFO) << "Debug AABB validation (first " << checkCount << " primitives):";
+  //
+  //   for (uint32_t i = 0; i < checkCount; i++) {
+  //     const auto &aabb = gpuAABBs[i];
+  //     const auto &range = gpuRanges[i];
+  //
+  //     uint32_t eid = range.first;
+  //
+  //     const auto &e = gpuEdges[eid];
+  //
+  //     auto &p1 = gpuPts[e.p1_idx];
+  //     auto &p2 = gpuPts[e.p2_idx];
+  //
+  //     double x1 = scaling.UnscaleX(p1.x);
+  //     double y1 = scaling.UnscaleY(p1.y);
+  //
+  //     double x2 = scaling.UnscaleX(p2.x);
+  //     double y2 = scaling.UnscaleY(p2.y);
+  //
+  //     double minx = std::min(x1, x2);
+  //     double maxx = std::max(x1, x2);
+  //     double miny = std::min(y1, y2);
+  //     double maxy = std::max(y1, y2);
+  //
+  //     bool inside = (minx >= aabb.minX && maxx <= aabb.maxX && miny >= aabb.minY && maxy <= aabb.maxY);
+  //
+  //     LOG(INFO) << "AABB=[(" << aabb.minX << "," << aabb.minY << "," << aabb.minZ << ") (" << aabb.maxX << "," << aabb.maxY << "," << aabb.maxZ
+  //               << ")]";
+  //
+  //     LOG(INFO) << "eid=" << eid << " edge=(" << x1 << "," << y1 << ") -> (" << x2 << "," << y2 << ")"
+  //               << " AABB=[(" << aabb.minX << "," << aabb.minY << ") (" << aabb.maxX << "," << aabb.maxY << ")]"
+  //               << " contains=" << (inside ? "YES" : "NO");
+  //   }
+  // }
 };
 
 }  // namespace vk

@@ -161,9 +161,10 @@ void RunOverlay(const OverlayConfig& config) {
   context_t ctx({g1, g2});
   std::shared_ptr<MapOverlay<context_t>> overlay;
 
+  QueryConfigRT query_config;
+
   if (config.mode == "rt") {
     auto overlay_rt = std::make_shared<MapOverlayRT<context_t>>(ctx);
-    QueryConfigRT query_config;
 
     query_config.profile = config.profile;
     query_config.fau = config.fau;
@@ -203,7 +204,7 @@ void RunOverlay(const OverlayConfig& config) {
   }
 
   timer_next("Load Data");
-  ctx.LoadToDevice();
+  ctx.LoadToDevice(query_config);
 
   timer_next("Init");
   overlay->Init();

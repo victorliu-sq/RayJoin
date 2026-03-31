@@ -110,8 +110,11 @@ class Context {
   // }
 
   void InitMaps(const QueryConfigRT& query_config) {
-    const bool dump_map = rayjoin::ShouldDumpStage(query_config.dump_results, "map");
-    const std::string scaling_dir = rayjoin::DumpSubdir(query_config.dump_dir, "results_scaling");
+    const bool dump_map = ShouldDumpStage(query_config.dump_results, "map");
+    const std::string scaling_dir = DumpSubdir(query_config.dump_dir, "results_scaling");
+
+    LOG(INFO) << "InitMaps: dump_results=" << query_config.dump_results << " dump_dir=" << query_config.dump_dir
+              << " dump_map=" << (dump_map ? "true" : "false") << " scaling_dir=" << scaling_dir;
 
     for (size_t im = 0; im < planar_graphs_.size(); ++im) {
       auto pgraph = planar_graphs_[im];

@@ -31,5 +31,9 @@ int main(int argc, char* argv[]) {
   config.ag_iter = FLAGS_ag_iter;
   config.enlarge = FLAGS_enlarge;
 
+  // dump
+  config.dump_results = FLAGS_dump_results;
+  config.dump_dir = FLAGS_dump_dir;
+
   rayjoin::vk::RunOverlay(config);
 }

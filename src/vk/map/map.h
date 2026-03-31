@@ -16,16 +16,16 @@
 namespace rayjoin {
 namespace vk {
 
-struct EdgeInt64 {
-  int64_t a;
-  int64_t b;
-  int64_t c;
+template<typename COEFFICIENT_T>
+struct EdgeEquation {
+  COEFFICIENT_T a, b, c;
+};
 
-  uint64_t eid;
-  uint64_t p1_idx;
-  uint64_t p2_idx;
-  uint64_t left_polygon_id;
-  uint64_t right_polygon_id;
+template<typename COEFFICIENT_T>
+struct alignas(16) Edge : EdgeEquation<COEFFICIENT_T> {
+  index_t eid;
+  index_t p1_idx, p2_idx;
+  index_t left_polygon_id, right_polygon_id;
 };
 
 template<typename INTERNAL_COORD_T, typename EDGE_COEFFICIENT_T>
@@ -34,24 +34,17 @@ class Map {
   using internal_coord_t = INTERNAL_COORD_T;
   using coefficient_t = EDGE_COEFFICIENT_T;
   using point_t = Vec2<internal_coord_t>;
+  using edge_t = Edge<coefficient_t>;
 
   Map() = delete;
   Map(int id) : id_(id) {}
 
-  ~Map() {
-    // auto& vk_ctx = GetVkComputeContext();
-    // Scaling
-    // vmaDestroyBufferSafe(vk_ctx.vma, srcPointsDev_);
-    // vmaDestroyBufferSafe(vk_ctx.vma, scaledPointsDev_);
-    // Edge Init
-    // vmaDestroyBufferSafe(vk_ctx.vma, chainsDev_);
-    // vmaDestroyBufferSafe(vk_ctx.vma, rowDev_);
-    // vmaDestroyBufferSafe(vk_ctx.vma, edgesDev_);
-  }
+  ~Map() = default;
 
   template<typename SRC_COORD_T>
   void Init(const Scaling<SRC_COORD_T, INTERNAL_COORD_T>& scaling, const PlanarGraph<SRC_COORD_T>& pgraph) {
     LOG(INFO) << "Init Map-" << id_ << " From PGraphs";
+
     /* ------------------------------------------------------------ */
     /* Step1: scale points                                          */
     /* ------------------------------------------------------------ */
@@ -71,11 +64,9 @@ class Map {
     scaledPointsDev_.Init(sizeof(DstPointI64) * point_count_);
     scalingDev_.Init(sizeof(Scaling<SRC_COORD_T, INTERNAL_COORD_T>));
 
-    /* upload CPU → GPU */
     writeToStorageBuffer(srcPointsDev_, pgraph.points);
     writeToStorageBuffer(scalingDev_, scaling);
 
-    /* run scaling compute pass */
     std::string spvPathScaling = std::string(SHADER_DIR) + "/scale_points_d2_i64.spv";
 
     ScalePointsParams scale_params{};
@@ -88,32 +79,35 @@ class Map {
     /* ------------------------------------------------------------ */
     /* Step2: initialize edges                                      */
     /* ------------------------------------------------------------ */
-    /* allocate GPU buffers */
+    struct EdgeInitParams {
+      uint32_t num_points;
+      uint32_t num_chains;
+      uint32_t num_edges;
+      uint32_t pad0;
+    };
+
+    static_assert(std::is_trivially_copyable_v<EdgeInitParams>);
+    static_assert(sizeof(EdgeInitParams) == 16);
+
     chain_count_ = static_cast<uint32_t>(pgraph.chains.size());
     edge_count_ = point_count_ - chain_count_;
 
-    // chainsDev_ = createStorageBuffer<Chain>(vk_ctx.vma, chain_count_);
-    // rowDev_ = createStorageBuffer<index_t>(vk_ctx.vma, chain_count_ + 1);
-    // edgesDev_ = createStorageBuffer<Edge>(vk_ctx.vma, edge_count_);
-
-    // chainsDev_ = createStorageBuffer(vk_ctx.vma, sizeof(Chain) *
-    // chain_count_); rowDev_ =
-    //     createStorageBuffer(vk_ctx.vma, sizeof(index_t) * (chain_count_ +
-    //     1));
-    // edgesDev_ = createStorageBuffer(vk_ctx.vma, sizeof(Edge) * edge_count_);
     chainsDev_.Init(sizeof(Chain) * chain_count_);
     rowDev_.Init(sizeof(index_t) * (chain_count_ + 1));
-    edgesDev_.Init(sizeof(EdgeInt64) * edge_count_);
+    edgesDev_.Init(sizeof(edge_t) * edge_count_);
 
-    /* upload CPU → GPU */
     writeToStorageBuffer(chainsDev_, pgraph.chains);
     writeToStorageBuffer(rowDev_, pgraph.row_index);
 
-    /* run edge init compute pass */
-    std::string spvPath = std::string(SHADER_DIR) + "/edge_init_i64.spv";
-    edge_pass_ = std::make_unique<EdgeInitPassI64RAII>(spvPath.c_str(), scaledPointsDev_, chainsDev_, rowDev_, edgesDev_, point_count_, chain_count_);
+    std::string spvPathEdge = std::string(SHADER_DIR) + "/edge_init_i128.spv";
 
-    edge_pass_->run();
+    EdgeInitParams edge_params{};
+    edge_params.num_points = point_count_;
+    edge_params.num_chains = chain_count_;
+    edge_params.num_edges = edge_count_;
+
+    RunComputePass(point_count_, spvPathEdge.c_str(), edge_params, scaledPointsDev_, chainsDev_, rowDev_, edgesDev_);
+
     LOG(INFO) << "Map-" << id_ << ": initialized " << edge_count_ << " edges on GPU";
 
     DebugPrintEdges(point_count_);
@@ -129,14 +123,9 @@ class Map {
  private:
   int id_;
 
-  // std::unique_ptr<ScalePointsPassD2I64RAII> scale_pass_;
-  std::unique_ptr<EdgeInitPassI64RAII> edge_pass_;
-
   uint32_t point_count_ = 0;
   uint32_t chain_count_ = 0;
   uint32_t edge_count_ = 0;
-
-  /* GPU buffers owned by Map */
 
   VkDeviceBuf srcPointsDev_{};
   VkDeviceBuf scaledPointsDev_{};
@@ -146,9 +135,21 @@ class Map {
   VkDeviceBuf rowDev_{};
   VkDeviceBuf edgesDev_{};
 
-  /* ------------------------------------------------------------ */
-  /* Debug helpers                                                 */
-  /* ------------------------------------------------------------ */
+  static std::string Int128ToString(__int128 v) {
+    if (v == 0) return "0";
+
+    bool neg = v < 0;
+    unsigned __int128 x = neg ? static_cast<unsigned __int128>(-v) : static_cast<unsigned __int128>(v);
+
+    std::string s;
+    while (x > 0) {
+      s.push_back(static_cast<char>('0' + (x % 10)));
+      x /= 10;
+    }
+    if (neg) s.push_back('-');
+    std::reverse(s.begin(), s.end());
+    return s;
+  }
 
   template<typename SRC_COORD_T>
   void DebugPrintScaledPoints(const Scaling<SRC_COORD_T, INTERNAL_COORD_T>& scaling,
@@ -182,7 +183,7 @@ class Map {
   void DebugPrintEdges(uint32_t point_count) const {
     uint32_t checkEdges = std::min<uint32_t>(edge_count_, 10);
 
-    auto gpuEdges = readBackStorageBuffer<EdgeInt64>(edgesDev_, checkEdges);
+    auto gpuEdges = readBackStorageBuffer<edge_t>(edgesDev_, checkEdges);
     auto gpuPts = readBackStorageBuffer<DstPointI64>(scaledPointsDev_, point_count);
 
     LOG(INFO) << "Map-" << id_ << " GPU edge readback (first " << checkEdges << " edges):";
@@ -190,12 +191,12 @@ class Map {
     for (uint32_t i = 0; i < checkEdges; ++i) {
       const auto& e = gpuEdges[i];
 
-      auto& p1 = gpuPts[e.p1_idx];
-      auto& p2 = gpuPts[e.p2_idx];
+      const auto& p1 = gpuPts[e.p1_idx];
+      const auto& p2 = gpuPts[e.p2_idx];
 
-      int64_t a = p1.y - p2.y;
-      int64_t b = p2.x - p1.x;
-      int64_t c = -(p1.x * a) - (p1.y * b);
+      __int128 a = static_cast<__int128>(p1.y) - static_cast<__int128>(p2.y);
+      __int128 b = static_cast<__int128>(p2.x) - static_cast<__int128>(p1.x);
+      __int128 c = -(static_cast<__int128>(p1.x) * a) - (static_cast<__int128>(p1.y) * b);
 
       if (b < 0) {
         a = -a;
@@ -205,8 +206,9 @@ class Map {
 
       bool ok = (a == e.a) && (b == e.b) && (c == e.c);
 
-      LOG(INFO) << "eid=" << e.eid << " p1=" << e.p1_idx << " p2=" << e.p2_idx << " GPU=(" << e.a << "," << e.b << "," << e.c << ")"
-                << " CPU=(" << a << "," << b << "," << c << ")"
+      LOG(INFO) << "eid=" << e.eid << " p1=" << e.p1_idx << " p2=" << e.p2_idx << " GPU=(" << Int128ToString(e.a) << "," << Int128ToString(e.b) << ","
+                << Int128ToString(e.c) << ")"
+                << " CPU=(" << Int128ToString(a) << "," << Int128ToString(b) << "," << Int128ToString(c) << ")"
                 << " match=" << (ok ? "YES" : "NO");
     }
   }

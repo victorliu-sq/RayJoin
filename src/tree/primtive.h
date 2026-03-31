@@ -2,6 +2,7 @@
 #ifndef RAYJOIN_TREE_PRIMTIVE_H
 #define RAYJOIN_TREE_PRIMTIVE_H
 #include "lbvh.cuh"
+#include "shader/config.h"
 #include "util/array_view.h"
 #include "util/helpers.h"
 #include "util/stream.h"
@@ -30,14 +31,13 @@ struct aabb_getter {
   }
 };
 
-template <typename MAP_T, typename SCALING_T, typename SEGMENT_T>
-void FillPrimitivesLBVH(Stream& stream, const MAP_T& d_map,
-                        const SCALING_T& scaling,
-                        thrust::device_vector<SEGMENT_T>& primitives) {
+template<typename MAP_T, typename SCALING_T, typename SEGMENT_T>
+void FillPrimitivesLBVH(Stream& stream, const MAP_T& d_map, const SCALING_T& scaling, thrust::device_vector<SEGMENT_T>& primitives) {
   primitives.resize(d_map.get_edges_num());
 
   ForEach(
-      stream, d_map.get_edges_num(),
+      stream,
+      d_map.get_edges_num(),
       [=] __device__(size_t eid, ArrayView<SEGMENT_T> edges) {
         const auto& e = d_map.get_edge(eid);
         auto p1 = d_map.get_point(e.p1_idx);
