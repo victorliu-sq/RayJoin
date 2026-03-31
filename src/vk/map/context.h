@@ -10,11 +10,29 @@
 namespace rayjoin {
 namespace vk {
 
-template <typename COORD_T, typename COEFFICIENT_T = __int128>
+// ===========================================================
+// Concept support for Context
+template<typename POINT_COORD_T, typename EDGE_COEFFICIENT_T>
+  requires PointCoordType<POINT_COORD_T>
+class Context;
+
+// Pass a sinlge type arugment Context to check whether it satisfies the condition
+template<typename T>
+struct is_context : std::false_type {};
+
+template<typename POINT_COORD_T, typename EDGE_COEFFICIENT_T>
+struct is_context<Context<POINT_COORD_T, EDGE_COEFFICIENT_T>> : std::true_type {};
+
+template<typename T>
+concept ContextType = is_context<T>::value;
+// ===========================================================
+
+template<typename POINT_COORD_T, typename EDGE_COEFFICIENT_T = __int128>
+  requires PointCoordType<POINT_COORD_T>
 class Context {
  public:
-  using coord_t = COORD_T;
-  using coefficient_t = COEFFICIENT_T;
+  using coord_t = POINT_COORD_T;
+  using coefficient_t = EDGE_COEFFICIENT_T;
 
   using scaling_t = Scaling<coord_t>;
   using internal_coord_t = scaling_t::internal_coord_t;
@@ -26,7 +44,7 @@ class Context {
 
   ~Context() {
     // 1) Destroy GPU users first (Maps hold VMA allocations)
-    for (auto& m : maps_) {
+    for (auto& m: maps_) {
       m.reset();
     }
 
@@ -40,10 +58,8 @@ class Context {
     // }
   }
 
-  explicit Context(
-      const std::array<std::shared_ptr<planar_graph_t>, 2>& planar_graphs)
-      : planar_graphs_(planar_graphs) {
-    for (auto pgraph : planar_graphs) {
+  explicit Context(const std::array<std::shared_ptr<planar_graph_t>, 2>& planar_graphs) : planar_graphs_(planar_graphs) {
+    for (auto pgraph: planar_graphs) {
       if (pgraph != nullptr) {
         auto& bb = pgraph->bb;
         bb_.min_x = std::min(bb_.min_x, bb.min_x);
@@ -58,22 +74,16 @@ class Context {
 #ifndef NDEBUG
     scaling_.DebugPrint();
 #endif
-    LOG(INFO) << "Bounding Box, Bottom-left: (" << bb_.min_x << ", "
-              << bb_.min_y << "), Top-right: (" << bb_.max_x << ", "
-              << bb_.max_y << ")";
+    LOG(INFO) << "Bounding Box, Bottom-left: (" << bb_.min_x << ", " << bb_.min_y << "), Top-right: (" << bb_.max_x << ", " << bb_.max_y << ")";
 
     auto internal_min_x = scaling_.ScaleX(bb_.min_x);
     auto internal_min_y = scaling_.ScaleY(bb_.min_y);
     auto internal_max_x = scaling_.ScaleX(bb_.max_x);
     auto internal_max_y = scaling_.ScaleY(bb_.max_y);
-    LOG(INFO) << "Scaled Bounding Box, Bottom-left: (" << internal_min_x << ", "
-              << internal_min_y << "), Top-right: (" << internal_max_x << ","
+    LOG(INFO) << "Scaled Bounding Box, Bottom-left: (" << internal_min_x << ", " << internal_min_y << "), Top-right: (" << internal_max_x << ","
               << internal_max_y << ")";
-    LOG(INFO) << "Unscaled Bounding Box, Bottom-left: ("
-              << scaling_.UnscaleX(internal_min_x) << ", "
-              << scaling_.UnscaleY(internal_min_y) << "), Top-right: ("
-              << scaling_.UnscaleX(internal_max_x) << ", "
-              << scaling_.UnscaleY(internal_max_y) << ")";
+    LOG(INFO) << "Unscaled Bounding Box, Bottom-left: (" << scaling_.UnscaleX(internal_min_x) << ", " << scaling_.UnscaleY(internal_min_y)
+              << "), Top-right: (" << scaling_.UnscaleX(internal_max_x) << ", " << scaling_.UnscaleY(internal_max_y) << ")";
 
     // char result[PATH_MAX];
     // ssize_t count = readlink("/proc/self/exe", result, PATH_MAX);
