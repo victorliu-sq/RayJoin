@@ -256,29 +256,6 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
     // ------------------------------------------------------------
     // RT pass: query point -> closest crossing edge in base map
     // ------------------------------------------------------------
-    // std::string rgen_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rgen_ns.spv";
-    // std::string rint_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rint_ns.spv";
-    // std::string rahit_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rahit_ns.spv";
-    // std::string rchit_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rchit_ns.spv";
-    // std::string rmiss_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rmiss_ns.spv";
-    //
-    // PIPRTPassNS rt_pass(rgen_spv.c_str(),
-    //                     rint_spv.c_str(),
-    //                     rahit_spv.c_str(),
-    //                     rchit_spv.c_str(),
-    //                     rmiss_spv.c_str(),
-    //                     accel_[base_map_id].GetTraverseHandle(),
-    //                     eid_range_buf_[base_map_id],
-    //                     base_map->getPointsBuffer(),
-    //                     base_map->getEdgesBuffer(),
-    //                     query_map->getPointsBuffer(),
-    //                     closest_eids_buf_[query_map_id],
-    //                     best_ys_buf_[query_map_id],
-    //                     pip_debug_counter_buf_[query_map_id],
-    //                     static_cast<uint32_t>(query_map_id),
-    //                     static_cast<uint32_t>(map_point_count_[query_map_id]));
-    //
-    // rt_pass.run();
     std::string rgen_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rgen_ns.spv";
     std::string rint_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rint_ns.spv";
     std::string rahit_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rahit_ns.spv";
@@ -552,39 +529,9 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
       mid_points_buf.Init(sizeof(point_t) * host_mid_points.size());
       mid_staging.Stage2Device(mid_points_buf, sizeof(point_t) * host_mid_points.size());
 
-      // std::string rgen_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rgen_ns.spv";
-      // std::string rint_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rint_ns.spv";
-      // std::string rahit_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rahit_ns.spv";
-      // std::string rchit_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rchit_ns.spv";
-      // std::string rmiss_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rmiss_ns.spv";
-      //
-      // VkDeviceBuf mid_closest_eids_buf;
-      // mid_closest_eids_buf.Init(sizeof(index_t) * tasks.size());
-      //
-      // VkDeviceBuf mid_best_ys_buf;
-      // mid_best_ys_buf.Init(sizeof(double) * tasks.size());
-      //
-      // VkDeviceBuf mid_debug_counter_buf;
-      // mid_debug_counter_buf.Init(sizeof(uint32_t) * 8);
-      //
-      // PIPRTPassNS rt_pass(rgen_spv.c_str(),
-      //                     rint_spv.c_str(),
-      //                     rahit_spv.c_str(),
-      //                     rchit_spv.c_str(),
-      //                     rmiss_spv.c_str(),
-      //                     accel_[base_map_id].GetTraverseHandle(),
-      //                     eid_range_buf_[base_map_id],
-      //                     base_map->getPointsBuffer(),
-      //                     base_map->getEdgesBuffer(),
-      //                     mid_points_buf,
-      //                     mid_closest_eids_buf,
-      //                     mid_best_ys_buf,
-      //                     mid_debug_counter_buf,
-      //                     static_cast<uint32_t>(query_map_id),
-      //                     static_cast<uint32_t>(tasks.size()));
-      //
-      // rt_pass.run();
 
+      // ========================================================================
+      // PIP-RT
       std::string rgen_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rgen_ns.spv";
       std::string rint_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rint_ns.spv";
       std::string rahit_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rahit_ns.spv";
