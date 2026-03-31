@@ -66,41 +66,6 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     (void) vk_ctx;
   }
 
-  // void BuildIndex() override {
-  //   auto &ctx = this->ctx_;
-  //   auto &vk_ctx = GetVkComputeContext();
-  //
-  //   auto ag_iter = config_.ag_iter;
-  //   auto area_enlarge = config_.enlarge;
-  //
-  //   for (int im = 0; im < 2; im++) {
-  //     auto map = ctx.get_map(im);
-  //
-  //     std::string spvPath = std::string(SHADER_DIR) + "/fill_primitives.spv";
-  //
-  //     fill_primitives_pass_ = std::make_unique<FillPrimitives>(spvPath.c_str(),
-  //                                                              map->getPointsBuffer(),
-  //                                                              map->getEdgesBuffer(),
-  //                                                              map->getScalingBuffer(),  // ← NEW
-  //                                                              aabbs_buf_,
-  //                                                              eid_range_buf_[im],
-  //                                                              map_edge_count_[im],
-  //                                                              ag_iter,
-  //                                                              area_enlarge);
-  //     fill_primitives_pass_->run();
-  //
-  //     // DebugPrintAABBs(map, aabbs_buf_, eid_range_buf_[im], map_edge_count_[im]);
-  //
-  //     LOG(INFO) << "Map-" << im << " builds " << map_edge_count_[im] << " primtives.";
-  //     // traverse_handles_[im] = rt_engine_->BuildAccelCustom(aabbs_buf_, map_edge_count_[im]);
-  //     // traverse_handles_[im] = rt_engine_->BuildAccelCustom(aabbs_buf_, map_edge_count_[im]);
-  //
-  //     // if (config_.fau) {
-  //     //   clearBuffer(aabbs_buf_);
-  //     // }
-  //   }
-  // }
-
   void BuildIndex() override {
     auto &ctx = this->ctx_;
 
