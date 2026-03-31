@@ -65,7 +65,6 @@ run_compare "Scaling map 1" \
   "${scaling_dir}/vulkan_scaling_map_1.csv" \
   "$scaling_diff_dir" || status=1
 
-
 # -------------------------
 # Edge comparisons
 # -------------------------
@@ -80,6 +79,14 @@ run_compare "Edges map 1" \
   "$edges_diff_dir" || status=1
 
 # -------------------------
+# LSI comparisons
+# -------------------------
+#run_compare "LSI map 0" \
+#  "${lsi_dir}/optix_lsi_map_0.csv" \
+#  "${lsi_dir}/vulkan_lsi_map_0.csv" \
+#  "$lsi_diff_dir" || status=1
+
+# -------------------------
 # PIP comparisons
 # -------------------------
 #run_compare "PIP map 0" \
@@ -92,13 +99,6 @@ run_compare "Edges map 1" \
 #  "${pip_dir}/vulkan_pip_map_1.csv" \
 #  "$pip_diff_dir" || status=1
 
-# -------------------------
-# LSI comparisons
-# -------------------------
-#run_compare "LSI map 0" \
-#  "${lsi_dir}/optix_lsi_map_0.csv" \
-#  "${lsi_dir}/vulkan_lsi_map_0.csv" \
-#  "$lsi_diff_dir" || status=1
 
 # -------------------------
 # Midpoint PIP comparisons
