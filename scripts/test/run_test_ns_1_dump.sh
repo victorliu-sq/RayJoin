@@ -19,7 +19,7 @@ optix_output="${base_dir}/results/br_countyXbr_soil_result_optix.txt"
   -xsect_factor=5.0 \
   -warmup=5 -repeat=5 \
   -query=lsi/pip \
-  -dump_results=pip,lsi,pipmid \
+  -dump_results=index,pip,lsi,pipmid \
   -dump_dir="$base_dir"
 
 # =========================================================
@@ -32,21 +32,36 @@ optix_output="${base_dir}/results/br_countyXbr_soil_result_optix.txt"
   -xsect_factor=5.0 \
   -warmup=5 -repeat=5 \
   -query=lsi/pip \
-  -dump_results=pip,lsi,pipmid \
+  -dump_results=index,pip,lsi,pipmid \
   -dump_dir="$base_dir"
 
 status=0
 
+index_dir="${base_dir}/results_index"
 pip_dir="${base_dir}/results_pip"
 lsi_dir="${base_dir}/results_lsi"
 mid_dir="${base_dir}/results_mid"
 
+index_diff_dir="${index_dir}/diffs"
 pip_diff_dir="${pip_dir}/diffs"
 lsi_diff_dir="${lsi_dir}/diffs"
 mid_diff_dir="${mid_dir}/diffs"
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${script_dir}/compare_files.sh"
+
+# -------------------------
+# BuildIndex comparisons
+# -------------------------
+run_compare "Index map 0" \
+  "${index_dir}/optix_index_map_0.csv" \
+  "${index_dir}/vulkan_index_map_0.csv" \
+  "$index_diff_dir" || status=1
+
+run_compare "Index map 1" \
+  "${index_dir}/optix_index_map_1.csv" \
+  "${index_dir}/vulkan_index_map_1.csv" \
+  "$index_diff_dir" || status=1
 
 # -------------------------
 # PIP comparisons

@@ -129,39 +129,90 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
     prof_counter_buf_.Init(sizeof(uint32_t) * 20);
   }
 
+  // void BuildIndex() override {
+  //   auto &ctx = this->ctx_;
+  //   auto &vk_ctx = GetVkComputeContext();
+  //
+  //   auto ag_iter = config_.ag_iter;
+  //   auto area_enlarge = config_.enlarge;
+  //
+  //   const bool dump_index = rayjoin::ShouldDumpStage(config_.dump_results, "index");
+  //   const std::string index_dir = rayjoin::DumpSubdir(config_.dump_dir, "results_index");
+  //
+  //   for (int im = 0; im < 2; im++) {
+  //     auto map = ctx.get_map(im);
+  //
+  //     std::string spvPath = std::string(SHADER_DIR_NS) + "/fill_primitives_ns.spv";
+  //
+  //     struct FillPrimitivesParams {
+  //       uint32_t numEdges;
+  //       uint32_t maxIter;
+  //       float areaEnlarge;
+  //       uint32_t pad;
+  //     };
+  //
+  //     RunComputePass(static_cast<uint32_t>(map_edge_count_[im]),
+  //                    spvPath.c_str(),
+  //                    FillPrimitivesParams{
+  //                        .numEdges = static_cast<uint32_t>(map_edge_count_[im]), .maxIter = ROUNDING_ITER, .areaEnlarge = area_enlarge, .pad = 0},
+  //                    map->getPointsBuffer(),
+  //                    map->getEdgesBuffer(),
+  //                    aabbs_buf_,
+  //                    eid_range_buf_[im]);
+  //
+  //     // DEBUG
+  //     // DebugPrintAABBs(map, aabbs_buf_, eid_range_buf_[im], map_edge_count_[im]);
+  //
+  //     if (dump_index) {
+  //       DumpIndexResultsCSV(im, index_dir, "vulkan");
+  //     }
+  //
+  //     LOG(INFO) << "Map-" << im << " builds " << map_edge_count_[im] << " primtives.";
+  //     accel_[im].BuildAccelCustom(aabbs_buf_, map_edge_count_[im]);
+  //   }
+  // }
+
   void BuildIndex() override {
     auto &ctx = this->ctx_;
-    auto &vk_ctx = GetVkComputeContext();
 
-    auto ag_iter = config_.ag_iter;
-    auto area_enlarge = config_.enlarge;
+    struct FillPrimitivesParams {
+      uint32_t numEdges;
+      uint32_t maxIter;
+      float unused;
+      uint32_t pad;
+    };
 
-    for (int im = 0; im < 2; im++) {
+    static_assert(std::is_trivially_copyable_v<FillPrimitivesParams>);
+    static_assert(sizeof(FillPrimitivesParams) == 16);
+
+    const bool dump_index = rayjoin::ShouldDumpStage(config_.dump_results, "index");
+    const std::string index_dir = rayjoin::DumpSubdir(config_.dump_dir, "results_index");
+
+    for (int im = 0; im < 2; ++im) {
       auto map = ctx.get_map(im);
 
       std::string spvPath = std::string(SHADER_DIR_NS) + "/fill_primitives_ns.spv";
 
-      struct FillPrimitivesParams {
-        uint32_t numEdges;
-        uint32_t maxIter;
-        float areaEnlarge;
-        uint32_t pad;
-      };
+      FillPrimitivesParams params{};
+      params.numEdges = static_cast<uint32_t>(map_edge_count_[im]);
+      params.maxIter = static_cast<uint32_t>(ROUNDING_ITER);
+      params.unused = 0.0f;
+      params.pad = 0;
 
-      RunComputePass(
-          static_cast<uint32_t>(map_edge_count_[im]),
-          spvPath.c_str(),
-          FillPrimitivesParams{.numEdges = static_cast<uint32_t>(map_edge_count_[im]), .maxIter = ag_iter, .areaEnlarge = area_enlarge, .pad = 0},
-          map->getPointsBuffer(),
-          map->getEdgesBuffer(),
-          aabbs_buf_,
-          eid_range_buf_[im]);
+      RunComputePass(static_cast<uint32_t>(map_edge_count_[im]),
+                     spvPath.c_str(),
+                     params,
+                     map->getPointsBuffer(),
+                     map->getEdgesBuffer(),
+                     aabbs_buf_,
+                     eid_range_buf_[im]);
 
-      // DEBUG
-      // DebugPrintAABBs(map, aabbs_buf_, eid_range_buf_[im], map_edge_count_[im]);
+      if (dump_index) {
+        DumpIndexResultsCSV(im, index_dir, "vulkan");
+      }
 
       LOG(INFO) << "Map-" << im << " builds " << map_edge_count_[im] << " primtives.";
-      accel_[im].BuildAccelCustom(aabbs_buf_, map_edge_count_[im]);
+      accel_[im].BuildAccelCustom(aabbs_buf_, static_cast<uint32_t>(map_edge_count_[im]));
     }
   }
 
@@ -1380,6 +1431,45 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
 
     ofs.close();
     LOG(INFO) << "DumpMidPointClosestEidsCSV: wrote " << path;
+  }
+
+
+  void DumpIndexResultsCSV(int map_id, const std::string &out_dir, const std::string &impl_tag) const {
+    namespace fs = std::filesystem;
+    fs::create_directories(out_dir);
+
+    const uint32_t n = static_cast<uint32_t>(map_edge_count_[map_id]);
+
+    auto h_aabbs = readBackStorageBuffer<VkAabbPositionsKHR>(aabbs_buf_, n);
+    auto h_ranges = readBackStorageBuffer<EidRange>(eid_range_buf_[map_id], n);
+
+    if (h_aabbs.size() != n || h_ranges.size() != n) {
+      LOG(ERROR) << "DumpIndexResultsCSV: readback size mismatch for map_id=" << map_id << " aabbs=" << h_aabbs.size()
+                 << " ranges=" << h_ranges.size() << " expected=" << n;
+      return;
+    }
+
+    const std::string path = out_dir + "/" + impl_tag + "_index_map_" + std::to_string(map_id) + ".csv";
+
+    std::ofstream ofs(path);
+    if (!ofs) {
+      LOG(ERROR) << "DumpIndexResultsCSV: failed to open " << path;
+      return;
+    }
+
+    ofs << "map_id,primitive_id,min_x,min_y,min_z,max_x,max_y,max_z,eid_begin,eid_end\n";
+    ofs << std::fixed << std::setprecision(9);
+
+    for (uint32_t i = 0; i < n; ++i) {
+      const auto &a = h_aabbs[i];
+      const auto &r = h_ranges[i];
+
+      ofs << map_id << "," << i << "," << a.minX << "," << a.minY << "," << a.minZ << "," << a.maxX << "," << a.maxY << "," << a.maxZ << ","
+          << r.first << "," << r.second << "\n";
+    }
+
+    ofs.close();
+    LOG(INFO) << "DumpIndexResultsCSV: wrote " << path;
   }
 };
 
