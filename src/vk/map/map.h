@@ -16,20 +16,6 @@
 namespace rayjoin {
 namespace vk {
 
-// template<typename COEFFICIENT_T>
-// struct EdgeEquation {
-//   COEFFICIENT_T a, b, c;
-// };
-//
-// template<typename COEFFICIENT_T>
-// struct alignas(16) Edge : EdgeEquation<COEFFICIENT_T> {
-//   index_t eid;
-//   index_t p1_idx, p2_idx;
-//   index_t left_polygon_id, right_polygon_id;
-// };
-
-using index_t = uint32_t;
-
 template<typename COEFFICIENT_T>
 struct alignas(16) Edge {
   COEFFICIENT_T a;
