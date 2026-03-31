@@ -46,27 +46,11 @@ class Map {
   }
 
   template<typename SRC_COORD_T>
-  void LoadFrom(const Scaling<SRC_COORD_T, INTERNAL_COORD_T>& scaling, const PlanarGraph<SRC_COORD_T>& pgraph) {
+  void Init(const Scaling<SRC_COORD_T, INTERNAL_COORD_T>& scaling, const PlanarGraph<SRC_COORD_T>& pgraph) {
     LOG(INFO) << "Init Map-" << id_ << " From PGraphs";
     /* ------------------------------------------------------------ */
     /* Step1: scale points                                          */
     /* ------------------------------------------------------------ */
-    // point_count_ = static_cast<uint32_t>(pgraph.points.size());
-    // /* allocate GPU buffers */
-    // srcPointsDev_.Init(sizeof(SrcPointD) * point_count_);
-    // scaledPointsDev_.Init(sizeof(DstPointI64) * point_count_);
-    // scalingDev_.Init(sizeof(Scaling<SRC_COORD_T, INTERNAL_COORD_T>));
-    //
-    // /* upload CPU → GPU */
-    // writeToStorageBuffer(srcPointsDev_, pgraph.points);
-    // writeToStorageBuffer(scalingDev_, scaling);
-    // /* run scaling compute pass */
-    // std::string spvPathScaling = std::string(SHADER_DIR) + "/scale_points_d2_i64.spv";
-    // scale_pass_ = std::make_unique<ScalePointsPassD2I64RAII>(spvPathScaling.c_str(), srcPointsDev_, scaledPointsDev_, scalingDev_, point_count_);
-    //
-    // scale_pass_->run();
-    // DebugPrintScaledPoints(scaling, pgraph, point_count_);
-
     struct ScalePointsParams {
       uint32_t count;
       uint32_t pad0;

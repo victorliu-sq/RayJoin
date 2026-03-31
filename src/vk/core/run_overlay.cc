@@ -200,7 +200,7 @@ void RunOverlay(const rayjoin::OverlayConfig& config) {
   }
 
   timer_next("Load Data");
-  ctx.LoadToDevice();
+  ctx.InitMaps();
 
   timer_next("Init");
   // overlay->Init();

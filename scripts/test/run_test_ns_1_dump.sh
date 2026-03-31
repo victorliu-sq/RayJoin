@@ -11,7 +11,7 @@ optix_output="${base_dir}/results/br_countyXbr_soil_result_optix.txt"
 
 # =========================================================
 # Run Vulkan with dumps enabled
-./build/bin/polyover_vk_exec \
+./build/bin/polyover_vk_exec_ns \
   -poly1 "$poly1" \
   -poly2 "$poly2" \
   -output "$vk_output" \

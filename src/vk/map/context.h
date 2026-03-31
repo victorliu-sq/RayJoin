@@ -94,7 +94,7 @@ class Context {
     // exec_root = std::string(path);
   }
 
-  void LoadToDevice() {
+  void InitMaps() {
     for (size_t im = 0; im < planar_graphs_.size(); im++) {
       auto pgraph = planar_graphs_[im];
 
