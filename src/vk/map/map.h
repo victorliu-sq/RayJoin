@@ -16,17 +16,42 @@
 namespace rayjoin {
 namespace vk {
 
-template<typename COEFFICIENT_T>
-struct EdgeEquation {
-  COEFFICIENT_T a, b, c;
-};
+// template<typename COEFFICIENT_T>
+// struct EdgeEquation {
+//   COEFFICIENT_T a, b, c;
+// };
+//
+// template<typename COEFFICIENT_T>
+// struct alignas(16) Edge : EdgeEquation<COEFFICIENT_T> {
+//   index_t eid;
+//   index_t p1_idx, p2_idx;
+//   index_t left_polygon_id, right_polygon_id;
+// };
+
+using index_t = uint32_t;
 
 template<typename COEFFICIENT_T>
-struct alignas(16) Edge : EdgeEquation<COEFFICIENT_T> {
+struct alignas(16) Edge {
+  COEFFICIENT_T a;
+  COEFFICIENT_T b;
+  COEFFICIENT_T c;
+
   index_t eid;
-  index_t p1_idx, p2_idx;
-  index_t left_polygon_id, right_polygon_id;
+  index_t p1_idx;
+  index_t p2_idx;
+  index_t left_polygon_id;
+  index_t right_polygon_id;
+
+  uint32_t pad0;
+  uint32_t pad1;
+  uint32_t pad2;
 };
+
+static_assert(sizeof(__int128) == 16);
+static_assert(alignof(__int128) == 16);
+static_assert(sizeof(Edge<__int128>) == 80);
+static_assert(alignof(Edge<__int128>) == 16);
+static_assert(std::is_trivially_copyable_v<Edge<__int128>>);
 
 template<typename INTERNAL_COORD_T, typename EDGE_COEFFICIENT_T>
 class Map {
@@ -180,6 +205,40 @@ class Map {
     }
   }
 
+  // void DebugPrintEdges(uint32_t point_count) const {
+  //   uint32_t checkEdges = std::min<uint32_t>(edge_count_, 10);
+  //
+  //   auto gpuEdges = readBackStorageBuffer<edge_t>(edgesDev_, checkEdges);
+  //   auto gpuPts = readBackStorageBuffer<DstPointI64>(scaledPointsDev_, point_count);
+  //
+  //   LOG(INFO) << "Map-" << id_ << " GPU edge readback (first " << checkEdges << " edges):";
+  //
+  //   for (uint32_t i = 0; i < checkEdges; ++i) {
+  //     const auto& e = gpuEdges[i];
+  //
+  //     const auto& p1 = gpuPts[e.p1_idx];
+  //     const auto& p2 = gpuPts[e.p2_idx];
+  //
+  //     __int128 a = static_cast<__int128>(p1.y) - static_cast<__int128>(p2.y);
+  //     __int128 b = static_cast<__int128>(p2.x) - static_cast<__int128>(p1.x);
+  //     __int128 c = -(static_cast<__int128>(p1.x) * a) - (static_cast<__int128>(p1.y) * b);
+  //
+  //     if (b < 0) {
+  //       a = -a;
+  //       b = -b;
+  //       c = -c;
+  //     }
+  //
+  //     bool ok = (a == e.a) && (b == e.b) && (c == e.c);
+  //
+  //     LOG(INFO) << "eid=" << e.eid << " p1=" << e.p1_idx << " p2=" << e.p2_idx << " GPU=(" << Int128ToString(e.a) << "," << Int128ToString(e.b) <<
+  //     ","
+  //               << Int128ToString(e.c) << ")"
+  //               << " CPU=(" << Int128ToString(a) << "," << Int128ToString(b) << "," << Int128ToString(c) << ")"
+  //               << " match=" << (ok ? "YES" : "NO");
+  //   }
+  // }
+
   void DebugPrintEdges(uint32_t point_count) const {
     uint32_t checkEdges = std::min<uint32_t>(edge_count_, 10);
 
@@ -190,6 +249,11 @@ class Map {
 
     for (uint32_t i = 0; i < checkEdges; ++i) {
       const auto& e = gpuEdges[i];
+
+      if (e.p1_idx >= point_count || e.p2_idx >= point_count) {
+        LOG(ERROR) << "eid=" << e.eid << " invalid p1=" << e.p1_idx << " p2=" << e.p2_idx << " point_count=" << point_count;
+        continue;
+      }
 
       const auto& p1 = gpuPts[e.p1_idx];
       const auto& p2 = gpuPts[e.p2_idx];

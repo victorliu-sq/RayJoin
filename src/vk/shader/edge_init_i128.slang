@@ -12,8 +12,8 @@ struct Chain {
 };
 
 struct Int128 {
-  int64_t hi;
   uint64_t lo;
+  int64_t hi;
 };
 
 struct Edge {
@@ -26,6 +26,10 @@ struct Edge {
   uint p2_idx;
   uint left_polygon_id;
   uint right_polygon_id;
+
+  uint pad0;
+  uint pad1;
+  uint pad2;
 };
 
 struct Push {
@@ -50,7 +54,6 @@ StructuredBuffer<uint> gRowIdx;
 [[vk::binding(3, 0)]]
 RWStructuredBuffer<Edge> gEdges;
 
-
 uint findChain(uint pIdx) {
   uint lo = 0;
   uint hi = pc.num_chains;
@@ -68,8 +71,8 @@ uint findChain(uint pIdx) {
 
 Int128 MakeInt128(int64_t hi, uint64_t lo) {
   Int128 v;
-  v.hi = hi;
   v.lo = lo;
+  v.hi = hi;
   return v;
 }
 
@@ -91,10 +94,6 @@ Int128 Add128(Int128 a, Int128 b) {
 
 Int128 Neg128(Int128 x) {
   return Add128(BitNot(x), MakeInt128(0, 1));
-}
-
-Int128 Sub128(Int128 a, Int128 b) {
-  return Add128(a, Neg128(b));
 }
 
 Int128 MulU64U64(uint64_t x, uint64_t y) {
@@ -133,8 +132,6 @@ void main(uint3 tid: SV_DispatchThreadID) {
     return;
 
   uint chainId = findChain(pIdx);
-
-  uint start = gRowIdx[chainId];
   uint end = gRowIdx[chainId + 1];
 
   if (pIdx >= end - 1)
@@ -165,12 +162,14 @@ void main(uint3 tid: SV_DispatchThreadID) {
   e.a = a;
   e.b = b;
   e.c = c;
-
   e.eid = eid;
   e.p1_idx = pIdx;
   e.p2_idx = pIdx + 1;
   e.left_polygon_id = (uint)ch.left_polygon_id;
   e.right_polygon_id = (uint)ch.right_polygon_id;
+  e.pad0 = 0;
+  e.pad1 = 0;
+  e.pad2 = 0;
 
   gEdges[eid] = e;
 }
