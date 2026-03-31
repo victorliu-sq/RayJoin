@@ -203,13 +203,13 @@ void RunOverlay(const rayjoin::OverlayConfig& config) {
   ctx.LoadToDevice();
 
   timer_next("Init");
-  overlay->Init();
+  // overlay->Init();
 
   timer_next("Build Index");
-  overlay->BuildIndex();
+  // overlay->BuildIndex();
 
   timer_next("Intersection edges");
-  overlay->IntersectEdge(0);
+  // overlay->IntersectEdge(0);
 
   FOR2 {
     auto prefix = "Map " + std::to_string(im) + ": ";

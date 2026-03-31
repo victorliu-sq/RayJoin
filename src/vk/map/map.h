@@ -1,13 +1,13 @@
 #ifndef RAYJOIN_MAP_H
 #define RAYJOIN_MAP_H
 
+#include "../engine/vk_buffer_readback.h"
 #include "edge_init_pass_i64_raii.h"
 #include "glog/logging.h"
 #include "planar_graph.h"
 #include "scale_points_raii.h"
 #include "vk/map/gpu_edge_types.h"
 #include "vk/map/scaling.h"
-#include "vk/map/vk_debug_readback.h"
 
 namespace rayjoin {
 namespace vk {
@@ -24,11 +24,11 @@ struct EdgeInt64 {
   uint64_t right_polygon_id;
 };
 
-template<typename INTERNAL_COORD_T, typename COEFFICIENT_T>
+template<typename INTERNAL_COORD_T, typename EDGE_COEFFICIENT_T>
 class Map {
  public:
   using internal_coord_t = INTERNAL_COORD_T;
-  using coefficient_t = COEFFICIENT_T;
+  using coefficient_t = EDGE_COEFFICIENT_T;
   using point_t = Vec2<internal_coord_t>;
 
   Map() = delete;
@@ -48,8 +48,6 @@ class Map {
   template<typename SRC_COORD_T>
   void LoadFrom(const Scaling<SRC_COORD_T, INTERNAL_COORD_T>& scaling, const PlanarGraph<SRC_COORD_T>& pgraph) {
     LOG(INFO) << "Init Map-" << id_ << " From PGraphs";
-    auto& vk_ctx = GetVkComputeContext();
-
     /* ------------------------------------------------------------ */
     /* Step1: scale points                                          */
     /* ------------------------------------------------------------ */

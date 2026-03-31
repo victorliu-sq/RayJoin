@@ -1,6 +1,7 @@
 #ifndef RAYJOIN_MAP_OVERLAY_RT_NS_H
 #define RAYJOIN_MAP_OVERLAY_RT_NS_H
 
+#include "../engine/vk_buffer_readback.h"
 #include "../engine/vk_compute_engine.h"
 #include "map_overlay_ns.h"
 #include "query_config.h"
@@ -12,7 +13,6 @@
 #include "vk/map/lsi_rt_pass.h"
 #include "vk/map/map.h"
 #include "vk/map/pip_rt_pass.h"
-#include "vk/map/vk_debug_readback.h"
 #include "vk/rt/as_scene.h"
 #include "vk/rt/rt_engine.h"
 
