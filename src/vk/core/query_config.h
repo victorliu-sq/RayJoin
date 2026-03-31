@@ -29,7 +29,6 @@ struct QueryConfigRT {
   VkAccelerationStructureKHR handle = VK_NULL_HANDLE;
   const VkDeviceBuf* eid_range = nullptr;
 
-
   // dump controls
   std::string dump_results;
   std::string dump_dir;

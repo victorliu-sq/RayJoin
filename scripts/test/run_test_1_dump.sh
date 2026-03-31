@@ -19,7 +19,7 @@ optix_output="${base_dir}/results/br_countyXbr_soil_result_optix.txt"
   -xsect_factor=5.0 \
   -warmup=5 -repeat=5 \
   -query=lsi/pip \
-  -dump_results=pip,lsi,pipmid \
+  -dump_results=map,pip,lsi,pipmid \
   -dump_dir="$base_dir"
 
 # =========================================================
@@ -32,21 +32,36 @@ optix_output="${base_dir}/results/br_countyXbr_soil_result_optix.txt"
   -xsect_factor=5.0 \
   -warmup=5 -repeat=5 \
   -query=lsi/pip \
-  -dump_results=pip,lsi,pipmid \
+  -dump_results=map,pip,lsi,pipmid \
   -dump_dir="$base_dir"
 
 status=0
 
+scaling_dir="${base_dir}/results_scaling"
 pip_dir="${base_dir}/results_pip"
 lsi_dir="${base_dir}/results_lsi"
 mid_dir="${base_dir}/results_mid"
 
+scaling_diff_dir="${scaling_dir}/diffs"
 pip_diff_dir="${pip_dir}/diffs"
 lsi_diff_dir="${lsi_dir}/diffs"
 mid_diff_dir="${mid_dir}/diffs"
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${script_dir}/compare_files.sh"
+
+# -------------------------
+# Scaling comparisons
+# -------------------------
+run_compare "Scaling map 0" \
+  "${scaling_dir}/optix_scaling_map_0.csv" \
+  "${scaling_dir}/vulkan_scaling_map_0.csv" \
+  "$scaling_diff_dir" || status=1
+
+run_compare "Scaling map 1" \
+  "${scaling_dir}/optix_scaling_map_1.csv" \
+  "${scaling_dir}/vulkan_scaling_map_1.csv" \
+  "$scaling_diff_dir" || status=1
 
 # -------------------------
 # PIP comparisons

@@ -9,6 +9,10 @@
 #include "vk/map/gpu_edge_types.h"
 #include "vk/map/scaling.h"
 
+// For Dumping
+#include <filesystem>
+#include <fstream>
+
 namespace rayjoin {
 namespace vk {
 
@@ -205,6 +209,39 @@ class Map {
                 << " CPU=(" << a << "," << b << "," << c << ")"
                 << " match=" << (ok ? "YES" : "NO");
     }
+  }
+
+ public:
+  void DumpScalingPointsCSV(const std::string& out_dir, const std::string& impl_tag) const {
+    namespace fs = std::filesystem;
+
+    fs::create_directories(out_dir);
+
+    const uint32_t n_points = point_count_;
+    auto gpuPts = readBackStorageBuffer<DstPointI64>(scaledPointsDev_, n_points);
+
+    if (gpuPts.size() != n_points) {
+      LOG(ERROR) << "DumpScalingPointsCSV: failed to read scaled points for map=" << id_ << " gpuPts.size=" << gpuPts.size()
+                 << " expected=" << n_points;
+      return;
+    }
+
+    const std::string path = out_dir + "/" + impl_tag + "_scaling_map_" + std::to_string(id_) + ".csv";
+
+    std::ofstream ofs(path);
+    if (!ofs) {
+      LOG(ERROR) << "DumpScalingPointsCSV: failed to open " << path;
+      return;
+    }
+
+    ofs << "map_id,point_id,x,y\n";
+
+    for (uint32_t point_id = 0; point_id < n_points; ++point_id) {
+      ofs << id_ << "," << point_id << "," << static_cast<long long>(gpuPts[point_id].x) << "," << static_cast<long long>(gpuPts[point_id].y) << "\n";
+    }
+
+    ofs.close();
+    LOG(INFO) << "DumpScalingPointsCSV: wrote " << path;
   }
 };
 

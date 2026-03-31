@@ -94,18 +94,40 @@ class Context {
     // exec_root = std::string(path);
   }
 
-  void InitMaps() {
-    for (size_t im = 0; im < planar_graphs_.size(); im++) {
+  // void InitMaps(QueryConfigRT query_config) {
+  //   for (size_t im = 0; im < planar_graphs_.size(); im++) {
+  //     auto pgraph = planar_graphs_[im];
+  //
+  //     if (pgraph != nullptr) {
+  //       // auto map = std::make_shared<map_t>(im, vk_);
+  //       auto map = std::make_shared<map_t>(im);
+  //
+  //       assert(pgraph != nullptr);
+  //       map->Init(scaling_, *pgraph);
+  //       maps_[im] = map;
+  //     }
+  //   }
+  // }
+
+  void InitMaps(const QueryConfigRT& query_config) {
+    const bool dump_map = rayjoin::ShouldDumpStage(query_config.dump_results, "map");
+    const std::string scaling_dir = rayjoin::DumpSubdir(query_config.dump_dir, "results_scaling");
+
+    for (size_t im = 0; im < planar_graphs_.size(); ++im) {
       auto pgraph = planar_graphs_[im];
-
-      if (pgraph != nullptr) {
-        // auto map = std::make_shared<map_t>(im, vk_);
-        auto map = std::make_shared<map_t>(im);
-
-        assert(pgraph != nullptr);
-        map->LoadFrom(scaling_, *pgraph);
-        maps_[im] = map;
+      if (pgraph == nullptr) {
+        LOG(WARNING) << "InitMaps: planar_graphs_[" << im << "] is null";
+        continue;
       }
+
+      auto map = std::make_shared<map_t>(static_cast<int>(im));
+      map->Init(scaling_, *pgraph);
+
+      if (dump_map) {
+        map->DumpScalingPointsCSV(scaling_dir, "vulkan");
+      }
+
+      maps_[im] = map;
     }
   }
 
