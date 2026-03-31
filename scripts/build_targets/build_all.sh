@@ -11,6 +11,7 @@ TARGETS=(
 # Optix
 polyover_exec
 # Vk
+polyover_vk_exec
 polyover_vk_exec_ns
 )
 

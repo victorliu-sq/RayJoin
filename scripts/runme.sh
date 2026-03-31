@@ -16,12 +16,19 @@ bash "${SCRIPTS_DIR}/datasets/download_realworld_datasets.sh" # Download Dataset
 # 3. Build all Benchmarks and Profiling programs
 bash "${SCRIPTS_DIR}/build_targets/build_all.sh"
 
+# 4. Test RayJoin-Vk-Ns
+#bash "${SCRIPTS_DIR}/test/run_test_ns_1.sh"
+#bash "${SCRIPTS_DIR}/test/run_test_ns_2.sh"
+#bash "${SCRIPTS_DIR}/test/run_test_ns_3.sh"
+#bash "${SCRIPTS_DIR}/test/run_test_ns_1_dump.sh"
+#bash "${SCRIPTS_DIR}/test/run_test_ns_2_dump.sh"
+
 # 4. Test RayJoin-Vk
 #bash "${SCRIPTS_DIR}/test/run_test_1.sh"
 #bash "${SCRIPTS_DIR}/test/run_test_2.sh"
 #bash "${SCRIPTS_DIR}/test/run_test_3.sh"
-#bash "${SCRIPTS_DIR}/test/run_test_1_dump.sh"
-bash "${SCRIPTS_DIR}/test/run_test_2_dump.sh"
+bash "${SCRIPTS_DIR}/test/run_test_1_dump.sh"
+#bash "${SCRIPTS_DIR}/test/run_test_2_dump.sh"
 
 # ==========================================================
 # Start to produce results

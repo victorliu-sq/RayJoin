@@ -147,7 +147,7 @@ namespace vk {
 // }
 
 void RunOverlay(const rayjoin::OverlayConfig& config) {
-  using context_t = Context<coord_t, coefficient_t>;
+  using context_t = Context<coord_t>;
   timer_start();
 
   timer_next("Read map 0");

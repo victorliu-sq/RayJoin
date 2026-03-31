@@ -92,9 +92,6 @@ class Context {
     //   path = dirname(result);
     // }
     // exec_root = std::string(path);
-
-    // NEW: init Vulkan compute context
-    // instance_ = initVkComputeContext(vk_);
   }
 
   void LoadToDevice() {
