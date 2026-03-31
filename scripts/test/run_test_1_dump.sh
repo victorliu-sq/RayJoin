@@ -38,11 +38,13 @@ optix_output="${base_dir}/results/br_countyXbr_soil_result_optix.txt"
 status=0
 
 scaling_dir="${base_dir}/results_scaling"
+edges_dir="${base_dir}/results_edges"
 pip_dir="${base_dir}/results_pip"
 lsi_dir="${base_dir}/results_lsi"
 mid_dir="${base_dir}/results_mid"
 
 scaling_diff_dir="${scaling_dir}/diffs"
+edges_diff_dir="${edges_dir}/diffs"
 pip_diff_dir="${pip_dir}/diffs"
 lsi_diff_dir="${lsi_dir}/diffs"
 mid_diff_dir="${mid_dir}/diffs"
@@ -62,6 +64,20 @@ run_compare "Scaling map 1" \
   "${scaling_dir}/optix_scaling_map_1.csv" \
   "${scaling_dir}/vulkan_scaling_map_1.csv" \
   "$scaling_diff_dir" || status=1
+
+
+# -------------------------
+# Edge comparisons
+# -------------------------
+run_compare "Edges map 0" \
+  "${edges_dir}/optix_edges_map_0.csv" \
+  "${edges_dir}/vulkan_edges_map_0.csv" \
+  "$edges_diff_dir" || status=1
+
+run_compare "Edges map 1" \
+  "${edges_dir}/optix_edges_map_1.csv" \
+  "${edges_dir}/vulkan_edges_map_1.csv" \
+  "$edges_diff_dir" || status=1
 
 # -------------------------
 # PIP comparisons

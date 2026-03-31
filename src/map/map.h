@@ -346,6 +346,49 @@ class Map {
     ofs.close();
     LOG(INFO) << "DumpScalingPointsCSV: wrote " << path;
   }
+
+  static std::string Int128ToString(__int128 v) {
+    if (v == 0) return "0";
+
+    bool neg = v < 0;
+    unsigned __int128 x = neg ? static_cast<unsigned __int128>(-v) : static_cast<unsigned __int128>(v);
+
+    std::string s;
+    while (x > 0) {
+      s.push_back(static_cast<char>('0' + (x % 10)));
+      x /= 10;
+    }
+    if (neg) s.push_back('-');
+    std::reverse(s.begin(), s.end());
+    return s;
+  }
+
+  void DumpEdgesCSV(const std::string& out_dir, const std::string& impl_tag) {
+    namespace fs = std::filesystem;
+
+    fs::create_directories(out_dir);
+
+    D2H();
+
+    const std::string path = out_dir + "/" + impl_tag + "_edges_map_" + std::to_string(id_) + ".csv";
+
+    std::ofstream ofs(path);
+    if (!ofs) {
+      LOG(ERROR) << "DumpEdgesCSV: failed to open " << path;
+      return;
+    }
+
+    ofs << "map_id,eid,p1_idx,p2_idx,left_polygon_id,right_polygon_id,a,b,c\n";
+
+    for (size_t edge_id = 0; edge_id < h_edges_.size(); ++edge_id) {
+      const auto& e = h_edges_[edge_id];
+      ofs << id_ << "," << e.eid << "," << e.p1_idx << "," << e.p2_idx << "," << e.left_polygon_id << "," << e.right_polygon_id << ","
+          << Int128ToString(e.a) << "," << Int128ToString(e.b) << "," << Int128ToString(e.c) << "\n";
+    }
+
+    ofs.close();
+    LOG(INFO) << "DumpEdgesCSV: wrote " << path;
+  }
 };
 
 }  // namespace rayjoin

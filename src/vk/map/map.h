@@ -295,6 +295,39 @@ class Map {
     ofs.close();
     LOG(INFO) << "DumpScalingPointsCSV: wrote " << path;
   }
+
+  void DumpEdgesCSV(const std::string& out_dir, const std::string& impl_tag) const {
+    namespace fs = std::filesystem;
+
+    fs::create_directories(out_dir);
+
+    const uint32_t n_edges = edge_count_;
+    auto gpuEdges = readBackStorageBuffer<edge_t>(edgesDev_, n_edges);
+
+    if (gpuEdges.size() != n_edges) {
+      LOG(ERROR) << "DumpEdgesCSV: failed to read edges for map=" << id_ << " gpuEdges.size=" << gpuEdges.size() << " expected=" << n_edges;
+      return;
+    }
+
+    const std::string path = out_dir + "/" + impl_tag + "_edges_map_" + std::to_string(id_) + ".csv";
+
+    std::ofstream ofs(path);
+    if (!ofs) {
+      LOG(ERROR) << "DumpEdgesCSV: failed to open " << path;
+      return;
+    }
+
+    ofs << "map_id,eid,p1_idx,p2_idx,left_polygon_id,right_polygon_id,a,b,c\n";
+
+    for (uint32_t i = 0; i < n_edges; ++i) {
+      const auto& e = gpuEdges[i];
+      ofs << id_ << "," << e.eid << "," << e.p1_idx << "," << e.p2_idx << "," << e.left_polygon_id << "," << e.right_polygon_id << ","
+          << Int128ToString(e.a) << "," << Int128ToString(e.b) << "," << Int128ToString(e.c) << "\n";
+    }
+
+    ofs.close();
+    LOG(INFO) << "DumpEdgesCSV: wrote " << path;
+  }
 };
 
 }  // namespace vk

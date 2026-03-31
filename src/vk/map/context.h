@@ -112,9 +112,10 @@ class Context {
   void InitMaps(const QueryConfigRT& query_config) {
     const bool dump_map = ShouldDumpStage(query_config.dump_results, "map");
     const std::string scaling_dir = DumpSubdir(query_config.dump_dir, "results_scaling");
+    const std::string edges_dir = DumpSubdir(query_config.dump_dir, "results_edges");
 
     LOG(INFO) << "InitMaps: dump_results=" << query_config.dump_results << " dump_dir=" << query_config.dump_dir
-              << " dump_map=" << (dump_map ? "true" : "false") << " scaling_dir=" << scaling_dir;
+              << " dump_map=" << (dump_map ? "true" : "false") << " scaling_dir=" << scaling_dir << " edges_dir=" << edges_dir;
 
     for (size_t im = 0; im < planar_graphs_.size(); ++im) {
       auto pgraph = planar_graphs_[im];
@@ -128,6 +129,7 @@ class Context {
 
       if (dump_map) {
         map->DumpScalingPointsCSV(scaling_dir, "vulkan");
+        map->DumpEdgesCSV(edges_dir, "vulkan");
       }
 
       maps_[im] = map;
