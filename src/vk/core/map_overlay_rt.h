@@ -11,6 +11,36 @@
 namespace rayjoin {
 namespace vk {
 
+using index_t = rayjoin::index_t;
+using polygon_id_t = rayjoin::polygon_id_t;
+
+struct alignas(16) Int128 {
+  uint64_t lo;
+  int64_t hi;
+};
+
+struct alignas(16) Rational128 {
+  Int128 num;
+  Int128 den;
+};
+
+struct alignas(16) Intersection128 {
+  Rational128 x;
+  Rational128 y;
+  index_t eid0;
+  index_t eid1;
+  polygon_id_t mid_point_polygon_id;
+  uint32_t pad;
+};
+
+static_assert(sizeof(Int128) == 16);
+static_assert(alignof(Int128) == 16);
+static_assert(sizeof(Rational128) == 32);
+static_assert(alignof(Rational128) == 16);
+static_assert(sizeof(Intersection128) == 80);
+static_assert(alignof(Intersection128) == 16);
+static_assert(std::is_trivially_copyable_v<Intersection128>);
+
 template<typename CONTEXT_T>
 class MapOverlayRT : public MapOverlay<CONTEXT_T> {
   using map_t = typename CONTEXT_T::map_t;
@@ -22,8 +52,6 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
 
   void Init() override {
     auto &ctx = this->ctx_;
-    // auto &lsi = this->lsi_;
-    auto &vk_ctx = GetVkComputeContext();
     // -------------------------------
     // Scan maps
     // -------------------------------
@@ -58,12 +86,12 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     // -------------------------------
     aabbs_buf_.Init(sizeof(VkAabbPositionsKHR) * max_n_edges);
 
-    // -------------------------------
-    // Compute total edges
-    // -------------------------------
     size_t n_edges = map_edge_count_[0] + map_edge_count_[1];
-    (void) n_edges;
-    (void) vk_ctx;
+    xsect_capacity_ = static_cast<uint32_t>(n_edges * config_.xsect_factor);
+
+    xsect_buf_.Init(sizeof(Intersection128) * xsect_capacity_);
+    xsect_counter_buf_.Init(sizeof(uint32_t));
+    prof_counter_buf_.Init(sizeof(uint32_t) * 16);
   }
 
   void BuildIndex() override {
@@ -114,16 +142,92 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
   }
 
   void IntersectEdge(int query_map_id) override {
-    int base_map_id = 1 - query_map_id;
-    // auto lsi = std::dynamic_pointer_cast<LSIRT<CONTEXT_T>>(this->lsi_);
+    const int base_map_id = 1 - query_map_id;
 
-    config_.eid_range = &eid_range_buf_[base_map_id];
-    config_.handle = traverse_handles_[base_map_id];
+    auto query_map = this->ctx_.get_map(query_map_id);
+    auto base_map = this->ctx_.get_map(base_map_id);
 
-    // lsi->set_config(config_);
-    // lsi->Query(query_map_id);
+    if (!query_map || !base_map) {
+      throw std::runtime_error("IntersectEdge(): null map");
+    }
 
-    // DebugPrintIntersectionsDetailed(query_map_id);
+    {
+      uint32_t zero = 0;
+      writeToStorageBuffer(xsect_counter_buf_, zero);
+
+      std::vector<uint32_t> zeros(16, 0u);
+      writeToStorageBuffer(prof_counter_buf_, zeros);
+    }
+
+    std::string rgen_spv = std::string(SHADER_DIR) + "/rt/lsi_rgen.spv";
+    std::string rint_spv = std::string(SHADER_DIR) + "/rt/lsi_rint.spv";
+    std::string rahit_spv = std::string(SHADER_DIR) + "/rt/lsi_rahit.spv";
+    std::string rchit_spv = std::string(SHADER_DIR) + "/rt/lsi_rchit.spv";
+    std::string rmiss_spv = std::string(SHADER_DIR) + "/rt/lsi_rmiss.spv";
+
+    struct LaunchParamsLSI {
+      int32_t query_map_id;
+      uint32_t query_edge_count;
+      uint32_t xsect_capacity;
+      uint32_t pad0;
+    };
+
+    static_assert(std::is_trivially_copyable_v<LaunchParamsLSI>);
+    static_assert(sizeof(LaunchParamsLSI) == 16);
+
+    RunRTPass(rgen_spv.c_str(),
+              rint_spv.c_str(),
+              rahit_spv.c_str(),
+              rchit_spv.c_str(),
+              rmiss_spv.c_str(),
+              accel_[base_map_id].GetTraverseHandle(),
+              LaunchParamsLSI{
+                  .query_map_id = static_cast<int32_t>(query_map_id),
+                  .query_edge_count = static_cast<uint32_t>(query_map->get_edges_num()),
+                  .xsect_capacity = xsect_capacity_,
+                  .pad0 = 0u,
+              },
+              static_cast<uint32_t>(query_map->get_edges_num()),
+              base_map->getEdgesBuffer(),  // binding 1
+              base_map->getPointsBuffer(),  // binding 2
+              eid_range_buf_[base_map_id],  // binding 3
+              query_map->getEdgesBuffer(),  // binding 4
+              query_map->getPointsBuffer(),  // binding 5
+              query_map->getScalingBuffer(),  // binding 6
+              xsect_buf_,  // binding 7
+              xsect_counter_buf_,  // binding 8
+              prof_counter_buf_);  // binding 9
+
+    std::string finalize_spv = std::string(SHADER_DIR) + "/lsi_finalize.spv";
+
+    struct LaunchParamsLSIFinalize {
+      int32_t query_map_id;
+      uint32_t query_edge_count;
+      uint32_t xsect_capacity;
+      uint32_t pad0;
+    };
+
+    static_assert(std::is_trivially_copyable_v<LaunchParamsLSIFinalize>);
+    static_assert(sizeof(LaunchParamsLSIFinalize) == 16);
+
+    RunComputePass(xsect_capacity_,
+                   finalize_spv.c_str(),
+                   LaunchParamsLSIFinalize{
+                       .query_map_id = query_map_id,
+                       .query_edge_count = static_cast<uint32_t>(query_map->get_edges_num()),
+                       .xsect_capacity = xsect_capacity_,
+                       .pad0 = 0u,
+                   },
+                   base_map->getEdgesBuffer(),  // binding 0
+                   base_map->getPointsBuffer(),  // binding 1
+                   query_map->getEdgesBuffer(),  // binding 2
+                   query_map->getPointsBuffer(),  // binding 3
+                   xsect_buf_,  // binding 4
+                   xsect_counter_buf_);  // binding 5
+
+    if (query_map_id == 0 && rayjoin::ShouldDumpStage(config_.dump_results, "lsi")) {
+      DumpLSIResultsCSV(rayjoin::DumpSubdir(config_.dump_dir, "results_lsi"), "vulkan");
+    }
   }
 
   void LocateVerticesInOtherMap(int query_map_id) override {}
@@ -161,6 +265,15 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
   VkAccelerationStructureKHR traverse_handles_[2];
   // Queue<xsect_t> xsect_queue_;
 
+
+  // -------------------------------
+  // LSI
+  // -------------------------------
+  VkDeviceBuf xsect_buf_;
+  VkDeviceBuf xsect_counter_buf_;
+  VkDeviceBuf prof_counter_buf_;
+  uint32_t xsect_capacity_ = 0;
+
   void DumpIndexResultsCSV(int map_id, const std::string &out_dir, const std::string &impl_tag) const {
     namespace fs = std::filesystem;
     fs::create_directories(out_dir);
@@ -197,6 +310,51 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
 
     ofs.close();
     LOG(INFO) << "DumpIndexResultsCSV: wrote " << path;
+  }
+
+  void DumpLSIResultsCSV(const std::string &out_dir, const std::string &impl_tag) const {
+    namespace fs = std::filesystem;
+    fs::create_directories(out_dir);
+
+    uint32_t n_xsects = 0;
+    {
+      auto h_counter = readBackStorageBuffer<uint32_t>(xsect_counter_buf_, 1);
+      if (h_counter.empty()) {
+        LOG(ERROR) << "DumpLSIResultsCSV: failed to read xsect counter";
+        return;
+      }
+      n_xsects = std::min<uint32_t>(h_counter[0], xsect_capacity_);
+    }
+
+    auto h_xsects = readBackStorageBuffer<Intersection128>(xsect_buf_, n_xsects);
+
+    const std::string path = out_dir + "/" + impl_tag + "_lsi.csv";
+
+    std::vector<std::pair<uint64_t, uint64_t>> pairs;
+    pairs.reserve(h_xsects.size());
+
+    for (const auto &x: h_xsects) {
+      uint64_t eid1 = static_cast<uint64_t>(x.eid0);
+      uint64_t eid2 = static_cast<uint64_t>(x.eid1);
+      if (eid1 > eid2) std::swap(eid1, eid2);
+      pairs.emplace_back(eid1, eid2);
+    }
+
+    std::sort(pairs.begin(), pairs.end());
+
+    std::ofstream ofs(path);
+    if (!ofs) {
+      LOG(ERROR) << "DumpLSIResultsCSV: failed to open " << path;
+      return;
+    }
+
+    ofs << "eid1,eid2\n";
+    for (const auto &[eid1, eid2]: pairs) {
+      ofs << eid1 << "," << eid2 << "\n";
+    }
+
+    ofs.close();
+    LOG(INFO) << "DumpLSIResultsCSV: wrote " << path;
   }
 };
 
