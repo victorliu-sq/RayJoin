@@ -202,27 +202,27 @@ void main(uint3 tid: SV_DispatchThreadID) {
   Rational128 rx = rational128_make(numx, denom);
   Rational128 ry = rational128_make(numy, denom);
 
-  int64_t t;
+  // int64_t t;
 
-  t = min(min(base_p1.x, base_p2.x), min(query_p1.x, query_p2.x));
-  if (rational128_lt_i64(rx, t)) {
-    rx = rational128_make(i128_from_i64(t), i128_from_i64(1));
-  }
+  // t = min(min(base_p1.x, base_p2.x), min(query_p1.x, query_p2.x));
+  // if (rational128_lt_i64(rx, t)) {
+  //   rx = rational128_make(i128_from_i64(t), i128_from_i64(1));
+  // }
 
-  t = max(max(base_p1.x, base_p2.x), max(query_p1.x, query_p2.x));
-  if (rational128_gt_i64(rx, t)) {
-    rx = rational128_make(i128_from_i64(t), i128_from_i64(1));
-  }
+  // t = max(max(base_p1.x, base_p2.x), max(query_p1.x, query_p2.x));
+  // if (rational128_gt_i64(rx, t)) {
+  //   rx = rational128_make(i128_from_i64(t), i128_from_i64(1));
+  // }
 
-  t = min(min(base_p1.y, base_p2.y), min(query_p1.y, query_p2.y));
-  if (rational128_lt_i64(ry, t)) {
-    ry = rational128_make(i128_from_i64(t), i128_from_i64(1));
-  }
+  // t = min(min(base_p1.y, base_p2.y), min(query_p1.y, query_p2.y));
+  // if (rational128_lt_i64(ry, t)) {
+  //   ry = rational128_make(i128_from_i64(t), i128_from_i64(1));
+  // }
 
-  t = max(max(base_p1.y, base_p2.y), max(query_p1.y, query_p2.y));
-  if (rational128_gt_i64(ry, t)) {
-    ry = rational128_make(i128_from_i64(t), i128_from_i64(1));
-  }
+  // t = max(max(base_p1.y, base_p2.y), max(query_p1.y, query_p2.y));
+  // if (rational128_gt_i64(ry, t)) {
+  //   ry = rational128_make(i128_from_i64(t), i128_from_i64(1));
+  // }
 
   xsect.x = rx;
   xsect.y = ry;
