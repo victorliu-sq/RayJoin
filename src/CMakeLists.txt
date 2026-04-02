@@ -120,18 +120,18 @@ target_link_libraries(rayjoin_lib_vk PUBLIC
 # Put SPIR-V under: <build>/shaders/
 #get_filename_component(APP_DIR_NAME "${CMAKE_CURRENT_SOURCE_DIR}" NAME)
 #set(SPV_OUTPUT_DIR "${CMAKE_BINARY_DIR}/shaders/${APP_DIR_NAME}")
-set(SPV_OUTPUT_DIR "${CMAKE_BINARY_DIR}/shaders")
-target_compile_definitions(rayjoin_lib_vk PRIVATE
-        SHADER_DIR="${SPV_OUTPUT_DIR}")
+#set(SPV_OUTPUT_DIR "${CMAKE_BINARY_DIR}/shaders")
+#target_compile_definitions(rayjoin_lib_vk PRIVATE
+#        SHADER_DIR="${SPV_OUTPUT_DIR}")
 
 # Put generated SPIR-V next to the build configuration, mirroring shader location.
 # Example:
 #   <build>/Debug/shader/kernel_ns
 #   <build>/Release/shader/kernel_ns
-set(SPV_OUTPUT_DIR_NS "${CMAKE_BINARY_DIR}/shader/kernel_ns")
-target_compile_definitions(rayjoin_lib_vk PRIVATE
-        SHADER_DIR_NS="${SPV_OUTPUT_DIR_NS}"
-)
+#set(SPV_OUTPUT_DIR_NS "${CMAKE_BINARY_DIR}/shader/kernel_ns")
+#target_compile_definitions(rayjoin_lib_vk PRIVATE
+#        SHADER_DIR_NS="${SPV_OUTPUT_DIR_NS}"
+#)
 
 #target_include_directories(rayjoin_lib_vk PUBLIC
 #       dependencies
@@ -149,6 +149,31 @@ target_compile_definitions(rayjoin_lib_vk PRIVATE
 #        CUDA_ARCHITECTURES "${ENABLED_ARCHS}"
 #        CUDA_SEPARABLE_COMPILATION ON
 #)
+
+# Put generated SPIR-V under the build tree with explicit subdirectories.
+# Scaling Vulkan:
+#   <build>/shaders/kernel
+#   <build>/shaders/rt
+#
+# NS Vulkan:
+#   <build>/shaders_ns/kernel_ns
+#   <build>/shaders_ns/rt
+
+set(SPV_OUTPUT_DIR "${CMAKE_BINARY_DIR}/shaders")
+set(SPV_OUTPUT_DIR_NS "${CMAKE_BINARY_DIR}/shaders_ns")
+
+set(SPV_KERNEL_DIR "${SPV_OUTPUT_DIR}")
+set(SPV_RT_DIR "${SPV_OUTPUT_DIR}/rt")
+
+set(SPV_KERNEL_NS_DIR "${SPV_OUTPUT_DIR_NS}")
+set(SPV_RT_NS_DIR "${SPV_OUTPUT_DIR_NS}/rt")
+
+target_compile_definitions(rayjoin_lib_vk PRIVATE
+        SHADER_KERNEL_DIR="${SPV_KERNEL_DIR}"
+        SHADER_RT_DIR="${SPV_RT_DIR}"
+        SHADER_KERNEL_NS_DIR="${SPV_KERNEL_NS_DIR}"
+        SHADER_RT_NS_DIR="${SPV_RT_NS_DIR}"
+)
 
 add_dependencies(rayjoin_lib_vk optix_ptx)
 

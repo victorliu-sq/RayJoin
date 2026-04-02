@@ -191,7 +191,8 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
     for (int im = 0; im < 2; ++im) {
       auto map = ctx.get_map(im);
 
-      std::string spvPath = std::string(SHADER_DIR_NS) + "/fill_primitives_ns.spv";
+      // std::string spvPath = std::string(SHADER_DIR_NS) + "/fill_primitives_ns.spv";
+      std::string spvPath = std::string(SHADER_KERNEL_NS_DIR) + "/fill_primitives_ns.spv";
 
       FillPrimitivesParams params{};
       params.numEdges = static_cast<uint32_t>(map_edge_count_[im]);
@@ -226,11 +227,17 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
       throw std::runtime_error("IntersectEdge(): null map");
     }
 
-    std::string rgen_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rgen_ns.spv";
-    std::string rint_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rint_ns.spv";
-    std::string rahit_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rahit_ns.spv";
-    std::string rchit_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rchit_ns.spv";
-    std::string rmiss_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rmiss_ns.spv";
+    // std::string rgen_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rgen_ns.spv";
+    // std::string rint_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rint_ns.spv";
+    // std::string rahit_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rahit_ns.spv";
+    // std::string rchit_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rchit_ns.spv";
+    // std::string rmiss_spv = std::string(SHADER_DIR_NS) + "/rt/lsi_rmiss_ns.spv";
+
+    std::string rgen_spv = std::string(SHADER_RT_NS_DIR) + "/lsi_rgen_ns.spv";
+    std::string rint_spv = std::string(SHADER_RT_NS_DIR) + "/lsi_rint_ns.spv";
+    std::string rahit_spv = std::string(SHADER_RT_NS_DIR) + "/lsi_rahit_ns.spv";
+    std::string rchit_spv = std::string(SHADER_RT_NS_DIR) + "/lsi_rchit_ns.spv";
+    std::string rmiss_spv = std::string(SHADER_RT_NS_DIR) + "/lsi_rmiss_ns.spv";
 
     struct LaunchParamsLSI {
       int32_t query_map_id;
@@ -259,7 +266,8 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
               xsect_counter_buf_,  // binding 7 -> gXsectCounter
               prof_counter_buf_);  // binding 8 -> gTestCounter
 
-    std::string finalize_spv = std::string(SHADER_DIR_NS) + "/lsi_finalize_ns.spv";
+    // std::string finalize_spv = std::string(SHADER_DIR_NS) + "/lsi_finalize_ns.spv";
+    std::string finalize_spv = std::string(SHADER_KERNEL_NS_DIR) + "/lsi_finalize_ns.spv";
 
     struct LaunchParamsLSIFinalize {
       int32_t query_map_id;
@@ -307,11 +315,16 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
     // ------------------------------------------------------------
     // RT pass: query point -> closest crossing edge in base map
     // ------------------------------------------------------------
-    std::string rgen_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rgen_ns.spv";
-    std::string rint_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rint_ns.spv";
-    std::string rahit_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rahit_ns.spv";
-    std::string rchit_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rchit_ns.spv";
-    std::string rmiss_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rmiss_ns.spv";
+    // std::string rgen_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rgen_ns.spv";
+    // std::string rint_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rint_ns.spv";
+    // std::string rahit_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rahit_ns.spv";
+    // std::string rchit_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rchit_ns.spv";
+    // std::string rmiss_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rmiss_ns.spv";
+    std::string rgen_spv = std::string(SHADER_RT_NS_DIR) + "/pip_rgen_ns.spv";
+    std::string rint_spv = std::string(SHADER_RT_NS_DIR) + "/pip_rint_ns.spv";
+    std::string rahit_spv = std::string(SHADER_RT_NS_DIR) + "/pip_rahit_ns.spv";
+    std::string rchit_spv = std::string(SHADER_RT_NS_DIR) + "/pip_rchit_ns.spv";
+    std::string rmiss_spv = std::string(SHADER_RT_NS_DIR) + "/pip_rmiss_ns.spv";
 
     struct LaunchParamsPIP {
       int32_t query_map_id;
@@ -357,7 +370,8 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
     //
     // finalize_pass.run();
 
-    std::string finalize_spv = std::string(SHADER_DIR_NS) + "/pip_finalize_ns.spv";
+    // std::string finalize_spv = std::string(SHADER_DIR_NS) + "/pip_finalize_ns.spv";
+    std::string finalize_spv = std::string(SHADER_KERNEL_NS_DIR) + "/pip_finalize_ns.spv";
 
     struct LaunchParamsPIPFinalize {
       uint32_t point_count;
@@ -583,11 +597,16 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
 
       // ========================================================================
       // PIP-RT
-      std::string rgen_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rgen_ns.spv";
-      std::string rint_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rint_ns.spv";
-      std::string rahit_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rahit_ns.spv";
-      std::string rchit_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rchit_ns.spv";
-      std::string rmiss_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rmiss_ns.spv";
+      // std::string rgen_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rgen_ns.spv";
+      // std::string rint_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rint_ns.spv";
+      // std::string rahit_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rahit_ns.spv";
+      // std::string rchit_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rchit_ns.spv";
+      // std::string rmiss_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rmiss_ns.spv";
+      std::string rgen_spv = std::string(SHADER_RT_NS_DIR) + "/pip_rgen_ns.spv";
+      std::string rint_spv = std::string(SHADER_RT_NS_DIR) + "/pip_rint_ns.spv";
+      std::string rahit_spv = std::string(SHADER_RT_NS_DIR) + "/pip_rahit_ns.spv";
+      std::string rchit_spv = std::string(SHADER_RT_NS_DIR) + "/pip_rchit_ns.spv";
+      std::string rmiss_spv = std::string(SHADER_RT_NS_DIR) + "/pip_rmiss_ns.spv";
 
       VkDeviceBuf mid_closest_eids_buf;
       mid_closest_eids_buf.Init(sizeof(index_t) * tasks.size());
@@ -658,7 +677,8 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
       //                                 mid_point_in_polygon_buf);
       // finalize_pass.run();
 
-      std::string finalize_spv = std::string(SHADER_DIR_NS) + "/pip_finalize_ns.spv";
+      // std::string finalize_spv = std::string(SHADER_DIR_NS) + "/pip_finalize_ns.spv";
+      std::string finalize_spv = std::string(SHADER_KERNEL_NS_DIR) + "/pip_finalize_ns.spv";
 
       struct LaunchParamsPIPFinalize {
         uint32_t point_count;

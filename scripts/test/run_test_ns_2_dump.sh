@@ -56,7 +56,6 @@ midpoint_finalize_diff_dir="${midpoint_finalize_dir}/diffs"
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${script_dir}/compare_files.sh"
 
-
 # -------------------------
 # BuildIndex comparisons
 # -------------------------

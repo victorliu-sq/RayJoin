@@ -113,7 +113,8 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     for (int im = 0; im < 2; ++im) {
       auto map = ctx.get_map(im);
 
-      std::string spvPath = std::string(SHADER_DIR) + "/fill_primitives.spv";
+      // std::string spvPath = std::string(SHADER_DIR) + "/fill_primitives.spv";
+      std::string spvPath = std::string(SHADER_KERNEL_DIR) + "/fill_primitives.spv";
 
       FillPrimitivesParams params{};
       params.numEdges = static_cast<uint32_t>(map_edge_count_[im]);
@@ -159,11 +160,16 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
       writeToStorageBuffer(prof_counter_buf_, zeros);
     }
 
-    std::string rgen_spv = std::string(SHADER_DIR) + "/rt/lsi_rgen.spv";
-    std::string rint_spv = std::string(SHADER_DIR) + "/rt/lsi_rint.spv";
-    std::string rahit_spv = std::string(SHADER_DIR) + "/rt/lsi_rahit.spv";
-    std::string rchit_spv = std::string(SHADER_DIR) + "/rt/lsi_rchit.spv";
-    std::string rmiss_spv = std::string(SHADER_DIR) + "/rt/lsi_rmiss.spv";
+    // std::string rgen_spv = std::string(SHADER_DIR) + "/rt/lsi_rgen.spv";
+    // std::string rint_spv = std::string(SHADER_DIR) + "/rt/lsi_rint.spv";
+    // std::string rahit_spv = std::string(SHADER_DIR) + "/rt/lsi_rahit.spv";
+    // std::string rchit_spv = std::string(SHADER_DIR) + "/rt/lsi_rchit.spv";
+    // std::string rmiss_spv = std::string(SHADER_DIR) + "/rt/lsi_rmiss.spv";
+    std::string rgen_spv = std::string(SHADER_RT_DIR) + "/lsi_rgen.spv";
+    std::string rint_spv = std::string(SHADER_RT_DIR) + "/lsi_rint.spv";
+    std::string rahit_spv = std::string(SHADER_RT_DIR) + "/lsi_rahit.spv";
+    std::string rchit_spv = std::string(SHADER_RT_DIR) + "/lsi_rchit.spv";
+    std::string rmiss_spv = std::string(SHADER_RT_DIR) + "/lsi_rmiss.spv";
 
     struct LaunchParamsLSI {
       int32_t query_map_id;
@@ -198,7 +204,8 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
               xsect_counter_buf_,  // binding 8
               prof_counter_buf_);  // binding 9
 
-    std::string finalize_spv = std::string(SHADER_DIR) + "/lsi_finalize.spv";
+    // std::string finalize_spv = std::string(SHADER_DIR) + "/lsi_finalize.spv";
+    std::string finalize_spv = std::string(SHADER_KERNEL_DIR) + "/lsi_finalize.spv";
 
     struct LaunchParamsLSIFinalize {
       int32_t query_map_id;

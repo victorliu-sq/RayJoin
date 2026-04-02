@@ -60,7 +60,8 @@ class LSIRT : public LSI<CONTEXT_T> {
     rt_engine_->RunLSI();
 
 
-    std::string spvPath = std::string(SHADER_DIR) + "/lsi_finalize.spv";
+    // std::string spvPath = std::string(SHADER_DIR) + "/lsi_finalize.spv";
+    std::string spvPath = std::string(SHADER_RT_NS_DIR) + "/lsi_finalize.spv";
     LSIFinalizePassRAII finalize_pass(spvPath.c_str(),  // [ADDED] compute shader SPIR-V
                                       rt_engine_->GetLSIParamsBuffer(),  // [ADDED] same LaunchParamsLSI buffer used by RT
                                       base_map->getEdgesBuffer(),  // [ADDED] binding: gBaseEdges

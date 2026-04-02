@@ -12,6 +12,7 @@
 #include "vk/core/run_overlay.h"
 #include "vk/map/context.h"
 #include "vk/map/context_ns.h"
+#include "vk/map/map_ns.h"
 #include "vk/map/planar_graph.h"
 
 namespace rayjoin {

@@ -78,7 +78,8 @@ class Map {
     writeToStorageBuffer(srcPointsDev_, pgraph.points);
     writeToStorageBuffer(scalingDev_, scaling);
 
-    std::string spvPathScaling = std::string(SHADER_DIR) + "/scale_points_d2_i64.spv";
+    // std::string spvPathScaling = std::string(SHADER_DIR) + "/scale_points_d2_i64.spv";
+    std::string spvPathScaling = std::string(SHADER_KERNEL_DIR) + "/scale_points_d2_i64.spv";
 
     ScalePointsParams scale_params{};
     scale_params.count = point_count_;
@@ -110,7 +111,8 @@ class Map {
     writeToStorageBuffer(chainsDev_, pgraph.chains);
     writeToStorageBuffer(rowDev_, pgraph.row_index);
 
-    std::string spvPathEdge = std::string(SHADER_DIR) + "/edge_init_i128.spv";
+    // std::string spvPathEdge = std::string(SHADER_DIR) + "/edge_init_i128.spv";
+    std::string spvPathEdge = std::string(SHADER_KERNEL_DIR) + "/edge_init_i128.spv";
 
     EdgeInitParams edge_params{};
     edge_params.num_points = point_count_;

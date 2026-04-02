@@ -3,7 +3,7 @@ set(SLANGC ${CMAKE_SOURCE_DIR}/deps/slang/bin/slangc)
 
 # Source shader directories
 set(SHADER_DIR_NS ${CMAKE_SOURCE_DIR}/src/vk/shader/kernel_ns)
-set(SHADER_DIR_RT ${CMAKE_SOURCE_DIR}/src/vk/shader/rt)
+set(SHADER_RT_NS_DIR ${CMAKE_SOURCE_DIR}/src/vk/shader/rt_ns)
 set(SHADER_MODULE_DIR ${CMAKE_SOURCE_DIR}/src/vk/shader/module)
 
 # --------------------------------------------------------------------------
@@ -46,14 +46,8 @@ endforeach ()
 
 # --------------------------------------------------------------------------
 # RT shader NS path: LSI
-#
-# Source:
-#   ${SHADER_DIR_RT}/lsi_rt_ns.slang
-#
-# Output:
-#   ${SPV_OUTPUT_DIR_NS}/rt/lsi_*.spv
 # --------------------------------------------------------------------------
-set(LSI_RT_NS_SHADER ${SHADER_DIR_RT}/lsi_rt_ns.slang)
+set(LSI_RT_NS_SHADER ${SHADER_RT_NS_DIR}/lsi_rt_ns.slang)
 set(RT_NS_SPV_DIR ${SPV_OUTPUT_DIR_NS}/rt)
 
 set(LSI_NS_RGEN_SPV ${RT_NS_SPV_DIR}/lsi_rgen_ns.spv)
@@ -171,14 +165,8 @@ list(APPEND SPIRV_OUTPUTS_NS
 
 # --------------------------------------------------------------------------
 # RT shader NS path: PIP
-#
-# Source:
-#   ${SHADER_DIR_RT}/pip_rt_ns.slang
-#
-# Output:
-#   ${SPV_OUTPUT_DIR_NS}/rt/pip_*.spv
 # --------------------------------------------------------------------------
-set(PIP_RT_NS_SHADER ${SHADER_DIR_RT}/pip_rt_ns.slang)
+set(PIP_RT_NS_SHADER ${SHADER_RT_NS_DIR}/pip_rt_ns.slang)
 
 set(PIP_NS_RGEN_SPV ${RT_NS_SPV_DIR}/pip_rgen_ns.spv)
 set(PIP_NS_MISS_SPV ${RT_NS_SPV_DIR}/pip_rmiss_ns.spv)
@@ -293,7 +281,6 @@ list(APPEND SPIRV_OUTPUTS_NS
         ${PIP_NS_RCHIT_SPV}
 )
 
-# Optional global target
 add_custom_target(shaders_ns ALL DEPENDS ${SPIRV_OUTPUTS_NS})
 
 # =========================== LSI_VK Executable =============================

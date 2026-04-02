@@ -7,8 +7,12 @@
 #include "vk/engine/vk_compute_context.h"
 #include "vk/engine/vk_engine_abs.h"
 
-#ifndef SHADER_DIR_NS
-#error "SHADER_DIR_NS is not defined. Pass it from CMake via target_compile_definitions(...)."
+// #ifndef SHADER_DIR_NS
+// #error "SHADER_DIR_NS is not defined. Pass it from CMake via target_compile_definitions(...)."
+// #endif
+
+#ifndef SHADER_KERNEL_NS_DIR
+#error "SPV_KERNEL_NS_DIR is not defined. Pass it from CMake via target_compile_definitions(...)."
 #endif
 
 namespace rayjoin {
@@ -40,7 +44,7 @@ class EdgeInitPassRAIINS : public VkComputeEngineBase {
     uint32_t pad;
   };
 
-  static std::string GetShaderPath() { return std::string(SHADER_DIR_NS) + "/edge_init_ns_d64.spv"; }
+  static std::string GetShaderPath() { return std::string(SHADER_KERNEL_NS_DIR) + "/edge_init_ns_d64.spv"; }
 
   void createPipeline() {
     const std::string spvPath = GetShaderPath();
