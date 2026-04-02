@@ -190,7 +190,7 @@ void RunOverlay(const rayjoin::OverlayConfig& config) {
   overlay->BuildIndex();
 
   timer_next("Intersection edges");
-  // overlay->IntersectEdge(0);
+  overlay->IntersectEdge(0);
 
   FOR2 {
     auto prefix = "Map " + std::to_string(im) + ": ";

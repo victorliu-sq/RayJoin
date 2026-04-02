@@ -11,36 +11,6 @@
 namespace rayjoin {
 namespace vk {
 
-using index_t = rayjoin::index_t;
-using polygon_id_t = rayjoin::polygon_id_t;
-
-struct alignas(16) Int128 {
-  uint64_t lo;
-  int64_t hi;
-};
-
-struct alignas(16) Rational128 {
-  Int128 num;
-  Int128 den;
-};
-
-struct alignas(16) Intersection128 {
-  Rational128 x;
-  Rational128 y;
-  index_t eid0;
-  index_t eid1;
-  polygon_id_t mid_point_polygon_id;
-  uint32_t pad;
-};
-
-static_assert(sizeof(Int128) == 16);
-static_assert(alignof(Int128) == 16);
-static_assert(sizeof(Rational128) == 32);
-static_assert(alignof(Rational128) == 16);
-static_assert(sizeof(Intersection128) == 80);
-static_assert(alignof(Intersection128) == 16);
-static_assert(std::is_trivially_copyable_v<Intersection128>);
-
 template<typename CONTEXT_T>
 class MapOverlayRT : public MapOverlay<CONTEXT_T> {
   using map_t = typename CONTEXT_T::map_t;
@@ -165,6 +135,7 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     // std::string rahit_spv = std::string(SHADER_DIR) + "/rt/lsi_rahit.spv";
     // std::string rchit_spv = std::string(SHADER_DIR) + "/rt/lsi_rchit.spv";
     // std::string rmiss_spv = std::string(SHADER_DIR) + "/rt/lsi_rmiss.spv";
+
     std::string rgen_spv = std::string(SHADER_RT_DIR) + "/lsi_rgen.spv";
     std::string rint_spv = std::string(SHADER_RT_DIR) + "/lsi_rint.spv";
     std::string rahit_spv = std::string(SHADER_RT_DIR) + "/lsi_rahit.spv";
@@ -334,20 +305,48 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     }
 
     auto h_xsects = readBackStorageBuffer<Intersection128>(xsect_buf_, n_xsects);
-
-    const std::string path = out_dir + "/" + impl_tag + "_lsi.csv";
-
-    std::vector<std::pair<uint64_t, uint64_t>> pairs;
-    pairs.reserve(h_xsects.size());
-
-    for (const auto &x: h_xsects) {
-      uint64_t eid1 = static_cast<uint64_t>(x.eid0);
-      uint64_t eid2 = static_cast<uint64_t>(x.eid1);
-      if (eid1 > eid2) std::swap(eid1, eid2);
-      pairs.emplace_back(eid1, eid2);
+    if (h_xsects.size() != n_xsects) {
+      LOG(ERROR) << "DumpLSIResultsCSV: failed to read xsect buffer"
+                 << " got=" << h_xsects.size() << " expected=" << n_xsects;
+      return;
     }
 
-    std::sort(pairs.begin(), pairs.end());
+    struct Row {
+      uint32_t eid0;
+      uint32_t eid1;
+      __int128 x_num;
+      __int128 x_den;
+      __int128 y_num;
+      __int128 y_den;
+      int mid_point_polygon_id;
+    };
+
+    std::vector<Row> rows;
+    rows.reserve(h_xsects.size());
+
+    for (const auto &x: h_xsects) {
+      rows.push_back(Row{
+          .eid0 = x.eid0,
+          .eid1 = x.eid1,
+          .x_num = x.x.num,
+          .x_den = x.x.den,
+          .y_num = x.y.num,
+          .y_den = x.y.den,
+          .mid_point_polygon_id = x.mid_point_polygon_id,
+      });
+    }
+
+    std::sort(rows.begin(), rows.end(), [](const Row &a, const Row &b) {
+      if (a.eid0 != b.eid0) return a.eid0 < b.eid0;
+      if (a.eid1 != b.eid1) return a.eid1 < b.eid1;
+      if (a.x_num != b.x_num) return a.x_num < b.x_num;
+      if (a.x_den != b.x_den) return a.x_den < b.x_den;
+      if (a.y_num != b.y_num) return a.y_num < b.y_num;
+      if (a.y_den != b.y_den) return a.y_den < b.y_den;
+      return a.mid_point_polygon_id < b.mid_point_polygon_id;
+    });
+
+    const std::string path = out_dir + "/" + impl_tag + "_lsi.csv";
 
     std::ofstream ofs(path);
     if (!ofs) {
@@ -355,9 +354,11 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
       return;
     }
 
-    ofs << "eid1,eid2\n";
-    for (const auto &[eid1, eid2]: pairs) {
-      ofs << eid1 << "," << eid2 << "\n";
+    ofs << "eid0,eid1,x_num,x_den,y_num,y_den,mid_point_polygon_id\n";
+
+    for (const auto &r: rows) {
+      ofs << r.eid0 << "," << r.eid1 << "," << Int128ToString(r.x_num) << "," << Int128ToString(r.x_den) << "," << Int128ToString(r.y_num) << ","
+          << Int128ToString(r.y_den) << "," << r.mid_point_polygon_id << "\n";
     }
 
     ofs.close();

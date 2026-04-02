@@ -96,10 +96,10 @@ run_compare "Index map 1" \
 # -------------------------
 # LSI comparisons
 # -------------------------
-#run_compare "LSI map 0" \
-#  "${lsi_dir}/optix_lsi_map_0.csv" \
-#  "${lsi_dir}/vulkan_lsi_map_0.csv" \
-#  "$lsi_diff_dir" || status=1
+run_compare "LSI" \
+  "${lsi_dir}/optix_lsi.csv" \
+  "${lsi_dir}/vulkan_lsi.csv" \
+  "$lsi_diff_dir" || status=1
 
 # -------------------------
 # PIP comparisons

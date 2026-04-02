@@ -148,21 +148,6 @@ class Map {
   VkDeviceBuf rowDev_{};
   VkDeviceBuf edgesDev_{};
 
-  static std::string Int128ToString(__int128 v) {
-    if (v == 0) return "0";
-
-    bool neg = v < 0;
-    unsigned __int128 x = neg ? static_cast<unsigned __int128>(-v) : static_cast<unsigned __int128>(v);
-
-    std::string s;
-    while (x > 0) {
-      s.push_back(static_cast<char>('0' + (x % 10)));
-      x /= 10;
-    }
-    if (neg) s.push_back('-');
-    std::reverse(s.begin(), s.end());
-    return s;
-  }
 
   template<typename SRC_COORD_T>
   void DebugPrintScaledPoints(const Scaling<SRC_COORD_T, INTERNAL_COORD_T>& scaling,

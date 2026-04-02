@@ -1,10 +1,9 @@
 #ifndef RAYJOIN_SCALE_POINTS_H
 #define RAYJOIN_SCALE_POINTS_H
 
-#include <vulkan/vulkan.h>
-
 #include <cstdint>
 #include <stdexcept>
+#include <vulkan/vulkan.h>
 
 #include "vk/engine/vk_compute_context.h"
 #include "vk/engine/vk_helpers.h"
@@ -18,6 +17,7 @@
 // struct alignas(16) DstPointI64 {
 //   int64_t x, y;
 // };
+namespace rayjoin::vk {
 
 using SrcPointD = Vec2<double>;
 using DstPointI64 = Vec2<int64_t>;
@@ -56,20 +56,17 @@ class ScalePointsPassD2I64 {
 
     VkDescriptorSetLayoutBinding bindings[] = {b0, b1};
 
-    VkDescriptorSetLayoutCreateInfo dslci{
-        VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+    VkDescriptorSetLayoutCreateInfo dslci{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
     dslci.bindingCount = 2;
     dslci.pBindings = bindings;
-    VK_CHECK(
-        vkCreateDescriptorSetLayout(ctx.device, &dslci, nullptr, &m_setLayout));
+    VK_CHECK(vkCreateDescriptorSetLayout(ctx.device, &dslci, nullptr, &m_setLayout));
 
     VkPushConstantRange pcr{};
     pcr.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     pcr.offset = 0;
     pcr.size = sizeof(PushConstantsD2I64);
 
-    VkPipelineLayoutCreateInfo plci{
-        VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+    VkPipelineLayoutCreateInfo plci{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
     plci.setLayoutCount = 1;
     plci.pSetLayouts = &m_setLayout;
     plci.pushConstantRangeCount = 1;
@@ -82,18 +79,15 @@ class ScalePointsPassD2I64 {
     smci.pCode = spirv.data();
     VK_CHECK(vkCreateShaderModule(ctx.device, &smci, nullptr, &m_shader));
 
-    VkPipelineShaderStageCreateInfo stage{
-        VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
+    VkPipelineShaderStageCreateInfo stage{VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
     stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
     stage.module = m_shader;
     stage.pName = "main";
 
-    VkComputePipelineCreateInfo cpci{
-        VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
+    VkComputePipelineCreateInfo cpci{VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
     cpci.stage = stage;
     cpci.layout = m_pipeLayout;
-    VK_CHECK(vkCreateComputePipelines(ctx.device, VK_NULL_HANDLE, 1, &cpci,
-                                      nullptr, &m_pipeline));
+    VK_CHECK(vkCreateComputePipelines(ctx.device, VK_NULL_HANDLE, 1, &cpci, nullptr, &m_pipeline));
 
     // Descriptor Pool
     // 1 set, 2 storage-buffer descriptors total (src + dst)
@@ -101,8 +95,7 @@ class ScalePointsPassD2I64 {
         {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2},
     };
 
-    VkDescriptorPoolCreateInfo ci{
-        VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+    VkDescriptorPoolCreateInfo ci{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
     ci.maxSets = 1;
     ci.poolSizeCount = (uint32_t) std::size(sizes);
     ci.pPoolSizes = sizes;
@@ -110,8 +103,7 @@ class ScalePointsPassD2I64 {
     VK_CHECK(vkCreateDescriptorPool(m_ctx.device, &ci, nullptr, &m_descPool));
 
     // descriptor set
-    VkDescriptorSetAllocateInfo dsai{
-        VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+    VkDescriptorSetAllocateInfo dsai{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
     // dsai.descriptorPool = ctx.descPool;
     dsai.descriptorPool = m_descPool;
     dsai.descriptorSetCount = 1;
@@ -122,19 +114,13 @@ class ScalePointsPassD2I64 {
   }
 
   void destroy() {
-    if (!m_inited)
-      return;
+    if (!m_inited) return;
     cleanupBuffers();
-    if (m_pipeline)
-      vkDestroyPipeline(m_ctx.device, m_pipeline, nullptr);
-    if (m_shader)
-      vkDestroyShaderModule(m_ctx.device, m_shader, nullptr);
-    if (m_pipeLayout)
-      vkDestroyPipelineLayout(m_ctx.device, m_pipeLayout, nullptr);
-    if (m_setLayout)
-      vkDestroyDescriptorSetLayout(m_ctx.device, m_setLayout, nullptr);
-    if (m_descPool)
-      vkDestroyDescriptorPool(m_ctx.device, m_descPool, nullptr);
+    if (m_pipeline) vkDestroyPipeline(m_ctx.device, m_pipeline, nullptr);
+    if (m_shader) vkDestroyShaderModule(m_ctx.device, m_shader, nullptr);
+    if (m_pipeLayout) vkDestroyPipelineLayout(m_ctx.device, m_pipeLayout, nullptr);
+    if (m_setLayout) vkDestroyDescriptorSetLayout(m_ctx.device, m_setLayout, nullptr);
+    if (m_descPool) vkDestroyDescriptorPool(m_ctx.device, m_descPool, nullptr);
     *this = {};
   }
 
@@ -145,19 +131,13 @@ class ScalePointsPassD2I64 {
     VkDeviceSize srcSize = VkDeviceSize(sizeof(SrcPointD)) * count;
     VkDeviceSize dstSize = VkDeviceSize(sizeof(DstPointI64)) * count;
 
-    m_srcStaging = vmaCreateBufferSimple(m_ctx.vma, srcSize,
-                                         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                         VMA_MEMORY_USAGE_CPU_ONLY);
+    m_srcStaging = vmaCreateBufferSimple(m_ctx.vma, srcSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
 
-    m_srcDevice = vmaCreateBufferSimple(
-        m_ctx.vma, srcSize,
-        VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-        VMA_MEMORY_USAGE_GPU_ONLY);
+    m_srcDevice =
+        vmaCreateBufferSimple(m_ctx.vma, srcSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 
-    m_dstDevice = vmaCreateBufferSimple(
-        m_ctx.vma, dstSize,
-        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-        VMA_MEMORY_USAGE_GPU_ONLY);
+    m_dstDevice =
+        vmaCreateBufferSimple(m_ctx.vma, dstSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 
     VkDescriptorBufferInfo srcInfo{m_srcDevice.buf, 0, VK_WHOLE_SIZE};
     VkDescriptorBufferInfo dstInfo{m_dstDevice.buf, 0, VK_WHOLE_SIZE};
@@ -181,12 +161,9 @@ class ScalePointsPassD2I64 {
   }
 
   // record + submit internally (simple, reliable)
-  void run(const SrcPointD* srcPoints, uint32_t count, double rx, double ry,
-           double deltax, double deltay) {
-    if (!m_inited)
-      throw std::runtime_error("ScalePointsPassD2I64 not initialized");
-    if (count != m_count)
-      throw std::runtime_error("prepareBuffers(count) mismatch");
+  void run(const SrcPointD* srcPoints, uint32_t count, double rx, double ry, double deltax, double deltay) {
+    if (!m_inited) throw std::runtime_error("ScalePointsPassD2I64 not initialized");
+    if (count != m_count) throw std::runtime_error("prepareBuffers(count) mismatch");
 
     // upload to staging
     void* mapped = nullptr;
@@ -226,8 +203,7 @@ class ScalePointsPassD2I64 {
     vkCmdPipelineBarrier2(cmd, &dep);
 
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeline);
-    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeLayout,
-                            0, 1, &m_descSet, 0, nullptr);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeLayout, 0, 1, &m_descSet, 0, nullptr);
 
     PushConstantsD2I64 pc{};
     pc.rx = rx;
@@ -237,8 +213,7 @@ class ScalePointsPassD2I64 {
     pc.count = count;
     pc.pad0 = 0;
 
-    vkCmdPushConstants(cmd, m_pipeLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0,
-                       sizeof(PushConstantsD2I64), &pc);
+    vkCmdPushConstants(cmd, m_pipeLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(PushConstantsD2I64), &pc);
 
     uint32_t groups = (count + 256 - 1) / 256;
     vkCmdDispatch(cmd, groups, 1, 1);
@@ -286,5 +261,8 @@ class ScalePointsPassD2I64 {
   AllocBuf m_srcDevice{};
   AllocBuf m_dstDevice{};
 };
+
+}  // namespace rayjoin::vk
+
 
 #endif  // RAYJOIN_SCALE_POINTS_H

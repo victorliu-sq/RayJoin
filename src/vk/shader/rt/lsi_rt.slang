@@ -49,7 +49,8 @@ void raygenMain() {
   uint eid = DispatchRaysIndex().x;
   LaunchParamsLSI params = gParams;
 
-  if (eid >= params.query_edge_count) return;
+  if (eid >= params.query_edge_count)
+    return;
 
   Edge e = gQueryEdges[eid];
   Point p1 = gQueryPoints[e.p1_idx];
@@ -58,11 +59,15 @@ void raygenMain() {
 
   if (i128_is_zero(e.b)) {
     if (p1.y > p2.y) {
-      Point tmp = p1; p1 = p2; p2 = tmp;
+      Point tmp = p1;
+      p1 = p2;
+      p2 = tmp;
     }
   } else {
     if (p1.x > p2.x) {
-      Point tmp = p1; p1 = p2; p2 = tmp;
+      Point tmp = p1;
+      p1 = p2;
+      p2 = tmp;
     }
   }
 
@@ -110,8 +115,7 @@ void intersectionMain() {
     Point base_e_p1 = gBasePoints[base_e.p1_idx];
     Point base_e_p2 = gBasePoints[base_e.p2_idx];
 
-    if (intersect_test(query_e, query_e_p1, query_e_p2,
-                       base_e, base_e_p1, base_e_p2)) {
+    if (intersect_test(query_e, query_e_p1, query_e_p2, base_e, base_e_p1, base_e_p2)) {
       uint outIdx;
       InterlockedAdd(gXsectCounter[0], 1, outIdx);
 

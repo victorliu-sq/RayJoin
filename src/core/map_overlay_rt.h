@@ -149,10 +149,15 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     lsi->Query(stream, query_map_id);
     stream.Sync();
 
-    // DumpLSIResultsCSV(query_map_id, "tmp/results_lsi", "optix");
+    // DumpLSIResultsCSVEidOnly(query_map_id, "tmp/results_lsi", "optix");
     // if (rayjoin::ShouldDumpStage(config_.dump_results, "lsi")) {
-    //   DumpLSIResultsCSV(query_map_id, rayjoin::DumpSubdir(config_.dump_dir, "results_lsi"), "optix");
+    //   DumpLSIResultsCSVEidOnly(query_map_id, rayjoin::DumpSubdir(config_.dump_dir, "results_lsi"), "optix");
     // }
+
+    // if (query_map_id == 0 && rayjoin::ShouldDumpStage(config_.dump_results, "lsi")) {
+    //   DumpLSIResultsCSVEidOnly(rayjoin::DumpSubdir(config_.dump_dir, "results_lsi"), "optix");
+    // }
+
     if (query_map_id == 0 && rayjoin::ShouldDumpStage(config_.dump_results, "lsi")) {
       DumpLSIResultsCSV(rayjoin::DumpSubdir(config_.dump_dir, "results_lsi"), "optix");
     }
@@ -545,7 +550,7 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     LOG(INFO) << "DumpPIPResultsCSV: wrote " << path;
   }
 
-  void DumpLSIResultsCSV(int query_map_id, const std::string& out_dir, const std::string& impl_tag) const {
+  void DumpLSIResultsCSVEidOnly(int query_map_id, const std::string& out_dir, const std::string& impl_tag) const {
     namespace fs = std::filesystem;
     fs::create_directories(out_dir);
 
@@ -572,7 +577,7 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
 
     std::ofstream ofs(path);
     if (!ofs) {
-      LOG(ERROR) << "DumpLSIResultsCSV: failed to open " << path;
+      LOG(ERROR) << "DumpLSIResultsCSVEidOnly: failed to open " << path;
       return;
     }
 
@@ -581,10 +586,71 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
       ofs << eid1 << "," << eid2 << "\n";
     }
 
-    LOG(INFO) << "DumpLSIResultsCSV: wrote " << path;
+    LOG(INFO) << "DumpLSIResultsCSVEidOnly: wrote " << path;
   }
 
   void DumpLSIResultsCSV(const std::string& out_dir, const std::string& impl_tag) const {
+    namespace fs = std::filesystem;
+    fs::create_directories(out_dir);
+
+    thrust::host_vector<xsect_t> h_xsects;
+    this->lsi_->CopyTo(h_xsects);
+
+    struct Row {
+      uint32_t eid0;
+      uint32_t eid1;
+      __int128 x_num;
+      __int128 x_den;
+      __int128 y_num;
+      __int128 y_den;
+      int mid_point_polygon_id;
+    };
+
+    std::vector<Row> rows;
+    rows.reserve(h_xsects.size());
+
+    for (const auto& x: h_xsects) {
+      rows.push_back(Row{
+          .eid0 = static_cast<uint32_t>(x.eid[0]),
+          .eid1 = static_cast<uint32_t>(x.eid[1]),
+          .x_num = x.x.num(),
+          .x_den = x.x.denom(),
+          .y_num = x.y.num(),
+          .y_den = x.y.denom(),
+          .mid_point_polygon_id = x.mid_point_polygon_id,
+      });
+    }
+
+    std::sort(rows.begin(), rows.end(), [](const Row& a, const Row& b) {
+      if (a.eid0 != b.eid0) return a.eid0 < b.eid0;
+      if (a.eid1 != b.eid1) return a.eid1 < b.eid1;
+      if (a.x_num != b.x_num) return a.x_num < b.x_num;
+      if (a.x_den != b.x_den) return a.x_den < b.x_den;
+      if (a.y_num != b.y_num) return a.y_num < b.y_num;
+      if (a.y_den != b.y_den) return a.y_den < b.y_den;
+      return a.mid_point_polygon_id < b.mid_point_polygon_id;
+    });
+
+    const std::string path = out_dir + "/" + impl_tag + "_lsi.csv";
+
+    std::ofstream ofs(path);
+    if (!ofs) {
+      LOG(ERROR) << "DumpLSIResultsCSV: failed to open " << path;
+      return;
+    }
+
+    ofs << "eid0,eid1,x_num,x_den,y_num,y_den,mid_point_polygon_id\n";
+
+    for (const auto& r: rows) {
+      ofs << r.eid0 << "," << r.eid1 << "," << Int128ToString(r.x_num) << "," << Int128ToString(r.x_den) << "," << Int128ToString(r.y_num) << ","
+          << Int128ToString(r.y_den) << "," << r.mid_point_polygon_id << "\n";
+    }
+
+    ofs.close();
+    LOG(INFO) << "DumpLSIResultsCSV: wrote " << path;
+  }
+
+  void DumpLSIResultsCSVEidOnly(const std::string& out_dir, const std::string& impl_tag) const {
     namespace fs = std::filesystem;
     fs::create_directories(out_dir);
 
@@ -611,7 +677,7 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
 
     std::ofstream ofs(path);
     if (!ofs) {
-      LOG(ERROR) << "DumpLSIResultsCSV: failed to open " << path;
+      LOG(ERROR) << "DumpLSIResultsCSVEidOnly: failed to open " << path;
       return;
     }
 
@@ -621,8 +687,26 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     }
 
     ofs.close();
-    LOG(INFO) << "DumpLSIResultsCSV: wrote " << path;
+    LOG(INFO) << "DumpLSIResultsCSVEidOnly: wrote " << path;
   }
+
+
+  static std::string Int128ToString(__int128 v) {
+    if (v == 0) return "0";
+
+    bool neg = v < 0;
+    unsigned __int128 x = neg ? static_cast<unsigned __int128>(-v) : static_cast<unsigned __int128>(v);
+
+    std::string s;
+    while (x > 0) {
+      s.push_back(static_cast<char>('0' + (x % 10)));
+      x /= 10;
+    }
+    if (neg) s.push_back('-');
+    std::reverse(s.begin(), s.end());
+    return s;
+  }
+
 
   void DumpComputeOutputPolygonsCSV(int query_map_id, const std::string& out_dir, const std::string& impl_tag) const {
     namespace fs = std::filesystem;
