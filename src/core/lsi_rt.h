@@ -64,7 +64,7 @@ class LSIRT : public LSI<CONTEXT_T> {
     using xsect_t = typename lsi::xsect_t;
     using x_num_t = decltype(std::declval<xsect_t>().x.num());
 
-    static_assert(std::is_same_v<x_num_t, coefficient_t>, "stored x numerator type is not coefficient_t");
+    static_assert(std::is_same_v<x_num_t, internal_coord_t>, "stored x numerator type is not coefficient_t");
 
     ForEach(
         stream,
