@@ -202,6 +202,7 @@ void main(uint3 tid: SV_DispatchThreadID) {
   Rational128 rx = rational128_make(numx, denom);
   Rational128 ry = rational128_make(numy, denom);
 
+  // Some other stuff
   // int64_t t;
 
   // t = min(min(base_p1.x, base_p2.x), min(query_p1.x, query_p2.x));

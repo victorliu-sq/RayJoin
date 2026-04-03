@@ -702,22 +702,22 @@ public Int128 i128_gcd(Int128 a, Int128 b) {
 public Rational128 rational128_make(Int128 num, Int128 den) {
   Rational128 r;
 
-  // if (i128_is_zero(den)) {
-  //   r.num = num;
-  //   r.den = den;
-  //   return r;
-  // }
+  if (i128_is_zero(den)) {
+    r.num = num;
+    r.den = den;
+    return r;
+  }
 
-  // Int128 g = i128_gcd(num, den);
-  // g = i128_abs(g);
+  Int128 g = i128_gcd(num, den);
+  g = i128_abs(g);
 
-  // num = i128_div_exact(num, g);
-  // den = i128_div_exact(den, g);
+  num = i128_div_exact(num, g);
+  den = i128_div_exact(den, g);
 
-  // if (i128_is_neg(den)) {
-  //   num = i128_neg(num);
-  //   den = i128_neg(den);
-  // }
+  if (i128_is_neg(den)) {
+    num = i128_neg(num);
+    den = i128_neg(den);
+  }
 
   r.num = num;
   r.den = den;
