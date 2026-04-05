@@ -90,27 +90,25 @@ class rational {
 
   /* Assignment */
 
-  // constexpr rational& operator=(const rational&) = default;
-  constexpr rational& operator=(const rational& other) {
-    // num_ = 11;
-    // denom_ = 11;
-    // num_ = value_type{other.num()};
-    // denom_ = value_type{other.denom()};
-    // num_ = other.num();
-    // denom_ = other.denom();
-    num_ = other.num_;
-    denom_ = other.denom_;
-    return *this;
-  }
-
-  // template<typename U, typename = std::enable_if_t<detail::is_nonnarrowing_assignable_v<T, U>>>
-  // __device__ __host__ TCB_CONSTEXPR14 rational& operator=(const rational<U>& other) {
-  //   num_ = 222;
-  //   denom_ = 222;
-  //   num_ = value_type{other.num()};
-  //   denom_ = value_type{other.denom()};
+  constexpr rational& operator=(const rational&) = default;
+  // constexpr rational& operator=(const rational& other) {
+  //   assert(other.denom_ == 1);
+  //   // num_ = 11;
+  //   // denom_ = 11;
+  //   // num_ = value_type{other.num()};
+  //   // denom_ = value_type{other.denom()};
+  //   num_ = other.num();
+  //   denom_ = other.denom();
+  //   // num_ = other.num_;
   //   return *this;
   // }
+
+  template<typename U, typename = std::enable_if_t<detail::is_nonnarrowing_assignable_v<T, U>>>
+  __device__ __host__ TCB_CONSTEXPR14 rational& operator=(const rational<U>& other) {
+    num_ = value_type{other.num()};
+    denom_ = value_type{other.denom()};
+    return *this;
+  }
 
   __device__ __host__ TCB_CONSTEXPR14 void swap(rational& other) {
     using std::swap;

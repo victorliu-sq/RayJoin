@@ -597,27 +597,27 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     this->lsi_->CopyTo(h_xsects);
 
     struct Row {
-      uint32_t eid0;
-      uint32_t eid1;
-      __int128 x_num;
-      __int128 x_den;
-      __int128 y_num;
-      __int128 y_den;
+      index_t eid0;
+      index_t eid1;
+      internal_coord_t x_num;
+      internal_coord_t x_den;
+      internal_coord_t y_num;
+      internal_coord_t y_den;
       int mid_point_polygon_id;
     };
 
     std::vector<Row> rows;
     rows.reserve(h_xsects.size());
 
-    for (const auto& x: h_xsects) {
+    for (const auto& xsect: h_xsects) {
       rows.push_back(Row{
-          .eid0 = static_cast<uint32_t>(x.eid[0]),
-          .eid1 = static_cast<uint32_t>(x.eid[1]),
-          .x_num = x.x.num(),
-          .x_den = x.x.denom(),
-          .y_num = x.y.num(),
-          .y_den = x.y.denom(),
-          .mid_point_polygon_id = x.mid_point_polygon_id,
+          .eid0 = static_cast<index_t>(xsect.eid[0]),
+          .eid1 = static_cast<index_t>(xsect.eid[1]),
+          .x_num = static_cast<internal_coord_t>(xsect.x.num()),
+          .x_den = static_cast<internal_coord_t>(xsect.x.denom()),
+          .y_num = static_cast<internal_coord_t>(xsect.y.num()),
+          .y_den = static_cast<internal_coord_t>(xsect.y.denom()),
+          .mid_point_polygon_id = xsect.mid_point_polygon_id,
       });
     }
 
@@ -638,12 +638,11 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
       LOG(ERROR) << "DumpLSIResultsCSV: failed to open " << path;
       return;
     }
-
-    ofs << "eid0,eid1,x_num,x_den,y_num,y_den,mid_point_polygon_id\n";
+    ofs << "eid0,eid1,x,y,mid_point_polygon_id\n";
 
     for (const auto& r: rows) {
-      ofs << r.eid0 << "," << r.eid1 << "," << Int128ToString(r.x_num) << "," << Int128ToString(r.x_den) << "," << Int128ToString(r.y_num) << ","
-          << Int128ToString(r.y_den) << "," << r.mid_point_polygon_id << "\n";
+      ofs << r.eid0 << "," << r.eid1 << "," << static_cast<long long>(r.x_num) << "," << static_cast<long long>(r.x_den) << ","
+          << static_cast<long long>(r.y_num) << "," << static_cast<long long>(r.y_den) << "," << r.mid_point_polygon_id << "\n";
     }
 
     ofs.close();

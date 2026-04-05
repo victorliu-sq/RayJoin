@@ -58,13 +58,13 @@ class LSIRT : public LSI<CONTEXT_T> {
 
     size_t n_xsects = xsects_queue.size(stream);
 
-    static_assert(std::is_same_v<coefficient_t, __int128>, "coefficient_t is not __int128");
-    static_assert(std::is_same_v<internal_coord_t, int64_t>, "internal_coord_t changed");
-
-    using xsect_t = typename lsi::xsect_t;
-    using x_num_t = decltype(std::declval<xsect_t>().x.num());
-
-    static_assert(std::is_same_v<x_num_t, internal_coord_t>, "stored x numerator type is not coefficient_t");
+    // static_assert(std::is_same_v<coefficient_t, __int128>, "coefficient_t is not __int128");
+    // static_assert(std::is_same_v<internal_coord_t, int64_t>, "internal_coord_t changed");
+    //
+    // using xsect_t = typename lsi::xsect_t;
+    // using x_num_t = decltype(std::declval<xsect_t>().x.num());
+    //
+    // static_assert(std::is_same_v<x_num_t, internal_coord_t>, "stored x numerator type is not coefficient_t");
 
     ForEach(
         stream,
@@ -88,31 +88,33 @@ class LSIRT : public LSI<CONTEXT_T> {
           tcb::rational<coefficient_t> xsect_x(numx, denom);
           tcb::rational<coefficient_t> xsect_y(numy, denom);
 
-          // auto t = MIN4(base_e_p1.x, base_e_p2.x, query_e_p1.x, query_e_p2.x);
-          // if (xsect_x < t) {
-          //   xsect_x = t;
-          // }
-          //
-          // t = MAX4(base_e_p1.x, base_e_p2.x, query_e_p1.x, query_e_p2.x);
-          // if (xsect_x > t) {
-          //   xsect_x = t;
-          // }
-          //
-          // t = MIN4(base_e_p1.y, base_e_p2.y, query_e_p1.y, query_e_p2.y);
-          // if (xsect_y < t) {
-          //   xsect_y = t;
-          // }
-          // t = MAX4(base_e_p1.y, base_e_p2.y, query_e_p1.y, query_e_p2.y);
-          // if (xsect_y > t) {
-          //   xsect_y = t;
-          // }
+          auto t = MIN4(base_e_p1.x, base_e_p2.x, query_e_p1.x, query_e_p2.x);
+          if (xsect_x < t) {
+            xsect_x = t;
+          }
 
-          // xsect.x = xsect_x;
-          // xsect.y = xsect_y;
-          xsect.x.num_ = xsect_x.num_;
-          xsect.x.denom_ = xsect_x.denom_;
-          xsect.y.num_ = xsect_y.num_;
-          xsect.y.denom_ = xsect_y.denom_;
+          t = MAX4(base_e_p1.x, base_e_p2.x, query_e_p1.x, query_e_p2.x);
+          if (xsect_x > t) {
+            xsect_x = t;
+          }
+
+          t = MIN4(base_e_p1.y, base_e_p2.y, query_e_p1.y, query_e_p2.y);
+          if (xsect_y < t) {
+            xsect_y = t;
+          }
+          t = MAX4(base_e_p1.y, base_e_p2.y, query_e_p1.y, query_e_p2.y);
+          if (xsect_y > t) {
+            xsect_y = t;
+          }
+
+          xsect.x = xsect_x;
+          xsect.y = xsect_y;
+
+          // Jiaxin: Debug Info
+          // xsect.x.num_ = xsect_x.num_;
+          // xsect.x.denom_ = xsect_x.denom_;
+          // xsect.y.num_ = xsect_y.num_;
+          // xsect.y.denom_ = xsect_y.denom_;
         },
         ArrayView<xsect_t>(xsects_queue.data(), n_xsects));
 
