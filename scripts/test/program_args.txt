@@ -1,15 +1,15 @@
 ///////////////////////////////////////////////////
 // Sample Dataset
--poly1 test/dataset/br_county_clean_25_odyssey_final.txt
--poly2 test/dataset/br_soil_ascii_odyssey_final.txt
+-poly1 data/realworld_small/br_county_clean_25_odyssey_final.txt
+-poly2 data/realworld_small/br_soil_ascii_odyssey_final.txt
 -output  tmp/results/br_countyXbr_soil_result_optix.txt
 -mode=rt
 -xsect_factor=5.0
 -warmup=5 -repeat=5
 -query=lsi/pip
 
--poly1 test/dataset/br_county_clean_25_odyssey_final.txt
--poly2 test/dataset/br_soil_ascii_odyssey_final.txt
+-poly1 data/realworld_small/br_county_clean_25_odyssey_final.txt
+-poly2 data/realworld_small/br_soil_ascii_odyssey_final.txt
 -output  tmp/results/br_countyXbr_soil_result_vk.txt
 -mode=rt
 -xsect_factor=5.0
