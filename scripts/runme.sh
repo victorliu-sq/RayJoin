@@ -30,8 +30,9 @@ bash "${SCRIPTS_DIR}/build_targets/build_all.sh"
 #bash "${SCRIPTS_DIR}/test/run_test_1_dump.sh"
 #bash "${SCRIPTS_DIR}/test/run_test_2_dump.sh"
 
-# 4. Test RayjoinNative
-bash "${SCRIPTS_DIR}/test/run_test_optix_native_dump.sh"
+# 4. Test OptixNative
+bash "${SCRIPTS_DIR}/test/run_test_optix_native_1.sh"
+bash "${SCRIPTS_DIR}/test/run_test_optix_native_2.sh"
 
 # ==========================================================
 # Start to produce results
