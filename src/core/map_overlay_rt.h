@@ -488,7 +488,7 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     }
 
     ofs << "map_id,primitive_id,min_x,min_y,min_z,max_x,max_y,max_z,eid_begin,eid_end\n";
-    ofs << std::fixed << std::setprecision(9);
+    ofs << std::fixed << std::setprecision(7);
 
     for (size_t i = 0; i < h_aabbs.size(); ++i) {
       const auto& a = h_aabbs[i];

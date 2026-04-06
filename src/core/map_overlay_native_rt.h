@@ -5,6 +5,7 @@
 
 #include "map_overlay_native.h"
 #include "query_config.h"
+#include "rt/primitive_native.h"
 #include "rt/rt_engine.h"
 
 namespace rayjoin {
@@ -59,7 +60,45 @@ class MapOverlayNativeRT : public MapOverlayNative<CONTEXT_T> {
               << "max_n_points=" << max_n_points << ", max_n_edges=" << max_n_edges;
   }
 
-  void BuildIndex() override { LOG(FATAL) << "MapOverlayNativeRT::BuildIndex is not implemented yet"; }
+  void BuildIndex() override {
+    auto& ctx = this->ctx_;
+    auto& stream = ctx.get_stream();
+    auto win_size = config_.win;
+    auto ag_iter = config_.ag_iter;
+    auto area_enlarge = config_.enlarge;
+
+    const bool dump_index = rayjoin::ShouldDumpStage(config_.dump_results, "index");
+    const std::string index_dir = rayjoin::DumpSubdir(config_.dump_dir, "results_index");
+
+    FOR2 {
+      auto d_map = ctx.get_map(im)->DeviceObject();
+
+      if (config_.ag == 0) {
+        FillPrimitivesNative(stream, d_map, aabbs_, *eid_range_[im]);
+      } else if (config_.ag == 1) {
+        FillPrimitivesGroupNewNative(stream, d_map, ag_iter, area_enlarge, aabbs_, *eid_range_[im]);
+      } else if (config_.ag == 2) {
+        FillPrimitivesGroupNative(stream, d_map, win_size, area_enlarge, aabbs_, *eid_range_[im]);
+      } else {
+        LOG(FATAL) << "Illegal ag mode: " << config_.ag;
+      }
+
+      stream.Sync();
+
+      if (dump_index) {
+        DumpIndexResultsCSV(im, index_dir, "native");
+      }
+
+      traverse_handles_[im] = rt_engine_->BuildAccelCustom(stream, ArrayView<OptixAabb>(aabbs_));
+
+      stream.Sync();
+
+      if (config_.fau) {
+        aabbs_.resize(0);
+        aabbs_.shrink_to_fit();
+      }
+    }
+  }
 
   void IntersectEdge(int query_map_id) override { LOG(FATAL) << "MapOverlayNativeRT::IntersectEdge is not implemented yet"; }
 
@@ -76,6 +115,42 @@ class MapOverlayNativeRT : public MapOverlayNative<CONTEXT_T> {
   OptixTraversableHandle traverse_handles_[2]{};
   thrust::device_vector<OptixAabb> aabbs_;
   std::shared_ptr<thrust::device_vector<thrust::pair<size_t, size_t>>> eid_range_[2];
+
+
+  void DumpIndexResultsCSV(int map_id, const std::string& out_dir, const std::string& impl_tag) const {
+    namespace fs = std::filesystem;
+    fs::create_directories(out_dir);
+
+    thrust::host_vector<OptixAabb> h_aabbs = aabbs_;
+    thrust::host_vector<thrust::pair<size_t, size_t>> h_ranges = *eid_range_[map_id];
+
+    if (h_aabbs.size() != h_ranges.size()) {
+      LOG(ERROR) << "DumpIndexResultsCSV: size mismatch for map_id=" << map_id << " aabbs=" << h_aabbs.size() << " ranges=" << h_ranges.size();
+      return;
+    }
+
+    const std::string path = out_dir + "/" + impl_tag + "_index_map_" + std::to_string(map_id) + ".csv";
+
+    std::ofstream ofs(path);
+    if (!ofs) {
+      LOG(ERROR) << "DumpIndexResultsCSV: failed to open " << path;
+      return;
+    }
+
+    ofs << "map_id,primitive_id,min_x,min_y,min_z,max_x,max_y,max_z,eid_begin,eid_end\n";
+    ofs << std::fixed << std::setprecision(7);
+
+    for (size_t i = 0; i < h_aabbs.size(); ++i) {
+      const auto& a = h_aabbs[i];
+      const auto& r = h_ranges[i];
+
+      ofs << map_id << "," << i << "," << a.minX << "," << a.minY << "," << a.minZ << "," << a.maxX << "," << a.maxY << "," << a.maxZ << ","
+          << static_cast<unsigned long long>(r.first) << "," << static_cast<unsigned long long>(r.second) << "\n";
+    }
+
+    ofs.close();
+    LOG(INFO) << "DumpIndexResultsCSV: wrote " << path;
+  }
 };
 
 }  // namespace rayjoin
