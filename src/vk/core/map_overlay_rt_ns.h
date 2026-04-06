@@ -852,14 +852,50 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
       return it->second;
     };
 
+    // Jiaxin Patch: fewer faces
+    // for (auto &chain: output_chains) {
+    //   // Match the original WriteOutputChain semantics:
+    //   // map 0 chains created as (map0_poly, map1_poly)
+    //   // map 1 chains created as (map0_poly, map1_poly) by reversing order.
+    //   //
+    //   // Since output_chains contains fragments from both maps, we need the same
+    //   // canonicalization the original host writer effectively achieves by input order.
+    //   // The safest equivalent is to sort the pair before create_polygon().
+    //   {
+    //     const int64_t a = chain.left_polygon_id;
+    //     const int64_t b = chain.other_map_polygon_id;
+    //     chain.left_polygon_id = (a <= b) ? create_polygon(a, b) : create_polygon(b, a);
+    //   }
+    //
+    //   {
+    //     const int64_t a = chain.right_polygon_id;
+    //     const int64_t b = chain.other_map_polygon_id;
+    //     chain.right_polygon_id = (a <= b) ? create_polygon(a, b) : create_polygon(b, a);
+    //   }
+    //
+    //   for (const auto &p: chain.points) {
+    //     if (point_ids.find(p) == point_ids.end()) {
+    //       point_ids[p] = point_counter++;
+    //     }
+    //   }
+    //
+    //   chain.first_point_idx = point_ids[chain.points.front()];
+    //   chain.last_point_idx = point_ids[chain.points.back()];
+    // }
+
     for (auto &chain: output_chains) {
-      // Match the original WriteOutputChain semantics:
-      // map 0 chains created as (map0_poly, map1_poly)
-      // map 1 chains created as (map0_poly, map1_poly) by reversing order.
-      //
-      // Since output_chains contains fragments from both maps, we need the same
-      // canonicalization the original host writer effectively achieves by input order.
-      // The safest equivalent is to sort the pair before create_polygon().
+      if (chain.left_polygon_id < chain.other_map_polygon_id) {
+        chain.left_polygon_id = create_polygon(chain.left_polygon_id, chain.other_map_polygon_id);
+      } else {
+        chain.left_polygon_id = create_polygon(chain.other_map_polygon_id, chain.left_polygon_id);
+      }
+
+      if (chain.right_polygon_id < chain.other_map_polygon_id) {
+        chain.right_polygon_id = create_polygon(chain.right_polygon_id, chain.other_map_polygon_id);
+      } else {
+        chain.right_polygon_id = create_polygon(chain.other_map_polygon_id, chain.right_polygon_id);
+      }
+
       {
         const int64_t a = chain.left_polygon_id;
         const int64_t b = chain.other_map_polygon_id;
