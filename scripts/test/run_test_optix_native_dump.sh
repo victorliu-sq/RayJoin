@@ -13,6 +13,7 @@ mkdir -p "${base_dir}/results"
 
 AG_FLAG=0
 
+
 # =========================================================
 # Run Native with index + lsi dumps enabled
 ./build/bin/polyover_exec_native \
