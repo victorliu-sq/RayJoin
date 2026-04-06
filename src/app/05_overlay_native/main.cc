@@ -1,7 +1,7 @@
 #include <glog/logging.h>
 
 // #include "core/run_overlay.h"
-#include "core/run_overlay_ns.h"
+#include "core/run_overlay_native.h"
 #include "flag/flags.h"
 
 int main(int argc, char* argv[]) {

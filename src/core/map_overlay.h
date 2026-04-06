@@ -1,5 +1,6 @@
 #ifndef RAYJOIN_APP_MAP_OVERLAY_H
 #define RAYJOIN_APP_MAP_OVERLAY_H
+
 #include "core/lsi.h"
 #include "core/pip.h"
 #include "shader/lsi.h"

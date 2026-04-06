@@ -37,7 +37,7 @@ add_custom_target(optix_ptx ALL
 # =========================== RayJoin-CUDA Library  ===================================
 add_library(rayjoin_lib SHARED
         core/run_overlay.cu
-        core/run_overlay_ns.cu
+        core/run_overlay_native.cu
         core/run_query.cu
         rt/rt_engine.cu
         flag/flags.cc
