@@ -1,12 +1,11 @@
 #ifndef RAYJOIN_MAP_PLANAR_GRAPH_H
 #define RAYJOIN_MAP_PLANAR_GRAPH_H
-#include <dirent.h>
-#include <sys/stat.h>
-
 #include <algorithm>
+#include <dirent.h>
 #include <fstream>
-#include <random>
 #include <map>
+#include <random>
+#include <sys/stat.h>
 #include <vector>
 
 // #if !defined(RAYJOIN_RT)
@@ -18,20 +17,26 @@
 // ---------------- RT / OptiX PTX ----------------
 // Logging is forbidden → compile out safely
 
-#define LOG(level) if (true) {} else (void)0
-#define VLOG(level) if (true) {} else (void)0
+#define LOG(level) \
+  if (true) {      \
+  } else           \
+    (void) 0
+#define VLOG(level) \
+  if (true) {       \
+  } else            \
+    (void) 0
 
-#define CHECK(cond) ((void)0)
-#define CHECK_EQ(a,b) ((void)0)
-#define CHECK_NE(a,b) ((void)0)
-#define CHECK_LT(a,b) ((void)0)
-#define CHECK_GT(a,b) ((void)0)
-#define CHECK_LE(a,b) ((void)0)
-#define CHECK_GE(a,b) ((void)0)
+#define CHECK(cond) ((void) 0)
+#define CHECK_EQ(a, b) ((void) 0)
+#define CHECK_NE(a, b) ((void) 0)
+#define CHECK_LT(a, b) ((void) 0)
+#define CHECK_GT(a, b) ((void) 0)
+#define CHECK_LE(a, b) ((void) 0)
+#define CHECK_GE(a, b) ((void) 0)
 
 // Optional but useful
-#define DCHECK(cond) ((void)0)
-#define DCHECK_EQ(a,b) ((void)0)
+#define DCHECK(cond) ((void) 0)
+#define DCHECK_EQ(a, b) ((void) 0)
 
 #else
 
@@ -45,21 +50,19 @@
 #include "util/type_traits.h"
 #include "util/util.h"
 
-#define STREAM_WRITE_VAR(stream, var) \
-  stream.write(reinterpret_cast<char*>(&(var)), sizeof(var));
-#define STREAM_READ_VAR(stream, var) \
-  stream.read(reinterpret_cast<char*>(&var), sizeof(var));
+#define STREAM_WRITE_VAR(stream, var) stream.write(reinterpret_cast<char*>(&(var)), sizeof(var));
+#define STREAM_READ_VAR(stream, var) stream.read(reinterpret_cast<char*>(&var), sizeof(var));
 namespace rayjoin {
 
 struct Chain {
-  int64_t id;               // chain index
+  int64_t id;  // chain index
   int64_t first_point_idx;  // unused, first, last index of the chain
   int64_t last_point_idx;
-  int64_t left_polygon_id;   // left polygon id of the chain
+  int64_t left_polygon_id;  // left polygon id of the chain
   int64_t right_polygon_id;  // right polygon id of the chain
 };
 
-template <class COORD_T>
+template<class COORD_T>
 struct PlanarGraph {
   using point_t = typename cuda_vec<COORD_T>::type_2d;
   pinned_vector<Chain> chains;
@@ -68,7 +71,7 @@ struct PlanarGraph {
   BoundingBox<COORD_T> bb;
 };
 
-template <typename COORD_T>
+template<typename COORD_T>
 inline std::shared_ptr<PlanarGraph<COORD_T>> read_pgraph(const char* path) {
   std::ifstream ifs(path);
 
@@ -95,8 +98,7 @@ inline std::shared_ptr<PlanarGraph<COORD_T>> read_pgraph(const char* path) {
       g.chains.push_back(Chain());
       curr_chain = &g.chains.back();
 
-      bad_line = !(iss >> curr_chain->id >> np >> curr_chain->first_point_idx >>
-                   curr_chain->last_point_idx >> curr_chain->left_polygon_id >>
+      bad_line = !(iss >> curr_chain->id >> np >> curr_chain->first_point_idx >> curr_chain->last_point_idx >> curr_chain->left_polygon_id >>
                    curr_chain->right_polygon_id);
       bad_line |= np < 2;
       // checking overlapped polygon
@@ -109,8 +111,7 @@ inline std::shared_ptr<PlanarGraph<COORD_T>> read_pgraph(const char* path) {
 
       bad_line = !(iss >> p.x >> p.y);
       if (last_p != nullptr) {
-        auto seg_len = sqrt((p.x - last_p->x) * (p.x - last_p->x) +
-                            (p.y - last_p->y) * (p.y - last_p->y));
+        auto seg_len = sqrt((p.x - last_p->x) * (p.x - last_p->x) + (p.y - last_p->y) * (p.y - last_p->y));
         seg_lens.push_back(seg_len);
         bad_line |= p.x == last_p->x && p.y == last_p->y;
       }
@@ -124,8 +125,7 @@ inline std::shared_ptr<PlanarGraph<COORD_T>> read_pgraph(const char* path) {
       np--;
     }
 
-    CHECK(!bad_line) << "Bad line. Check your dataset! " << path << "[" << lno
-                     << "]: " << line;
+    CHECK(!bad_line) << "Bad line. Check your dataset! " << path << "[" << lno << "]: " << line;
   }
   ifs.close();
 
@@ -138,26 +138,18 @@ inline std::shared_ptr<PlanarGraph<COORD_T>> read_pgraph(const char* path) {
   double mean = total_seg_len / seg_lens.size();
 
   std::vector<double> diff(seg_lens.size());
-  std::transform(seg_lens.begin(), seg_lens.end(), diff.begin(),
-                 [mean](double x) { return x - mean; });
-  double sq_sum =
-      std::inner_product(diff.begin(), diff.end(), diff.begin(), 0.0);
+  std::transform(seg_lens.begin(), seg_lens.end(), diff.begin(), [mean](double x) { return x - mean; });
+  double sq_sum = std::inner_product(diff.begin(), diff.end(), diff.begin(), 0.0);
   double stdev = std::sqrt(sq_sum / seg_lens.size());
 
-  VLOG(1) << "Map " << path << " is loaded, chains: " << g.chains.size()
-          << " points: " << pgraph->points.size()
-          << " edges: " << g.points.size() - g.chains.size()
-          << ", min seg len: "
-          << *std::min_element(seg_lens.begin(), seg_lens.end())
-          << ", max seg len: "
-          << *std::max_element(seg_lens.begin(), seg_lens.end())
-          << ", avg seg len: " << mean << ", stdev: " << stdev;
+  VLOG(1) << "Map " << path << " is loaded, chains: " << g.chains.size() << " points: " << pgraph->points.size()
+          << " edges: " << g.points.size() - g.chains.size() << ", min seg len: " << *std::min_element(seg_lens.begin(), seg_lens.end())
+          << ", max seg len: " << *std::max_element(seg_lens.begin(), seg_lens.end()) << ", avg seg len: " << mean << ", stdev: " << stdev;
   return pgraph;
 }
 
-template <typename COORD_T>
-inline void serialize_pgraph(std::shared_ptr<PlanarGraph<COORD_T>> pgraph,
-                             const char* path) {
+template<typename COORD_T>
+inline void serialize_pgraph(std::shared_ptr<PlanarGraph<COORD_T>> pgraph, const char* path) {
   std::ofstream ofs;
   ofs.open(path, std::ios::out | std::ios::binary);
 
@@ -173,17 +165,17 @@ inline void serialize_pgraph(std::shared_ptr<PlanarGraph<COORD_T>> pgraph,
   STREAM_WRITE_VAR(ofs, n_row_index);
   STREAM_WRITE_VAR(ofs, n_points);
 
-  for (auto& chain : pgraph->chains) {
+  for (auto& chain: pgraph->chains) {
     STREAM_WRITE_VAR(ofs, chain.id);
     STREAM_WRITE_VAR(ofs, chain.first_point_idx);
     STREAM_WRITE_VAR(ofs, chain.last_point_idx);
     STREAM_WRITE_VAR(ofs, chain.left_polygon_id);
     STREAM_WRITE_VAR(ofs, chain.right_polygon_id);
   }
-  for (auto& idx : pgraph->row_index) {
+  for (auto& idx: pgraph->row_index) {
     STREAM_WRITE_VAR(ofs, idx);
   }
-  for (auto& p : pgraph->points) {
+  for (auto& p: pgraph->points) {
     STREAM_WRITE_VAR(ofs, p.x);
     STREAM_WRITE_VAR(ofs, p.y);
   }
@@ -196,9 +188,8 @@ inline void serialize_pgraph(std::shared_ptr<PlanarGraph<COORD_T>> pgraph,
   ofs.close();
 }
 
-template <typename COORD_T>
-inline std::shared_ptr<PlanarGraph<COORD_T>> deserialize_pgraph(
-    const char* path) {
+template<typename COORD_T>
+inline std::shared_ptr<PlanarGraph<COORD_T>> deserialize_pgraph(const char* path) {
   std::ifstream ifs;
   ifs.open(path, std::ios::in | std::ios::binary);
   auto pgraph = std::make_shared<PlanarGraph<COORD_T>>();
@@ -219,17 +210,17 @@ inline std::shared_ptr<PlanarGraph<COORD_T>> deserialize_pgraph(
   pgraph->row_index.resize(n_row_index);
   pgraph->points.resize(n_points);
 
-  for (auto& chain : pgraph->chains) {
+  for (auto& chain: pgraph->chains) {
     STREAM_READ_VAR(ifs, chain.id);
     STREAM_READ_VAR(ifs, chain.first_point_idx);
     STREAM_READ_VAR(ifs, chain.last_point_idx);
     STREAM_READ_VAR(ifs, chain.left_polygon_id);
     STREAM_READ_VAR(ifs, chain.right_polygon_id);
   }
-  for (auto& idx : pgraph->row_index) {
+  for (auto& idx: pgraph->row_index) {
     STREAM_READ_VAR(ifs, idx);
   }
-  for (auto& p : pgraph->points) {
+  for (auto& p: pgraph->points) {
     STREAM_READ_VAR(ifs, p.x);
     STREAM_READ_VAR(ifs, p.y);
   }
@@ -242,19 +233,15 @@ inline std::shared_ptr<PlanarGraph<COORD_T>> deserialize_pgraph(
 
   ifs.close();
 
-  VLOG(1) << "Map " << path
-          << " is deserialized, chains: " << pgraph->chains.size()
-          << " points: " << pgraph->points.size()
+  VLOG(1) << "Map " << path << " is deserialized, chains: " << pgraph->chains.size() << " points: " << pgraph->points.size()
           << " edges: " << pgraph->points.size() - pgraph->chains.size();
   return pgraph;
 }
 
-template <typename COORD_T>
-std::shared_ptr<PlanarGraph<COORD_T>> load_from(
-    const std::string& path, const std::string& serialize_prefix) {
+template<typename COORD_T>
+std::shared_ptr<PlanarGraph<COORD_T>> load_from(const std::string& path, const std::string& serialize_prefix) {
   std::string escaped_path;
-  std::replace_copy(path.begin(), path.end(), std::back_inserter(escaped_path),
-                    '/', '-');
+  std::replace_copy(path.begin(), path.end(), std::back_inserter(escaped_path), '/', '-');
   if (!serialize_prefix.empty()) {
     DIR* dir = opendir(serialize_prefix.c_str());
     if (dir) {
@@ -270,21 +257,20 @@ std::shared_ptr<PlanarGraph<COORD_T>> load_from(
 
   auto ser_path = serialize_prefix + '/' + escaped_path + ".bin";
 
-  if (access(ser_path.c_str(), R_OK) == 0) {
-    return deserialize_pgraph<COORD_T>(ser_path.c_str());
-  }
+  // Jiaxin Patch: Remove Serialization and Deserialzation
+  // if (access(ser_path.c_str(), R_OK) == 0) {
+  //   return deserialize_pgraph<COORD_T>(ser_path.c_str());
+  // }
   auto pgraph = read_pgraph<COORD_T>(path.c_str());
-  if (!serialize_prefix.empty() &&
-      access(serialize_prefix.c_str(), W_OK) == 0) {
-    serialize_pgraph(pgraph, ser_path.c_str());
-  }
+  // if (!serialize_prefix.empty() &&
+  //     access(serialize_prefix.c_str(), W_OK) == 0) {
+  //   serialize_pgraph(pgraph, ser_path.c_str());
+  // }
   return pgraph;
 }
 
-template <typename COORD_T>
-inline std::shared_ptr<PlanarGraph<COORD_T>> sample_map_from(
-    std::shared_ptr<PlanarGraph<COORD_T>> p_graph, float sample_rate,
-    int seed = 0) {
+template<typename COORD_T>
+inline std::shared_ptr<PlanarGraph<COORD_T>> sample_map_from(std::shared_ptr<PlanarGraph<COORD_T>> p_graph, float sample_rate, int seed = 0) {
   std::random_device rd;
   std::mt19937 gen(seed == 0 ? rd() : seed);
 
@@ -312,14 +298,13 @@ inline std::shared_ptr<PlanarGraph<COORD_T>> sample_map_from(
       // only take first "sample rate" pids
       pids.resize(std::max(2ul, (size_t) (pids.size() * sample_rate)));
       // sort pids so the order of coordinates is kept
-      std::sort(pids.begin() + 1, pids.end(),
-                [&](size_t p1_idx, size_t p2_idx) { return p1_idx < p2_idx; });
+      std::sort(pids.begin() + 1, pids.end(), [&](size_t p1_idx, size_t p2_idx) { return p1_idx < p2_idx; });
     }
     pids.push_back(end_pid - 1);
 
     sampled_graph->row_index.push_back(sampled_graph->points.size());
 
-    for (auto pid : pids) {
+    for (auto pid: pids) {
       const auto& p = p_graph->points[pid];
 
       sampled_graph->points.push_back(p);
@@ -335,23 +320,19 @@ inline std::shared_ptr<PlanarGraph<COORD_T>> sample_map_from(
     sampled_graph->row_index.push_back(sampled_graph->points.size());
   }
 
-  VLOG(1) << "Map is sampled, chains: " << sampled_graph->chains.size()
-          << " points: " << sampled_graph->points.size() << " edges: "
-          << sampled_graph->points.size() - sampled_graph->chains.size();
+  VLOG(1) << "Map is sampled, chains: " << sampled_graph->chains.size() << " points: " << sampled_graph->points.size()
+          << " edges: " << sampled_graph->points.size() - sampled_graph->chains.size();
   return sampled_graph;
 }
 
-template <typename COORD_T>
-inline std::shared_ptr<PlanarGraph<COORD_T>> sample_edges_from(
-    std::shared_ptr<PlanarGraph<COORD_T>> p_graph, float sample_rate,
-    int seed = 0) {
+template<typename COORD_T>
+inline std::shared_ptr<PlanarGraph<COORD_T>> sample_edges_from(std::shared_ptr<PlanarGraph<COORD_T>> p_graph, float sample_rate, int seed = 0) {
   std::vector<std::pair<size_t, size_t>> sampled_edges;
 
   sampled_edges.reserve(p_graph->points.size());
 
   for (size_t i_chain = 0; i_chain < p_graph->chains.size(); i_chain++) {
-    for (auto pid = p_graph->row_index[i_chain];
-         pid < p_graph->row_index[i_chain + 1] - 1; pid++) {
+    for (auto pid = p_graph->row_index[i_chain]; pid < p_graph->row_index[i_chain + 1] - 1; pid++) {
       sampled_edges.emplace_back(i_chain, pid);
     }
   }
@@ -366,7 +347,7 @@ inline std::shared_ptr<PlanarGraph<COORD_T>> sample_edges_from(
   std::map<size_t, std::vector<size_t>> chain_edges;
 
   // collect eids by chain ids
-  for (const auto& e : sampled_edges) {
+  for (const auto& e: sampled_edges) {
     auto i_chain = e.first;
     auto pid = e.second;
 
@@ -380,7 +361,7 @@ inline std::shared_ptr<PlanarGraph<COORD_T>> sample_edges_from(
   size_t n_edges = 0;
   int64_t chain_id = 0;
 
-  for (auto& e : chain_edges) {
+  for (auto& e: chain_edges) {
     auto i_chain = e.first;
     const auto& begin_pids = chain_edges.at(i_chain);
     Chain chain = p_graph->chains[i_chain];
@@ -392,7 +373,7 @@ inline std::shared_ptr<PlanarGraph<COORD_T>> sample_edges_from(
 
     std::vector<size_t> pids;
 
-    for (auto p1_idx : begin_pids) {
+    for (auto p1_idx: begin_pids) {
       auto p2_idx = p1_idx + 1;
 
       pids.push_back(p1_idx);
@@ -400,13 +381,12 @@ inline std::shared_ptr<PlanarGraph<COORD_T>> sample_edges_from(
     }
 
     // sort pids so the order of coordinates is kept
-    std::sort(pids.begin(), pids.end(),
-              [&](size_t p1_idx, size_t p2_idx) { return p1_idx < p2_idx; });
+    std::sort(pids.begin(), pids.end(), [&](size_t p1_idx, size_t p2_idx) { return p1_idx < p2_idx; });
     pids.resize(std::unique(pids.begin(), pids.end()) - pids.begin());
 
     sampled_graph->row_index.push_back(sampled_graph->points.size());
 
-    for (auto pid : pids) {
+    for (auto pid: pids) {
       const auto& p = p_graph->points[pid];
 
       sampled_graph->points.push_back(p);
@@ -422,9 +402,7 @@ inline std::shared_ptr<PlanarGraph<COORD_T>> sample_edges_from(
     sampled_graph->row_index.push_back(sampled_graph->points.size());
   }
 
-  VLOG(1) << "Edges are sampled, chains: " << sampled_graph->chains.size()
-          << " points: " << sampled_graph->points.size()
-          << " edges: " << n_edges;
+  VLOG(1) << "Edges are sampled, chains: " << sampled_graph->chains.size() << " points: " << sampled_graph->points.size() << " edges: " << n_edges;
   return sampled_graph;
 }
 
