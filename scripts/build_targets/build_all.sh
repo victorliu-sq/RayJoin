@@ -10,6 +10,7 @@ OUTPUT_BIN_DIR="$BUILD_DIR/bin"
 TARGETS=(
 # Optix
 polyover_exec
+polyover_exec_native
 # Vk
 polyover_vk_exec
 polyover_vk_exec_ns
