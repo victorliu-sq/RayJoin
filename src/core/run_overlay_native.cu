@@ -87,7 +87,7 @@ void RunOverlayNative(const OverlayConfig& config) {
     auto prefix = "Map " + std::to_string(im) + ": ";
 
     timer_next(prefix + "Locate vertices in other map");
-    // overlay->LocateVerticesInOtherMap(im);
+    overlay->LocateVerticesInOtherMap(im);
   }
 
   timer_next("Computer output polygons");

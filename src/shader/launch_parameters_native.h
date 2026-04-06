@@ -38,6 +38,31 @@ struct LaunchParamsLSINative {
 #endif
 };
 
+struct LaunchParamsPIPNative {
+  using coord_t = coord_t;
+  using map_t = dev::MapNativeDev<coord_t>;
+  using edge_t = typename map_t::edge_t;
+  using point_t = typename map_t::point_t;
+
+  edge_t* base_map_edges;
+  point_t* base_map_points;
+  thrust::pair<size_t, size_t>* eid_range;
+
+  int query_map_id;
+  ArrayView<point_t> query_points;
+  OptixTraversableHandle traversable;
+
+  index_t* closest_eids;
+  double* best_ys;
+
+#ifndef NDEBUG
+  uint32_t* hit_count;
+  uint32_t* closer_count;
+  uint32_t* last_update_count;
+  uint32_t* fail_update_count;
+#endif
+};
+
 }  // namespace rayjoin
 
 #endif  // RAYJOIN_LAUNCH_PARAMETERS_NATIVE_H

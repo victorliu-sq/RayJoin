@@ -29,6 +29,7 @@ enum ModuleIdentifier {
   MODULE_ID_PIP_CUSTOM,
   // Jiaxin: Native Version, The order cannot be changed.
   MODULE_ID_LSI_CUSTOM_NATIVE,
+  MODULE_ID_PIP_CUSTOM_NATIVE,
   NUM_MODULE_IDENTIFIERS,
 };
 

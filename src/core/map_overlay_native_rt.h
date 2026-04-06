@@ -5,6 +5,7 @@
 
 #include "lsi_rt_native.h"
 #include "map_overlay_native.h"
+#include "pip_rt_natve.h"
 #include "query_config.h"
 #include "rt/primitive_native.h"
 #include "rt/rt_engine.h"
@@ -22,6 +23,7 @@ class MapOverlayNativeRT : public MapOverlayNative<CONTEXT_T> {
   explicit MapOverlayNativeRT(CONTEXT_T& ctx) : MapOverlayNative<CONTEXT_T>(ctx) {
     rt_engine_ = std::make_shared<RTEngine>();
     this->lsi_ = std::make_shared<LSIRTNative<CONTEXT_T>>(ctx, rt_engine_);
+    this->pip_ = std::make_shared<PIPRTNative<CONTEXT_T>>(ctx, rt_engine_);
   }
 
   void set_config(const QueryConfigRT& config) { config_ = config; }
@@ -61,10 +63,11 @@ class MapOverlayNativeRT : public MapOverlayNative<CONTEXT_T> {
     aabbs_.clear();
     aabbs_.reserve(max_n_edges);
 
-    if (this->lsi_ != nullptr) {
-      const size_t max_n_xsects = std::ceil(total_n_edges * config_.xsect_factor);
-      this->lsi_->Init(max_n_xsects);
-    }
+    // Init LSI
+    const size_t max_n_xsects = std::ceil(total_n_edges * config_.xsect_factor);
+    this->lsi_->Init(max_n_xsects);
+    // Init PIP
+    this->pip_->Init(max_n_points);
 
     LOG(INFO) << "MapOverlayNativeRT::Init finished. "
               << "max_n_points=" << max_n_points << ", max_n_edges=" << max_n_edges << ", total_n_edges=" << total_n_edges;
@@ -127,7 +130,43 @@ class MapOverlayNativeRT : public MapOverlayNative<CONTEXT_T> {
     }
   }
 
-  void LocateVerticesInOtherMap(int query_map_id) override { LOG(FATAL) << "MapOverlayNativeRT::LocateVerticesInOtherMap is not implemented yet"; }
+  void LocateVerticesInOtherMap(int query_map_id) override {
+    auto& ctx = this->ctx_;
+    Stream& stream = ctx.get_stream();
+    auto pip = std::dynamic_pointer_cast<PIPRTNative<CONTEXT_T>>(this->pip_);
+    auto base_map_id = 1 - query_map_id;
+    auto d_base_map = ctx.get_map(base_map_id)->DeviceObject();
+    auto d_query_map = ctx.get_map(query_map_id)->DeviceObject();
+    auto d_points = d_query_map.get_points();
+
+    config_.eid_range = eid_range_[base_map_id];
+    config_.handle = traverse_handles_[base_map_id];
+
+    pip->set_config(config_);
+    pip->Query(stream, query_map_id, d_points);
+
+    auto& closest_eid = this->pip_->get_closest_eids();
+
+    thrust::copy(thrust::cuda::par.on(stream.cuda_stream()), closest_eid.begin(), closest_eid.end(), this->closest_eids_[query_map_id].begin());
+
+    thrust::transform(thrust::cuda::par.on(stream.cuda_stream()),
+                      closest_eid.begin(),
+                      closest_eid.end(),
+                      this->point_in_polygon_[query_map_id].begin(),
+                      [=] __device__(index_t eid) {
+                        if (eid == std::numeric_limits<index_t>::max()) {
+                          return EXTERIOR_FACE_ID;
+                        }
+                        const auto& e = d_base_map.get_edge(eid);
+                        return d_base_map.get_face_id(e);
+                      });
+
+    stream.Sync();
+
+    if (rayjoin::ShouldDumpStage(config_.dump_results, "pip")) {
+      DumpPIPResultsCSV(query_map_id, rayjoin::DumpSubdir(config_.dump_dir, "results_pip"), "native");
+    }
+  }
 
   void ComputeOutputPolygons() override { LOG(FATAL) << "MapOverlayNativeRT::ComputeOutputPolygons is not implemented yet"; }
 
@@ -270,6 +309,55 @@ class MapOverlayNativeRT : public MapOverlayNative<CONTEXT_T> {
 
     ofs.close();
     LOG(INFO) << "DumpLSIResultsCSV: wrote " << path;
+  }
+
+
+  void DumpPIPResultsCSV(int query_map_id, const std::string& out_dir, const std::string& impl_tag) const {
+    namespace fs = std::filesystem;
+
+    fs::create_directories(out_dir);
+
+    const auto& d_closest = this->closest_eids_[query_map_id];
+    const auto& d_poly = this->point_in_polygon_[query_map_id];
+
+    thrust::host_vector<index_t> h_closest = d_closest;
+    thrust::host_vector<index_t> h_poly = d_poly;
+
+    if (h_closest.size() != h_poly.size()) {
+      LOG(ERROR) << "DumpPIPResultsCSV: size mismatch for query_map_id=" << query_map_id << " closest=" << h_closest.size()
+                 << " poly=" << h_poly.size();
+      return;
+    }
+
+    const std::string path = out_dir + "/" + impl_tag + "_pip_map_" + std::to_string(query_map_id) + ".csv";
+
+    std::ofstream ofs(path);
+    if (!ofs) {
+      LOG(ERROR) << "DumpPIPResultsCSV: failed to open " << path;
+      return;
+    }
+
+    ofs << "map_id,point_id,closest_eid,poly_id\n";
+
+    const index_t invalid_eid = std::numeric_limits<index_t>::max();
+
+    for (size_t point_id = 0; point_id < h_closest.size(); ++point_id) {
+      const index_t eid = h_closest[point_id];
+      const index_t pid = h_poly[point_id];
+
+      ofs << query_map_id << "," << point_id << ",";
+
+      if (eid == invalid_eid) {
+        ofs << -1;
+      } else {
+        ofs << static_cast<long long>(eid);
+      }
+
+      ofs << "," << static_cast<long long>(pid) << "\n";
+    }
+
+    ofs.close();
+    LOG(INFO) << "DumpPIPResultsCSV: wrote " << path;
   }
 };
 

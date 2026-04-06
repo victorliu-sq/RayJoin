@@ -45,7 +45,7 @@ RTConfig get_default_rt_config(const std::string& exec_root) {
   }
   config.AddModule(mod_pip_custom);
 
-  // Jiaxin:
+  // Jiaxin: Native LSI
   Module mod_lsi_custom_native(ModuleIdentifier::MODULE_ID_LSI_CUSTOM_NATIVE);
   mod_lsi_custom_native.set_program_name(exec_root + "/ptx/rt_lsi_custom_native.ptx");
   mod_lsi_custom_native.set_function_suffix("lsi_custom_native");
@@ -56,6 +56,16 @@ RTConfig get_default_rt_config(const std::string& exec_root) {
     LOG(FATAL) << "Cannot open " << mod_lsi_custom_native.get_program_name();
   }
   config.AddModule(mod_lsi_custom_native);
+
+  // Jiaxin: Native PIP
+  Module mod_pip_custom_native(ModuleIdentifier::MODULE_ID_PIP_CUSTOM_NATIVE);
+  mod_pip_custom_native.set_program_name(exec_root + "/ptx/rt_pip_custom_native.ptx");
+  mod_pip_custom_native.set_function_suffix("pip_custom_native");
+  mod_pip_custom_native.set_launch_params_name("params");
+  mod_pip_custom_native.EnableIsIntersection();
+  mod_pip_custom_native.set_n_payload(4);
+  mod_pip_custom_native.set_n_attribute(0);
+  config.AddModule(mod_pip_custom_native);
 
 #ifndef NDEBUG
   config.opt_level = OPTIX_COMPILE_OPTIMIZATION_LEVEL_0;

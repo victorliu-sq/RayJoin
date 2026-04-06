@@ -2,6 +2,7 @@
 #define RAYJOIN_MAP_OVERLAY_NATIVE_H
 
 #include "lsi_native.h"
+#include "pip_native.h"
 #include "shader/config.h"
 
 namespace rayjoin {
@@ -44,6 +45,7 @@ class MapOverlayNative {
   thrust::device_vector<index_t> closest_eids_[2];
   thrust::device_vector<index_t> point_in_polygon_[2];
   std::shared_ptr<LSINative<CONTEXT_T>> lsi_;
+  std::shared_ptr<PIPNative<CONTEXT_T>> pip_;
 };
 
 
