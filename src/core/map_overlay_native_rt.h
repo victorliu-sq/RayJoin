@@ -2,6 +2,7 @@
 #define RAYJOIN_MAP_OVERLAY_NATIVE_RT_H
 
 #include <memory>
+#include <thrust/binary_search.h>
 
 #include "lsi_rt_native.h"
 #include "map_overlay_native.h"
@@ -46,8 +47,8 @@ class MapOverlayNativeRT : public MapOverlayNative<CONTEXT_T> {
       const size_t np = map->get_points_num();
       const size_t ne = map->get_edges_num();
 
-      this->closest_eids_[im].resize(np, DONTKNOW);
-      this->point_in_polygon_[im].resize(np, DONTKNOW);
+      this->closest_eids_[im].resize(np, static_cast<index_t>(DONTKNOW));
+      this->point_in_polygon_[im].resize(np, static_cast<index_t>(DONTKNOW));
 
       eid_range_[im] = std::make_shared<thrust::device_vector<thrust::pair<size_t, size_t>>>();
       eid_range_[im]->clear();
@@ -168,9 +169,152 @@ class MapOverlayNativeRT : public MapOverlayNative<CONTEXT_T> {
     }
   }
 
-  void ComputeOutputPolygons() override { LOG(FATAL) << "MapOverlayNativeRT::ComputeOutputPolygons is not implemented yet"; }
+  void ComputeOutputPolygons() override {
+    using point_t = typename CONTEXT_T::map_t::point_t;
+    auto& ctx = this->ctx_;
+    auto& stream = ctx.get_stream();
+    auto pip = std::dynamic_pointer_cast<PIPRTNative<CONTEXT_T>>(this->pip_);
+    auto xsects = this->lsi_->get_xsects();
+    size_t n_xsects = xsects.size();
 
-  void WriteResult(const char* path) override { LOG(FATAL) << "MapOverlayNativeRT::WriteResult is not implemented yet"; }
+    FOR2 {
+      thrust::device_vector<index_t> unique_eids;
+      thrust::device_vector<uint32_t> n_xsects_per_edge;
+      thrust::device_vector<uint32_t> xsect_index;
+      thrust::device_vector<point_t> mid_points;
+
+      auto& xsect_edges_sorted = xsect_edges_sorted_[im];
+
+      xsect_edges_sorted.resize(n_xsects);
+      thrust::copy(thrust::cuda::par.on(stream.cuda_stream()), xsects.data(), xsects.data() + n_xsects, xsect_edges_sorted.begin());
+
+      thrust::sort(thrust::cuda::par.on(stream.cuda_stream()),
+                   xsect_edges_sorted.begin(),
+                   xsect_edges_sorted.end(),
+                   [=] __device__(const xsect_t& xsect1, const xsect_t& xsect2) { return xsect1.eid[im] < xsect2.eid[im]; });
+
+      ArrayView<xsect_t> d_xsect_edges_sorted(xsect_edges_sorted);
+      auto query_map_id = im;
+      auto base_map_id = 1 - im;
+      auto d_query_map = ctx.get_map(query_map_id)->DeviceObject();
+      auto d_base_map = ctx.get_map(base_map_id)->DeviceObject();
+
+      unique_eids.resize(n_xsects);
+
+      thrust::transform(thrust::cuda::par.on(stream.cuda_stream()),
+                        xsect_edges_sorted.begin(),
+                        xsect_edges_sorted.end(),
+                        unique_eids.begin(),
+                        [=] __device__(const xsect_t& xsect) { return xsect.eid[im]; });
+
+      auto end = thrust::unique(thrust::cuda::par.on(stream.cuda_stream()), unique_eids.begin(), unique_eids.end());
+
+      unique_eids.resize(end - unique_eids.begin());
+      n_xsects_per_edge.resize(unique_eids.size());
+      xsect_index.resize(unique_eids.size() + 1, 0);
+
+      thrust::transform(
+          thrust::cuda::par.on(stream.cuda_stream()), unique_eids.begin(), unique_eids.end(), n_xsects_per_edge.begin(), [=] __device__(index_t eid) {
+            xsect_t dummy_xsect;
+            dummy_xsect.eid[im] = eid;
+
+            auto it = thrust::equal_range(thrust::seq,
+                                          d_xsect_edges_sorted.begin(),
+                                          d_xsect_edges_sorted.end(),
+                                          dummy_xsect,
+                                          [=] __device__(const xsect_t& xsect1, const xsect_t& xsect2) { return xsect1.eid[im] < xsect2.eid[im]; });
+
+            return thrust::distance(it.first, it.second);
+          });
+
+      thrust::inclusive_scan(thrust::cuda::par.on(stream.cuda_stream()), n_xsects_per_edge.begin(), n_xsects_per_edge.end(), xsect_index.begin() + 1);
+      stream.Sync();
+
+      uint32_t n_mid_points = xsect_index[xsect_index.size() - 1] - unique_eids.size();
+      mid_points.resize(n_mid_points);
+
+      ArrayView<uint32_t> d_xsect_index(xsect_index);
+      ArrayView<point_t> d_mid_points(mid_points);
+      ArrayView<index_t> d_unique_eids(unique_eids);
+
+      ForEach(stream, d_unique_eids.size(), [=] __device__(size_t idx) mutable {
+        auto eid = d_unique_eids[idx];
+        auto begin = d_xsect_index[idx];
+        auto end = d_xsect_index[idx + 1];
+        auto n_xsect = end - begin;
+
+        if (n_xsect > 1) {
+          const auto& e = d_query_map.get_edge(eid);
+          const auto& p1 = d_query_map.get_point(e.p1_idx);
+          auto* curr_xsects = d_xsect_edges_sorted.data() + begin;
+
+          thrust::sort(thrust::seq, curr_xsects, d_xsect_edges_sorted.data() + end, [=](const xsect_t& xsect1, const xsect_t& xsect2) {
+            auto d1 = SQ(xsect1.x - p1.x) + SQ(xsect1.y - p1.y);
+            auto d2 = SQ(xsect2.x - p1.x) + SQ(xsect2.y - p1.y);
+
+            if (d1 != d2) return d1 < d2;
+            return xsect1.eid[1 - im] < xsect2.eid[1 - im];
+          });
+
+          for (int xsect_idx = 0; xsect_idx < n_xsect - 1; xsect_idx++) {
+            xsect_t& xsect1 = *(curr_xsects + xsect_idx);
+            xsect_t& xsect2 = *(curr_xsects + xsect_idx + 1);
+
+            point_t mid_p;
+            mid_p.x = (xsect1.x + xsect2.x) / coord_t(2);
+            mid_p.y = (xsect1.y + xsect2.y) / coord_t(2);
+
+            assert(begin + xsect_idx - idx < d_mid_points.size());
+            d_mid_points[begin + xsect_idx - idx] = mid_p;
+          }
+        }
+      });
+
+      stream.Sync();
+
+      config_.eid_range = eid_range_[base_map_id];
+      config_.handle = traverse_handles_[base_map_id];
+
+      pip->set_config(config_);
+      pip->Query(stream, query_map_id, d_mid_points);
+      stream.Sync();
+
+      ArrayView<index_t> d_mid_point_closest_eid(pip->get_closest_eids());
+
+      ForEach(stream, d_unique_eids.size(), [=] __device__(size_t idx) mutable {
+        auto begin = d_xsect_index[idx];
+        auto end = d_xsect_index[idx + 1];
+        auto n_xsect = end - begin;
+
+        if (n_xsect > 1) {
+          auto* curr_xsects = d_xsect_edges_sorted.data() + begin;
+
+          for (int xsect_idx = 0; xsect_idx < n_xsect - 1; xsect_idx++) {
+            xsect_t& xsect1 = *(curr_xsects + xsect_idx);
+            auto eid = d_mid_point_closest_eid[begin + xsect_idx - idx];
+            polygon_id_t ipol = EXTERIOR_FACE_ID;
+
+            if (eid != std::numeric_limits<index_t>::max()) {
+              const auto& e = d_base_map.get_edge(eid);
+              ipol = d_base_map.get_face_id(e);
+            }
+
+            xsect1.mid_point_polygon_id = ipol;
+          }
+        }
+      });
+
+      stream.Sync();
+    }
+
+    if (ShouldDumpStage(config_.dump_results, "pipmid")) {
+      const auto out_dir = rayjoin::DumpSubdir(config_.dump_dir, "results_mid");
+      DumpComputeOutputPolygonsCSV(0, out_dir, "native");
+      DumpComputeOutputPolygonsCSV(1, out_dir, "native");
+    }
+  }
+
+  void WriteResult(const char* path) override { WriteOutputChainNative(this->ctx_, xsect_edges_sorted_, this->point_in_polygon_, path); }
 
  private:
   std::shared_ptr<RTEngine> rt_engine_;
@@ -180,6 +324,8 @@ class MapOverlayNativeRT : public MapOverlayNative<CONTEXT_T> {
   thrust::device_vector<OptixAabb> aabbs_;
   std::shared_ptr<thrust::device_vector<thrust::pair<size_t, size_t>>> eid_range_[2];
 
+  // ComputeOutputPolygons
+  thrust::device_vector<xsect_t> xsect_edges_sorted_[2];
 
   void DumpIndexResultsCSV(int map_id, const std::string& out_dir, const std::string& impl_tag) const {
     namespace fs = std::filesystem;
@@ -358,6 +504,37 @@ class MapOverlayNativeRT : public MapOverlayNative<CONTEXT_T> {
 
     ofs.close();
     LOG(INFO) << "DumpPIPResultsCSV: wrote " << path;
+  }
+
+  void DumpComputeOutputPolygonsCSV(int query_map_id, const std::string& out_dir, const std::string& impl_tag) const {
+    namespace fs = std::filesystem;
+    fs::create_directories(out_dir);
+
+    if (query_map_id < 0 || query_map_id > 1) {
+      LOG(ERROR) << "DumpComputeOutputPolygonsCSV: invalid query_map_id=" << query_map_id;
+      return;
+    }
+
+    const auto& d_xsects = xsect_edges_sorted_[query_map_id];
+    thrust::host_vector<xsect_t> h_xsects = d_xsects;
+
+    const std::string path = out_dir + "/" + impl_tag + "_pipmid_map_" + std::to_string(query_map_id) + ".csv";
+
+    std::ofstream ofs(path);
+    if (!ofs) {
+      LOG(ERROR) << "DumpComputeOutputPolygonsCSV: failed to open " << path;
+      return;
+    }
+
+    ofs << "query_map_id,eid_self,eid_other,mid_point_polygon_id\n";
+
+    for (const auto& x: h_xsects) {
+      ofs << query_map_id << "," << static_cast<index_t>(x.eid[query_map_id]) << "," << static_cast<index_t>(x.eid[1 - query_map_id]) << ","
+          << static_cast<index_t>(x.mid_point_polygon_id) << "\n";
+    }
+
+    ofs.close();
+    LOG(INFO) << "DumpComputeOutputPolygonsCSV: wrote " << path;
   }
 };
 

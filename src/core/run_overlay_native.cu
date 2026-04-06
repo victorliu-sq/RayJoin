@@ -6,6 +6,7 @@
 #include "map/context_native.h"
 #include "map/planar_graph.h"
 // #include "util/rational.h"
+#include "core/output_chain_native.h"
 #include "map_overlay_native.h"
 #include "map_overlay_native_rt.h"
 #include "util/stopwatch.h"
@@ -91,7 +92,7 @@ void RunOverlayNative(const OverlayConfig& config) {
   }
 
   timer_next("Computer output polygons");
-  // overlay->ComputeOutputPolygons();
+  overlay->ComputeOutputPolygons();
 
   if (config.check) {
     timer_next("Check result");
@@ -100,7 +101,7 @@ void RunOverlayNative(const OverlayConfig& config) {
 
   if (!config.output_path.empty()) {
     timer_next("Write to file");
-    // overlay->WriteResult(config.output_path.c_str());
+    overlay->WriteResult(config.output_path.c_str());
   }
   timer_end();
 }

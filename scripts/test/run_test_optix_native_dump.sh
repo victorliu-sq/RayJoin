@@ -14,7 +14,7 @@ mkdir -p "${base_dir}/results"
 AG_FLAG=0
 
 # =========================================================
-# Run Native with index + lsi + pip dumps enabled
+# Run Native with index + lsi + pip + pipmid dumps enabled
 ./build/bin/polyover_exec_native \
   -poly1 "$poly1" \
   -poly2 "$poly2" \
@@ -24,11 +24,11 @@ AG_FLAG=0
   -xsect_factor=5.0 \
   -warmup=5 -repeat=5 \
   -query=lsi/pip \
-  -dump_results=index,lsi,pip \
+  -dump_results=index,lsi,pip,pipmid \
   -dump_dir="$base_dir"
 
 # =========================================================
-# Run original OptiX with index + lsi + pip dumps enabled
+# Run original OptiX with index + lsi + pip + pipmid dumps enabled
 ./build/bin/polyover_exec \
   -poly1 "$poly1" \
   -poly2 "$poly2" \
@@ -38,7 +38,7 @@ AG_FLAG=0
   -xsect_factor=5.0 \
   -warmup=5 -repeat=5 \
   -query=lsi/pip \
-  -dump_results=index,lsi,pip \
+  -dump_results=index,lsi,pip,pipmid \
   -dump_dir="$base_dir"
 
 status=0
@@ -46,10 +46,12 @@ status=0
 index_dir="${base_dir}/results_index"
 lsi_dir="${base_dir}/results_lsi"
 pip_dir="${base_dir}/results_pip"
+mid_dir="${base_dir}/results_mid"
 
 index_diff_dir="${index_dir}/diffs"
 lsi_diff_dir="${lsi_dir}/diffs"
 pip_diff_dir="${pip_dir}/diffs"
+mid_diff_dir="${mid_dir}/diffs"
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${script_dir}/compare_files.sh"
@@ -87,5 +89,18 @@ run_compare "PIP map 1" \
   "${pip_dir}/optix_pip_map_1.csv" \
   "${pip_dir}/native_pip_map_1.csv" \
   "$pip_diff_dir" || status=1
+
+# -------------------------
+# Midpoint PIP comparisons
+# -------------------------
+run_compare "PIP midpoint map 0" \
+  "${mid_dir}/optix_pipmid_map_0.csv" \
+  "${mid_dir}/native_pipmid_map_0.csv" \
+  "$mid_diff_dir" || status=1
+
+run_compare "PIP midpoint map 1" \
+  "${mid_dir}/optix_pipmid_map_1.csv" \
+  "${mid_dir}/native_pipmid_map_1.csv" \
+  "$mid_diff_dir" || status=1
 
 exit "$status"

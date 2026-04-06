@@ -446,7 +446,7 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
       stream.Sync();
     }
 
-    // Test correctness of this method
+    // Jiaxin: Test correctness of this method
     if (ShouldDumpStage(config_.dump_results, "pipmid")) {
       const auto out_dir = rayjoin::DumpSubdir(config_.dump_dir, "results_mid");
       DumpComputeOutputPolygonsCSV(0, out_dir, "optix");
