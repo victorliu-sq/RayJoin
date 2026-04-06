@@ -8,6 +8,7 @@ set(ENABLED_ARCHS "86")
 
 set(SHADERS
         shader/rt_lsi_custom.cu
+        shader/rt_lsi_custom_native.cu
         shader/rt_pip_custom.cu
 )
 

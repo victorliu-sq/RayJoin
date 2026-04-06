@@ -1,0 +1,44 @@
+#ifndef RAYJOIN_LSI_NATIVE_H
+#define RAYJOIN_LSI_NATIVE_H
+
+#include "map/map.h"
+#include "shader/lsi_native.h"
+#include "util/queue.h"
+#include "util/type_traits.h"
+
+namespace rayjoin {
+
+template<typename CONTEXT_T>
+class LSINative {
+ protected:
+  using coord_t = typename CONTEXT_T::coord_t;
+
+ public:
+  using xsect_t = dev::IntersectionNative<coord_t>;
+
+  explicit LSINative(CONTEXT_T& ctx) : ctx_(ctx) {}
+  virtual ~LSINative() = default;
+
+  virtual void Init(size_t max_n_xsects) {
+    LOG(INFO) << "Queue size: " << max_n_xsects * sizeof(xsect_t) / 1024 / 1024 << " MB";
+    xsect_queue_.Init(max_n_xsects);
+  }
+
+  virtual void Query(Stream& stream, int query_map_id) = 0;
+
+  CONTEXT_T& get_context() { return ctx_; }
+  const CONTEXT_T& get_context() const { return ctx_; }
+
+  ArrayView<xsect_t> get_xsects() { return ArrayView<xsect_t>(xsect_queue_.data(), xsect_queue_.size()); }
+
+  void CopyTo(thrust::host_vector<xsect_t>& out) { xsect_queue_.CopyTo(out); }
+
+ protected:
+  CONTEXT_T& ctx_;
+  Queue<xsect_t> xsect_queue_;
+  SharedValue<uint64_t> prof_counter_;
+};
+
+}  // namespace rayjoin
+
+#endif  // RAYJOIN_LSI_NATIVE_H

@@ -1,12 +1,11 @@
 #ifndef RAYJOIN_RT_RT_ENGINE
 #define RAYJOIN_RT_RT_ENGINE
 #include <cuda.h>
-#include <optix_types.h>
-#include <thrust/device_vector.h>
-
 #include <map>
 #include <memory>
+#include <optix_types.h>
 #include <string>
+#include <thrust/device_vector.h>
 #include <utility>
 #include <vector>
 
@@ -28,15 +27,16 @@ enum ModuleIdentifier {
   MODULE_ID_NONE,
   MODULE_ID_LSI_CUSTOM,
   MODULE_ID_PIP_CUSTOM,
-  NUM_MODULE_IDENTIFIERS
+  // Jiaxin: Native Version, The order cannot be changed.
+  MODULE_ID_LSI_CUSTOM_NATIVE,
+  NUM_MODULE_IDENTIFIERS,
 };
 
 class Module {
  public:
   Module() = default;
 
-  Module(ModuleIdentifier id)
-      : id_(id), enabled_module_(0), n_payload_(0), n_attribute_(0) {}
+  Module(ModuleIdentifier id) : id_(id), enabled_module_(0), n_payload_(0), n_attribute_(0) {}
 
   void EnableMiss() { enabled_module_ |= MODULE_ENABLE_MISS; }
 
@@ -52,27 +52,17 @@ class Module {
 
   bool IsAnyHitEnable() const { return enabled_module_ & MODULE_ENABLE_AH; }
 
-  bool IsIsIntersectionEnabled() const {
-    return enabled_module_ & MODULE_ENABLE_IS;
-  }
+  bool IsIsIntersectionEnabled() const { return enabled_module_ & MODULE_ENABLE_IS; }
 
-  void set_program_name(const std::string& program_name) {
-    program_name_ = program_name;
-  }
+  void set_program_name(const std::string& program_name) { program_name_ = program_name; }
   const std::string& get_program_name() const { return program_name_; }
 
-  void set_function_suffix(const std::string& function_suffix) {
-    function_suffix_ = function_suffix;
-  }
+  void set_function_suffix(const std::string& function_suffix) { function_suffix_ = function_suffix; }
   const std::string& get_function_suffix() const { return function_suffix_; }
 
-  void set_launch_params_name(const std::string& launch_params_name) {
-    launch_params_name_ = launch_params_name;
-  }
+  void set_launch_params_name(const std::string& launch_params_name) { launch_params_name_ = launch_params_name; }
 
-  const std::string& get_launch_params_name() const {
-    return launch_params_name_;
-  }
+  const std::string& get_launch_params_name() const { return launch_params_name_; }
 
   void set_n_payload(int n_payload) { n_payload_ = n_payload; }
 
@@ -96,13 +86,9 @@ class Module {
 };
 
 struct RTConfig {
-  RTConfig()
-      : max_reg_count(0),
-        max_trace_depth(2),
-        opt_level(OPTIX_COMPILE_OPTIMIZATION_DEFAULT),
-        dbg_level(OPTIX_COMPILE_DEBUG_LEVEL_NONE),
-        temp_buf_size(100 * 1024 * 1024),
-        output_buf_size(500 * 1024 * 1024) {}
+  RTConfig() :
+      max_reg_count(0), max_trace_depth(2), opt_level(OPTIX_COMPILE_OPTIMIZATION_DEFAULT), dbg_level(OPTIX_COMPILE_DEBUG_LEVEL_NONE),
+      temp_buf_size(100 * 1024 * 1024), output_buf_size(500 * 1024 * 1024) {}
 
   void AddModule(const Module& mod) { modules[mod.get_id()] = mod; }
 
@@ -133,23 +119,17 @@ class RTEngine {
     buildSBT(config);
   }
 
-  OptixTraversableHandle BuildAccelTriangles(Stream& stream,
-                                             ArrayView<float3> vertices,
-                                             ArrayView<uint3> indices = {
-                                                 nullptr, 0}) {
+  OptixTraversableHandle BuildAccelTriangles(Stream& stream, ArrayView<float3> vertices, ArrayView<uint3> indices = {nullptr, 0}) {
     return buildAccelTriangle(stream, vertices, indices);
   }
 
-  OptixTraversableHandle BuildAccelCustom(Stream& stream,
-                                          ArrayView<OptixAabb> aabbs) {
-    return buildAccel(stream, aabbs);
-  }
+  OptixTraversableHandle BuildAccelCustom(Stream& stream, ArrayView<OptixAabb> aabbs) { return buildAccel(stream, aabbs); }
 
   void FreeBVH(OptixTraversableHandle handle);
 
   void Render(Stream& stream, ModuleIdentifier mod, dim3 dim);
 
-  template <typename T>
+  template<typename T>
   void CopyLaunchParams(Stream& stream, const T& params) {
     auto* begin = reinterpret_cast<const char*>(&params);
 
@@ -157,9 +137,7 @@ class RTEngine {
     launch_params_.resize(h_launch_params_.size());
 
     VLOG(1) << "Parm size: " << launch_params_.size();
-    thrust::copy(thrust::cuda::par.on(stream.cuda_stream()),
-                 h_launch_params_.begin(), h_launch_params_.end(),
-                 launch_params_.begin());
+    thrust::copy(thrust::cuda::par.on(stream.cuda_stream()), h_launch_params_.begin(), h_launch_params_.end(), launch_params_.begin());
   }
 
  protected:
@@ -181,9 +159,7 @@ class RTEngine {
 
   void buildSBT(const RTConfig& config);
 
-  OptixTraversableHandle buildAccelTriangle(Stream& stream,
-                                            ArrayView<float3> vertices,
-                                            ArrayView<uint3> indices);
+  OptixTraversableHandle buildAccelTriangle(Stream& stream, ArrayView<float3> vertices, ArrayView<uint3> indices);
 
   OptixTraversableHandle buildAccel(Stream& stream, ArrayView<OptixAabb> aabbs);
 
@@ -231,9 +207,7 @@ class RTEngine {
 
   // device data
   thrust::device_vector<unsigned char> temp_buf_, output_buf_;
-  std::map<OptixTraversableHandle,
-           std::unique_ptr<thrust::device_vector<unsigned char>>>
-      as_buffers_;
+  std::map<OptixTraversableHandle, std::unique_ptr<thrust::device_vector<unsigned char>>> as_buffers_;
 
   thrust::device_vector<char> h_launch_params_;
   thrust::device_vector<char> launch_params_;

@@ -154,13 +154,13 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     //   DumpLSIResultsCSVEidOnly(query_map_id, rayjoin::DumpSubdir(config_.dump_dir, "results_lsi"), "optix");
     // }
 
-    // if (query_map_id == 0 && rayjoin::ShouldDumpStage(config_.dump_results, "lsi")) {
-    //   DumpLSIResultsCSVEidOnly(rayjoin::DumpSubdir(config_.dump_dir, "results_lsi"), "optix");
-    // }
-
     if (query_map_id == 0 && rayjoin::ShouldDumpStage(config_.dump_results, "lsi")) {
-      DumpLSIResultsCSV(rayjoin::DumpSubdir(config_.dump_dir, "results_lsi"), "optix");
+      DumpLSIResultsCSVEidOnly(rayjoin::DumpSubdir(config_.dump_dir, "results_lsi"), "optix");
     }
+
+    // if (query_map_id == 0 && rayjoin::ShouldDumpStage(config_.dump_results, "lsi")) {
+    //   DumpLSIResultsCSV(rayjoin::DumpSubdir(config_.dump_dir, "results_lsi"), "optix");
+    // }
   }
 
   //////////////////////////////////////////////////////////////////////////////////

@@ -3,6 +3,7 @@
 
 #include <memory>
 
+#include "lsi_rt_native.h"
 #include "map_overlay_native.h"
 #include "query_config.h"
 #include "rt/primitive_native.h"
@@ -13,13 +14,15 @@ namespace rayjoin {
 template<typename CONTEXT_T>
 class MapOverlayNativeRT : public MapOverlayNative<CONTEXT_T> {
  public:
-  using base_t = MapOverlayNative<CONTEXT_T>;
-  using coord_t = typename CONTEXT_T::coord_t;
   using map_t = typename CONTEXT_T::map_t;
   using point_t = typename map_t::point_t;
   using edge_t = typename map_t::edge_t;
+  using xsect_t = typename LSINative<CONTEXT_T>::xsect_t;
 
-  explicit MapOverlayNativeRT(CONTEXT_T& ctx) : MapOverlayNative<CONTEXT_T>(ctx) { rt_engine_ = std::make_shared<RTEngine>(); }
+  explicit MapOverlayNativeRT(CONTEXT_T& ctx) : MapOverlayNative<CONTEXT_T>(ctx) {
+    rt_engine_ = std::make_shared<RTEngine>();
+    this->lsi_ = std::make_shared<LSIRTNative<CONTEXT_T>>(ctx, rt_engine_);
+  }
 
   void set_config(const QueryConfigRT& config) { config_ = config; }
 
@@ -32,6 +35,7 @@ class MapOverlayNativeRT : public MapOverlayNative<CONTEXT_T> {
 
     size_t max_n_points = 0;
     size_t max_n_edges = 0;
+    size_t total_n_edges = 0;
 
     FOR2 {
       auto map = ctx.get_map(im);
@@ -49,15 +53,21 @@ class MapOverlayNativeRT : public MapOverlayNative<CONTEXT_T> {
 
       max_n_points = std::max(max_n_points, np);
       max_n_edges = std::max(max_n_edges, ne);
+      total_n_edges += ne;
+
+      traverse_handles_[im] = 0;
     }
 
     aabbs_.clear();
     aabbs_.reserve(max_n_edges);
 
-    FOR2 { traverse_handles_[im] = 0; }
+    if (this->lsi_ != nullptr) {
+      const size_t max_n_xsects = std::ceil(total_n_edges * config_.xsect_factor);
+      this->lsi_->Init(max_n_xsects);
+    }
 
     LOG(INFO) << "MapOverlayNativeRT::Init finished. "
-              << "max_n_points=" << max_n_points << ", max_n_edges=" << max_n_edges;
+              << "max_n_points=" << max_n_points << ", max_n_edges=" << max_n_edges << ", total_n_edges=" << total_n_edges;
   }
 
   void BuildIndex() override {
@@ -100,7 +110,22 @@ class MapOverlayNativeRT : public MapOverlayNative<CONTEXT_T> {
     }
   }
 
-  void IntersectEdge(int query_map_id) override { LOG(FATAL) << "MapOverlayNativeRT::IntersectEdge is not implemented yet"; }
+  void IntersectEdge(int query_map_id) override {
+    const int base_map_id = 1 - query_map_id;
+    auto& stream = this->ctx_.get_stream();
+    auto lsi = std::dynamic_pointer_cast<LSIRTNative<CONTEXT_T>>(this->lsi_);
+
+    config_.eid_range = eid_range_[base_map_id];
+    config_.handle = traverse_handles_[base_map_id];
+
+    lsi->set_config(config_);
+    lsi->Query(stream, query_map_id);
+    stream.Sync();
+
+    if (ShouldDumpStage(config_.dump_results, "lsi")) {
+      DumpLSIResultsCSVEidOnly(rayjoin::DumpSubdir(config_.dump_dir, "results_lsi"), "native");
+    }
+  }
 
   void LocateVerticesInOtherMap(int query_map_id) override { LOG(FATAL) << "MapOverlayNativeRT::LocateVerticesInOtherMap is not implemented yet"; }
 
@@ -150,6 +175,101 @@ class MapOverlayNativeRT : public MapOverlayNative<CONTEXT_T> {
 
     ofs.close();
     LOG(INFO) << "DumpIndexResultsCSV: wrote " << path;
+  }
+
+  void DumpLSIResultsCSVEidOnly(const std::string& out_dir, const std::string& impl_tag) const {
+    namespace fs = std::filesystem;
+    fs::create_directories(out_dir);
+
+    thrust::host_vector<xsect_t> h_xsects;
+    this->lsi_->CopyTo(h_xsects);
+
+    const std::string path = out_dir + "/" + impl_tag + "_lsi.csv";
+
+    std::vector<std::pair<uint64_t, uint64_t>> pairs;
+    pairs.reserve(h_xsects.size());
+
+    for (const auto& x: h_xsects) {
+      uint64_t eid1 = static_cast<uint64_t>(x.eid[0]);
+      uint64_t eid2 = static_cast<uint64_t>(x.eid[1]);
+
+      if (eid1 > eid2) {
+        std::swap(eid1, eid2);
+      }
+
+      pairs.emplace_back(eid1, eid2);
+    }
+
+    std::sort(pairs.begin(), pairs.end());
+
+    std::ofstream ofs(path);
+    if (!ofs) {
+      LOG(ERROR) << "DumpLSIResultsCSVEidOnly: failed to open " << path;
+      return;
+    }
+
+    ofs << "eid1,eid2\n";
+    for (const auto& [eid1, eid2]: pairs) {
+      ofs << eid1 << "," << eid2 << "\n";
+    }
+
+    ofs.close();
+    LOG(INFO) << "DumpLSIResultsCSVEidOnly: wrote " << path;
+  }
+
+  void DumpLSIResultsCSV(const std::string& out_dir, const std::string& impl_tag) const {
+    namespace fs = std::filesystem;
+    fs::create_directories(out_dir);
+
+    thrust::host_vector<xsect_t> h_xsects;
+    this->lsi_->CopyTo(h_xsects);
+
+    struct Row {
+      index_t eid0;
+      index_t eid1;
+      coord_t x;
+      coord_t y;
+      int mid_point_polygon_id;
+    };
+
+    std::vector<Row> rows;
+    rows.reserve(h_xsects.size());
+
+    for (const auto& xsect: h_xsects) {
+      rows.push_back(Row{
+          .eid0 = static_cast<index_t>(xsect.eid[0]),
+          .eid1 = static_cast<index_t>(xsect.eid[1]),
+          .x = xsect.x,
+          .y = xsect.y,
+          .mid_point_polygon_id = xsect.mid_point_polygon_id,
+      });
+    }
+
+    std::sort(rows.begin(), rows.end(), [](const Row& a, const Row& b) {
+      if (a.eid0 != b.eid0) return a.eid0 < b.eid0;
+      if (a.eid1 != b.eid1) return a.eid1 < b.eid1;
+      if (a.x != b.x) return a.x < b.x;
+      if (a.y != b.y) return a.y < b.y;
+      return a.mid_point_polygon_id < b.mid_point_polygon_id;
+    });
+
+    const std::string path = out_dir + "/" + impl_tag + "_lsi.csv";
+
+    std::ofstream ofs(path);
+    if (!ofs) {
+      LOG(ERROR) << "DumpLSIResultsCSV: failed to open " << path;
+      return;
+    }
+
+    ofs << std::setprecision(17);
+    ofs << "eid0,eid1,x,y,mid_point_polygon_id\n";
+
+    for (const auto& r: rows) {
+      ofs << r.eid0 << "," << r.eid1 << "," << static_cast<double>(r.x) << "," << static_cast<double>(r.y) << "," << r.mid_point_polygon_id << "\n";
+    }
+
+    ofs.close();
+    LOG(INFO) << "DumpLSIResultsCSV: wrote " << path;
   }
 };
 

@@ -1,5 +1,7 @@
 #ifndef RAYJOIN_MAP_OVERLAY_NATIVE_H
 #define RAYJOIN_MAP_OVERLAY_NATIVE_H
+
+#include "lsi_native.h"
 #include "shader/config.h"
 
 namespace rayjoin {
@@ -31,10 +33,17 @@ class MapOverlayNative {
     return res;
   }
 
+  thrust::host_vector<typename LSINative<CONTEXT_T>::xsect_t> get_xsect_edges() const {
+    thrust::host_vector<typename LSINative<CONTEXT_T>::xsect_t> res;
+    lsi_->CopyTo(res);
+    return res;
+  }
+
  protected:
   CONTEXT_T& ctx_;
   thrust::device_vector<index_t> closest_eids_[2];
   thrust::device_vector<index_t> point_in_polygon_[2];
+  std::shared_ptr<LSINative<CONTEXT_T>> lsi_;
 };
 
 
