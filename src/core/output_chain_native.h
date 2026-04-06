@@ -142,7 +142,44 @@ void WriteOutputChainNative(CONTEXT_T& ctx,
     return it->second;
   };
 
+  // Jiaxin Patch: This version does not match original optix version
+  // for (auto& chain: output_chains) {
+  //   {
+  //     const int64_t a = chain.left_polygon_id;
+  //     const int64_t b = chain.other_map_polygon_id;
+  //     chain.left_polygon_id = (a <= b) ? create_polygon(a, b) : create_polygon(b, a);
+  //   }
+  //
+  //   {
+  //     const int64_t a = chain.right_polygon_id;
+  //     const int64_t b = chain.other_map_polygon_id;
+  //     chain.right_polygon_id = (a <= b) ? create_polygon(a, b) : create_polygon(b, a);
+  //   }
+  //
+  //   for (const auto& p: chain.points) {
+  //     if (point_ids.find(p) == point_ids.end()) {
+  //       point_ids[p] = point_counter++;
+  //     }
+  //   }
+  //
+  //   chain.first_point_idx = point_ids[chain.points.front()];
+  //   chain.last_point_idx = point_ids[chain.points.back()];
+  // }
+
+  // Jiaxin Patch: This version does match original optix version
   for (auto& chain: output_chains) {
+    if (chain.left_polygon_id < chain.other_map_polygon_id) {
+      chain.left_polygon_id = create_polygon(chain.left_polygon_id, chain.other_map_polygon_id);
+    } else {
+      chain.left_polygon_id = create_polygon(chain.other_map_polygon_id, chain.left_polygon_id);
+    }
+
+    if (chain.right_polygon_id < chain.other_map_polygon_id) {
+      chain.right_polygon_id = create_polygon(chain.right_polygon_id, chain.other_map_polygon_id);
+    } else {
+      chain.right_polygon_id = create_polygon(chain.other_map_polygon_id, chain.right_polygon_id);
+    }
+
     {
       const int64_t a = chain.left_polygon_id;
       const int64_t b = chain.other_map_polygon_id;
@@ -160,7 +197,6 @@ void WriteOutputChainNative(CONTEXT_T& ctx,
         point_ids[p] = point_counter++;
       }
     }
-
     chain.first_point_idx = point_ids[chain.points.front()];
     chain.last_point_idx = point_ids[chain.points.back()];
   }
