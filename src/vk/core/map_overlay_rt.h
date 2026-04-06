@@ -208,7 +208,9 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     }
   }
 
-  void LocateVerticesInOtherMap(int query_map_id) override {}
+  void LocateVerticesInOtherMap(int query_map_id) override {
+    //
+  }
 
   void ComputeOutputPolygons() override {}
 
@@ -290,9 +292,88 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
     LOG(INFO) << "DumpIndexResultsCSV: wrote " << path;
   }
 
+  // void DumpLSIResultsCSV(const std::string &out_dir, const std::string &impl_tag) const {
+  //   namespace fs = std::filesystem;
+  //   fs::create_directories(out_dir);
+  //
+  //   uint32_t n_xsects = 0;
+  //   {
+  //     auto h_counter = readBackStorageBuffer<uint32_t>(xsect_counter_buf_, 1);
+  //     if (h_counter.empty()) {
+  //       LOG(ERROR) << "DumpLSIResultsCSV: failed to read xsect counter";
+  //       return;
+  //     }
+  //     n_xsects = std::min<uint32_t>(h_counter[0], xsect_capacity_);
+  //   }
+  //
+  //   auto h_xsects = readBackStorageBuffer<Intersection128>(xsect_buf_, n_xsects);
+  //   if (h_xsects.size() != n_xsects) {
+  //     LOG(ERROR) << "DumpLSIResultsCSV: failed to read xsect buffer"
+  //                << " got=" << h_xsects.size() << " expected=" << n_xsects;
+  //     return;
+  //   }
+  //
+  //   struct Row {
+  //     uint32_t eid0;
+  //     uint32_t eid1;
+  //     __int128 x_num;
+  //     __int128 x_den;
+  //     __int128 y_num;
+  //     __int128 y_den;
+  //     int mid_point_polygon_id;
+  //   };
+  //
+  //   std::vector<Row> rows;
+  //   rows.reserve(h_xsects.size());
+  //
+  //   for (const auto &x: h_xsects) {
+  //     rows.push_back(Row{
+  //         .eid0 = x.eid0,
+  //         .eid1 = x.eid1,
+  //         .x_num = x.x.num,
+  //         .x_den = x.x.den,
+  //         .y_num = x.y.num,
+  //         .y_den = x.y.den,
+  //         .mid_point_polygon_id = x.mid_point_polygon_id,
+  //     });
+  //   }
+  //
+  //   std::sort(rows.begin(), rows.end(), [](const Row &a, const Row &b) {
+  //     if (a.eid0 != b.eid0) return a.eid0 < b.eid0;
+  //     if (a.eid1 != b.eid1) return a.eid1 < b.eid1;
+  //     if (a.x_num != b.x_num) return a.x_num < b.x_num;
+  //     if (a.x_den != b.x_den) return a.x_den < b.x_den;
+  //     if (a.y_num != b.y_num) return a.y_num < b.y_num;
+  //     if (a.y_den != b.y_den) return a.y_den < b.y_den;
+  //     return a.mid_point_polygon_id < b.mid_point_polygon_id;
+  //   });
+  //
+  //   const std::string path = out_dir + "/" + impl_tag + "_lsi.csv";
+  //
+  //   std::ofstream ofs(path);
+  //   if (!ofs) {
+  //     LOG(ERROR) << "DumpLSIResultsCSV: failed to open " << path;
+  //     return;
+  //   }
+  //
+  //   ofs << "eid0,eid1,x_num,x_den,y_num,y_den,mid_point_polygon_id\n";
+  //
+  //   for (const auto &r: rows) {
+  //     ofs << r.eid0 << "," << r.eid1 << "," << Int128ToString(r.x_num) << "," << Int128ToString(r.x_den) << "," << Int128ToString(r.y_num) << ","
+  //         << Int128ToString(r.y_den) << "," << r.mid_point_polygon_id << "\n";
+  //   }
+  //
+  //   ofs.close();
+  //   LOG(INFO) << "DumpLSIResultsCSV: wrote " << path;
+  // }
+
   void DumpLSIResultsCSV(const std::string &out_dir, const std::string &impl_tag) const {
     namespace fs = std::filesystem;
     fs::create_directories(out_dir);
+
+    using edge_t = typename map_t::edge_t;
+    // If map_t does not define edge_t, use:
+    // using edge_t = Edge<typename map_t::coefficient_t>;
 
     uint32_t n_xsects = 0;
     {
@@ -311,6 +392,23 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
       return;
     }
 
+    auto map0 = this->ctx_.get_map(0);
+    auto map1 = this->ctx_.get_map(1);
+    if (!map0 || !map1) {
+      LOG(ERROR) << "DumpLSIResultsCSV: null map";
+      return;
+    }
+
+    auto h_edges0 = readBackStorageBuffer<edge_t>(map0->getEdgesBuffer(), static_cast<uint32_t>(map_edge_count_[0]));
+
+    auto h_edges1 = readBackStorageBuffer<edge_t>(map1->getEdgesBuffer(), static_cast<uint32_t>(map_edge_count_[1]));
+
+    if (h_edges0.size() != map_edge_count_[0] || h_edges1.size() != map_edge_count_[1]) {
+      LOG(ERROR) << "DumpLSIResultsCSV: failed to read edge buffers"
+                 << " edges0=" << h_edges0.size() << "/" << map_edge_count_[0] << " edges1=" << h_edges1.size() << "/" << map_edge_count_[1];
+      return;
+    }
+
     struct Row {
       uint32_t eid0;
       uint32_t eid1;
@@ -318,25 +416,76 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
       __int128 x_den;
       __int128 y_num;
       __int128 y_den;
+      bool line0_ok;
+      bool line1_ok;
       int mid_point_polygon_id;
     };
 
-    std::vector<Row> rows;
-    rows.reserve(h_xsects.size());
+    auto eval_line_residual = [](__int128 a, __int128 b, __int128 c, __int128 x_num, __int128 x_den, __int128 y_num, __int128 y_den) -> __int128 {
+      // a*(x_num/x_den) + b*(y_num/y_den) + c
+      // numerator under common denominator x_den * y_den
+      return a * x_num * y_den + b * y_num * x_den + c * x_den * y_den;
+    };
+
+    std::vector<Row> failed_rows;
+    failed_rows.reserve(h_xsects.size());
+
+    uint64_t total_count = 0;
+    uint64_t pass_both_count = 0;
+    uint64_t fail_any_count = 0;
+    uint64_t fail_line0_count = 0;
+    uint64_t fail_line1_count = 0;
+    uint64_t invalid_eid_count = 0;
 
     for (const auto &x: h_xsects) {
-      rows.push_back(Row{
-          .eid0 = x.eid0,
-          .eid1 = x.eid1,
-          .x_num = x.x.num,
-          .x_den = x.x.den,
-          .y_num = x.y.num,
-          .y_den = x.y.den,
-          .mid_point_polygon_id = x.mid_point_polygon_id,
-      });
+      ++total_count;
+
+      if (x.eid0 >= h_edges0.size() || x.eid1 >= h_edges1.size()) {
+        ++invalid_eid_count;
+        LOG(ERROR) << "DumpLSIResultsCSV: invalid edge ids"
+                   << " eid0=" << x.eid0 << "/" << h_edges0.size() << " eid1=" << x.eid1 << "/" << h_edges1.size();
+        continue;
+      }
+
+      const auto &e0 = h_edges0[x.eid0];
+      const auto &e1 = h_edges1[x.eid1];
+
+      const __int128 x_num = x.x.num;
+      const __int128 x_den = x.x.den;
+      const __int128 y_num = x.y.num;
+      const __int128 y_den = x.y.den;
+
+      const __int128 line0_num =
+          eval_line_residual(static_cast<__int128>(e0.a), static_cast<__int128>(e0.b), static_cast<__int128>(e0.c), x_num, x_den, y_num, y_den);
+
+      const __int128 line1_num =
+          eval_line_residual(static_cast<__int128>(e1.a), static_cast<__int128>(e1.b), static_cast<__int128>(e1.c), x_num, x_den, y_num, y_den);
+
+      const bool line0_ok = (line0_num == 0);
+      const bool line1_ok = (line1_num == 0);
+
+      if (line0_ok && line1_ok) {
+        ++pass_both_count;
+      } else {
+        ++fail_any_count;
+        if (!line0_ok) ++fail_line0_count;
+        if (!line1_ok) ++fail_line1_count;
+
+        failed_rows.push_back(Row{
+            .eid0 = x.eid0,
+            .eid1 = x.eid1,
+            .x_num = x_num,
+            .x_den = x.x.den,
+            .y_num = y_num,
+            .y_den = y_den,
+            .line0_ok = line0_ok,
+            .line1_ok = line1_ok,
+            .mid_point_polygon_id = x.mid_point_polygon_id,
+        });
+      }
     }
 
-    std::sort(rows.begin(), rows.end(), [](const Row &a, const Row &b) {
+    std::sort(failed_rows.begin(), failed_rows.end(), [](const Row &a, const Row &b) {
       if (a.eid0 != b.eid0) return a.eid0 < b.eid0;
       if (a.eid1 != b.eid1) return a.eid1 < b.eid1;
       if (a.x_num != b.x_num) return a.x_num < b.x_num;
@@ -346,7 +495,7 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
       return a.mid_point_polygon_id < b.mid_point_polygon_id;
     });
 
-    const std::string path = out_dir + "/" + impl_tag + "_lsi.csv";
+    const std::string path = out_dir + "/" + impl_tag + "_lsi_failed.csv";
 
     std::ofstream ofs(path);
     if (!ofs) {
@@ -354,15 +503,25 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
       return;
     }
 
-    ofs << "eid0,eid1,x_num,x_den,y_num,y_den,mid_point_polygon_id\n";
+    ofs << "eid0,eid1,x_num,x_den,y_num,y_den,line0_ok,line1_ok,mid_point_polygon_id\n";
 
-    for (const auto &r: rows) {
+    for (const auto &r: failed_rows) {
       ofs << r.eid0 << "," << r.eid1 << "," << Int128ToString(r.x_num) << "," << Int128ToString(r.x_den) << "," << Int128ToString(r.y_num) << ","
-          << Int128ToString(r.y_den) << "," << r.mid_point_polygon_id << "\n";
+          << Int128ToString(r.y_den) << "," << (r.line0_ok ? 1 : 0) << "," << (r.line1_ok ? 1 : 0) << "," << r.mid_point_polygon_id << "\n";
     }
 
     ofs.close();
-    LOG(INFO) << "DumpLSIResultsCSV: wrote " << path;
+
+    LOG(INFO) << "DumpLSIResultsCSV summary:"
+              << " total=" << total_count << " pass_both=" << pass_both_count << " fail_any=" << fail_any_count << " fail_line0=" << fail_line0_count
+              << " fail_line1=" << fail_line1_count << " invalid_eid=" << invalid_eid_count;
+
+    if (fail_any_count == 0 && invalid_eid_count == 0) {
+      LOG(INFO) << "DumpLSIResultsCSV: ALL intersections pass ax+by+c=0 for both edges.";
+    } else {
+      LOG(WARNING) << "DumpLSIResultsCSV: some intersections FAILED ax+by+c=0 checks."
+                   << " Failed rows written to " << path;
+    }
   }
 };
 
