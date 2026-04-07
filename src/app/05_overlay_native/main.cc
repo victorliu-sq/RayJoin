@@ -8,7 +8,7 @@
 
 int main(int argc, char* argv[]) {
   auto flags = CreateGflagsGuard(argc, argv, "Usage: -poly1 -poly2");
-  auto g_glog_guard = CreateGlogGuardWithInfoOnStderr("polyover_vk");
+  auto g_glog_guard = CreateGlogGuardAlsoToStderr("polyover_vk");
 
   auto config = rayjoin::CreateOverlayConfig(argv[0]);
   rayjoin::RunOverlayNative(config);
