@@ -42,15 +42,4 @@ static inline GflagsGuard CreateGflagsGuard(
   return GflagsGuard(argc, argv, usage_message, remove_flags, show_usage_if_no_args);
 }
 
-static inline GflagsGuard CreateGflagsGuardWithStderrInfo(
-    int& argc, char**& argv, const char* usage_message, bool remove_flags = true, bool show_usage_if_no_args = true) {
-  FLAGS_stderrthreshold = 0;
-  return GflagsGuard(argc, argv, usage_message, remove_flags, show_usage_if_no_args);
-}
-
-static inline GflagsGuard CreateGflagsGuardWithStderrInfo(int& argc, char**& argv, bool remove_flags = true) {
-  FLAGS_stderrthreshold = 0;
-  return GflagsGuard(argc, argv, remove_flags);
-}
-
 #endif  // RAYJOIN_GUARD_GFLAG_H
