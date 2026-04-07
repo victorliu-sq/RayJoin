@@ -258,14 +258,13 @@ std::shared_ptr<PlanarGraph<COORD_T>> load_from(const std::string& path, const s
   auto ser_path = serialize_prefix + '/' + escaped_path + ".bin";
 
   // Jiaxin Patch: Remove Serialization and Deserialzation
-  // if (access(ser_path.c_str(), R_OK) == 0) {
-  //   return deserialize_pgraph<COORD_T>(ser_path.c_str());
-  // }
+  if (access(ser_path.c_str(), R_OK) == 0) {
+    return deserialize_pgraph<COORD_T>(ser_path.c_str());
+  }
   auto pgraph = read_pgraph<COORD_T>(path.c_str());
-  // if (!serialize_prefix.empty() &&
-  //     access(serialize_prefix.c_str(), W_OK) == 0) {
-  //   serialize_pgraph(pgraph, ser_path.c_str());
-  // }
+  if (!serialize_prefix.empty() && access(serialize_prefix.c_str(), W_OK) == 0) {
+    serialize_pgraph(pgraph, ser_path.c_str());
+  }
   return pgraph;
 }
 
