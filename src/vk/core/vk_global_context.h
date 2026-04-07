@@ -5,11 +5,9 @@
 
 class VkGlobalRuntime {
  public:
-  static VkComputeContext ctx; // Compute Context
+  static VkComputeContext ctx;  // Compute Context
 
-  VkGlobalRuntime() {
-    initVkComputeContext(ctx);
-  }
+  VkGlobalRuntime() { initVkComputeContext(ctx); }
 
   ~VkGlobalRuntime() {
     VkInstance instance = ctx.instance;
@@ -20,12 +18,8 @@ class VkGlobalRuntime {
   }
 };
 
-static inline VkComputeContext& GetVkComputeContext() {
-  return VkGlobalRuntime::ctx;
-}
+static inline VkComputeContext& GetVkComputeContext() { return VkGlobalRuntime::ctx; }
 
-static inline std::unique_ptr<VkGlobalRuntime> CreateVkGlobalRuntime() {
-  return std::make_unique<VkGlobalRuntime>();
-}
+static inline VkGlobalRuntime CreateVkGlobalRuntime() { return VkGlobalRuntime(); }
 
 #endif  // RAYJOIN_VK_GLOBAL_CONTEXT_H
