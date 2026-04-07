@@ -144,6 +144,10 @@ class PIPRT : public PIP<CONTEXT_T> {
     this->closest_eids_.resize(points_num);
     best_ys_.resize(points_num);
 
+    if (points_num == 0) {
+      return;
+    }
+
     thrust::fill(this->closest_eids_.begin(), this->closest_eids_.end(), DONTKNOW);
     thrust::fill(best_ys_.begin(), best_ys_.end(), std::numeric_limits<double>::infinity());
 
