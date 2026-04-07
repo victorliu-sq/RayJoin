@@ -7,21 +7,19 @@
 
 class GlogGuard {
  public:
-  explicit GlogGuard(const char* name, const char* log_dir = "tmp/logs")
-      : log_dir_(log_dir) {
-    std::filesystem::create_directories(log_dir_);  // ok if already exists
-    FLAGS_log_dir = log_dir;
+  explicit GlogGuard(const char* name, const char* log_dir = "tmp/logs") : log_dir_(log_dir ? log_dir : "tmp/logs") {
+    std::filesystem::create_directories(log_dir_);
+    FLAGS_log_dir = log_dir_;
     google::InitGoogleLogging(name);
     google::InstallFailureSignalHandler();
   }
 
   ~GlogGuard() { google::ShutdownGoogleLogging(); }
 
-  // Disable copy and move to ensure one active guard per process
   GlogGuard(const GlogGuard&) = delete;
   GlogGuard& operator=(const GlogGuard&) = delete;
-  GlogGuard(GlogGuard&&) = delete;
-  GlogGuard& operator=(GlogGuard&&) = delete;
+  GlogGuard(GlogGuard&&) noexcept = default;
+  GlogGuard& operator=(GlogGuard&&) noexcept = delete;
 
   const std::string& LogDir() const noexcept { return log_dir_; }
 
@@ -29,10 +27,6 @@ class GlogGuard {
   std::string log_dir_;
 };
 
-static inline auto CreateGlogGuard(const char* test_name) {
-  return std::make_unique<GlogGuard>(test_name);
-}
-
-using GlogGuardUptr = std::unique_ptr<GlogGuard>;
+static inline GlogGuard CreateGlogGuard(const char* test_name, const char* log_dir = "tmp/logs") { return GlogGuard(test_name, log_dir); }
 
 #endif  // RAYJOIN_GUARD_GLOG_H

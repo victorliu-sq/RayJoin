@@ -36,4 +36,5 @@ DECLARE_bool(profile);
 // Dump Results for LSI, PIP, OverlaidPolygons
 DECLARE_string(dump_results);
 DECLARE_string(dump_dir);
+
 #endif  // RAYJOIN_FLAGS_H
