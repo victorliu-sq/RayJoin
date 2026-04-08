@@ -103,8 +103,8 @@ add_library(rayjoin_lib_vk SHARED
         vk/core/run_overlay.cc
         vk/core/run_overlay_ns.cc
         vk/core/vk_global_context.cc
-        vk/rt/_NOUSE_rt_engine.cc
-        vk/vma_iimpl.cc
+        #        vk/rt/_NOUSE_rt_engine.cc
+        vk/core/vma_impl.cc
 )
 
 target_link_libraries(rayjoin_lib_vk PUBLIC
