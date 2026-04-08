@@ -78,9 +78,6 @@ set_target_properties(rayjoin_lib PROPERTIES
 
 add_dependencies(rayjoin_lib optix_ptx)
 
-# =========================== Executables ===================================
-add_subdirectory(app/01_overlay)
-add_subdirectory(app/02_query)
 
 # =========================== RayJoin-VK ===================================
 set(CMAKE_POSITION_INDEPENDENT_CODE ON CACHE BOOL "Build all libs with -fPIC" FORCE)
@@ -181,6 +178,7 @@ target_compile_definitions(rayjoin_lib_vk PRIVATE
 add_dependencies(rayjoin_lib_vk optix_ptx)
 
 # =========================== Executables ===================================
-add_subdirectory(app/03_overlay_vk)
-add_subdirectory(app/04_overlay_vk_ns)
-add_subdirectory(app/05_overlay_native)
+add_subdirectory(app/01_overlay)
+add_subdirectory(app/02_query)
+add_subdirectory(app/03_overlay_vk_ns)
+add_subdirectory(app/04_overlay_native)
