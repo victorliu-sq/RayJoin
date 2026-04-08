@@ -3,7 +3,7 @@
 
 #include "vk/core/lsi.h"
 #include "vk/map/context_ns.h"
-#include "vk/rt/rt_engine.h"
+#include "vk/rt/_NOUSE_rt_engine.h"
 
 namespace rayjoin {
 namespace vk {

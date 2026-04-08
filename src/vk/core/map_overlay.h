@@ -2,7 +2,7 @@
 #define RAYJOIN_MAP_OVERLAY_H
 
 #include "vk/core/lsi.h"
-#include "vk/rt/rt_engine.h"
+#include "vk/rt/_NOUSE_rt_engine.h"
 
 namespace rayjoin {
 namespace vk {

@@ -5,8 +5,8 @@
 #include "vk/core/lsi_rt.h"
 #include "vk/engine/vk_buffer.h"
 #include "vk/map/map.h"
-#include "vk/rt/primitives.h"
-#include "vk/rt/rt_engine.h"
+#include "vk/rt/_NOUSE_primitives.h"
+#include "vk/rt/_NOUSE_rt_engine.h"
 
 namespace rayjoin {
 namespace vk {
