@@ -2,7 +2,6 @@
 #define RAYJOIN_EDGE_INIT_PASS_I64_RAII_H
 
 #include <glog/logging.h>
-
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -11,7 +10,7 @@
 #include "vk/engine/vk_compute_context.h"
 #include "vk/engine/vk_engine_abs.h"
 #include "vk/engine/vk_helpers.h"
-#include "vk/map/gpu_edge_types.h"
+#include "vk/map/_NOUSE_gpu_edge_types.h"
 
 namespace rayjoin {
 namespace vk {
