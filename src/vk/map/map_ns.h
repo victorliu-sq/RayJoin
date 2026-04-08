@@ -59,10 +59,30 @@ class MapNS {
     writeToStorageBuffer(chainsDev_, pgraph.chains);
     writeToStorageBuffer(rowDev_, pgraph.row_index);
 
-    edge_pass_ = std::make_unique<EdgeInitPassRAIINS>(pointsDev_, chainsDev_, rowDev_, edgesDev_, point_count_, chain_count_);
+    // edge_pass_ = std::make_unique<EdgeInitPassRAIINS>(pointsDev_, chainsDev_, rowDev_, edgesDev_, point_count_, chain_count_);
+    //
+    // edge_pass_->run();
 
-    edge_pass_->run();
 
+    struct EdgeInitParams {
+      uint32_t numPoints;
+      uint32_t numChains;
+      uint32_t numEdges;
+      uint32_t pad;
+    };
+
+    static_assert(std::is_trivially_copyable_v<EdgeInitParams>);
+    static_assert(sizeof(EdgeInitParams) == 16);
+
+    const std::string spvPath = std::string(SHADER_KERNEL_NS_DIR) + "/edge_init_ns_d64.spv";
+
+    EdgeInitParams params{};
+    params.numPoints = point_count_;
+    params.numChains = chain_count_;
+    params.numEdges = edge_count_;
+    params.pad = 0;
+
+    RunComputePass(point_count_, spvPath.c_str(), params, pointsDev_, chainsDev_, rowDev_, edgesDev_);
     LOG(INFO) << "Map-" << id_ << ": initialized " << edge_count_ << " edges on GPU (no scaling)";
 
     // DebugPrintEdges();
@@ -122,7 +142,7 @@ class MapNS {
  private:
   int id_;
 
-  std::unique_ptr<EdgeInitPassRAIINS> edge_pass_;
+  // std::unique_ptr<EdgeInitPassRAIINS> edge_pass_;
 
   uint32_t point_count_ = 0;
   uint32_t chain_count_ = 0;
