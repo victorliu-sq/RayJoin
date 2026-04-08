@@ -1,6 +1,6 @@
 #ifndef RAYJOIN_LSI_RT_H
 #define RAYJOIN_LSI_RT_H
-#include "vk/map/lsi_finalize_pass.h"
+#include "vk/map/_NOUSE_lsi_finalize_pass.h"
 
 namespace rayjoin {
 namespace vk {
