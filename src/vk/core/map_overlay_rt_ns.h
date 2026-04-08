@@ -597,11 +597,6 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
 
       // ========================================================================
       // PIP-RT
-      // std::string rgen_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rgen_ns.spv";
-      // std::string rint_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rint_ns.spv";
-      // std::string rahit_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rahit_ns.spv";
-      // std::string rchit_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rchit_ns.spv";
-      // std::string rmiss_spv = std::string(SHADER_DIR_NS) + "/rt/pip_rmiss_ns.spv";
       std::string rgen_spv = std::string(SHADER_RT_NS_DIR) + "/pip_rgen_ns.spv";
       std::string rint_spv = std::string(SHADER_RT_NS_DIR) + "/pip_rint_ns.spv";
       std::string rahit_spv = std::string(SHADER_RT_NS_DIR) + "/pip_rahit_ns.spv";
@@ -667,17 +662,6 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
       VkDeviceBuf mid_point_in_polygon_buf;
       mid_point_in_polygon_buf.Init(sizeof(index_t) * tasks.size());
 
-      // std::string finalize_spv = std::string(SHADER_DIR_NS) + "/pip_finalize_ns.spv";
-      // PIPFinalizePassNS finalize_pass(finalize_spv.c_str(),
-      //                                 static_cast<uint32_t>(tasks.size()),
-      //                                 static_cast<uint32_t>(EXTERIOR_FACE_ID),
-      //                                 base_map->getEdgesBuffer(),
-      //                                 base_map->getPointsBuffer(),
-      //                                 mid_closest_eids_buf,
-      //                                 mid_point_in_polygon_buf);
-      // finalize_pass.run();
-
-      // std::string finalize_spv = std::string(SHADER_DIR_NS) + "/pip_finalize_ns.spv";
       std::string finalize_spv = std::string(SHADER_KERNEL_NS_DIR) + "/pip_finalize_ns.spv";
 
       struct LaunchParamsPIPFinalize {
