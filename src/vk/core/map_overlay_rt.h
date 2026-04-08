@@ -2,11 +2,11 @@
 #define RAYJOIN_MAP_OVERLAY_RT_H
 
 #include "../engine/vk_buffer_readback.h"
+#include "vk/_NOUSE_rt/_NOUSE_primitives.h"
+#include "vk/_NOUSE_rt/_NOUSE_rt_engine.h"
 #include "vk/core/_NOUSE_lsi_rt.h"
 #include "vk/engine/vk_buffer.h"
 #include "vk/map/map.h"
-#include "vk/rt/_NOUSE_primitives.h"
-#include "vk/rt/_NOUSE_rt_engine.h"
 
 namespace rayjoin {
 namespace vk {

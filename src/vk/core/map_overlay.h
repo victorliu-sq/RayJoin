@@ -1,8 +1,8 @@
 #ifndef RAYJOIN_MAP_OVERLAY_H
 #define RAYJOIN_MAP_OVERLAY_H
 
+#include "vk/_NOUSE_rt/_NOUSE_rt_engine.h"
 #include "vk/core/_NOUSE_lsi.h"
-#include "vk/rt/_NOUSE_rt_engine.h"
 
 namespace rayjoin {
 namespace vk {
