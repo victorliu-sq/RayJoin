@@ -274,6 +274,8 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
       auto d_query_map = ctx.get_map(query_map_id)->DeviceObject();
       auto d_base_map = ctx.get_map(base_map_id)->DeviceObject();
 
+      // ==================================================================================
+      // Deduplication
       unique_eids.resize(n_xsects);
 
       // get eids of current map
@@ -286,6 +288,9 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
       auto end = thrust::unique(thrust::cuda::par.on(stream.cuda_stream()), unique_eids.begin(), unique_eids.end());
 
       unique_eids.resize(end - unique_eids.begin());
+
+      // ==================================================================================
+      // Group Intersections By Eid
       n_xsects_per_edge.resize(unique_eids.size());
       xsect_index.resize(unique_eids.size() + 1, 0);
 
@@ -306,8 +311,13 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
             return thrust::distance(it.first, it.second);
           });
 
+      // ==================================================================================
+      // Scan n_xsects_per_edge
       thrust::inclusive_scan(thrust::cuda::par.on(stream.cuda_stream()), n_xsects_per_edge.begin(), n_xsects_per_edge.end(), xsect_index.begin() + 1);
       stream.Sync();
+
+      // ==================================================================================
+      // Find mipontis
       // n intersection points have n-1 mid points
       uint32_t n_mid_points = xsect_index[xsect_index.size() - 1] - unique_eids.size();
       // mid-points of intersections from query map
@@ -317,7 +327,7 @@ class MapOverlayRT : public MapOverlay<CONTEXT_T> {
       ArrayView<point_t> d_mid_points(mid_points);
       ArrayView<index_t> d_unique_eids(unique_eids);
 
-      // collect all mid points
+      // Collect all mid-points
       ForEach(stream, d_unique_eids.size(), [=] __device__(size_t idx) mutable {
         auto eid = d_unique_eids[idx];
         auto begin = d_xsect_index[idx];
