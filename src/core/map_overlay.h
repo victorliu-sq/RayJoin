@@ -9,6 +9,7 @@ namespace rayjoin {
 template<typename CONTEXT_T>
 class MapOverlay {
  public:
+  virtual ~MapOverlay() = default;
   using coord_t = typename CONTEXT_T::coord_t;
   using internal_coord_t = typename CONTEXT_T::internal_coord_t;
   using coefficient_t = typename CONTEXT_T::coefficient_t;

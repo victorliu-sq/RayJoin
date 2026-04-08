@@ -314,7 +314,7 @@ class MapOverlayNativeRT : public MapOverlayNative<CONTEXT_T> {
     }
   }
 
-  void WriteResult(const char* path) override { WriteOutputChainNative(this->ctx_, xsect_edges_sorted_, this->point_in_polygon_, path); }
+  void WriteResult(const std::string& path) override { WriteOutputChainNative(this->ctx_, xsect_edges_sorted_, this->point_in_polygon_, path); }
 
  private:
   std::shared_ptr<RTEngine> rt_engine_;

@@ -22,7 +22,7 @@ class MapOverlayNative {
   virtual void IntersectEdge(int query_map_id) = 0;
   virtual void LocateVerticesInOtherMap(int query_map_id) = 0;
   virtual void ComputeOutputPolygons() = 0;
-  virtual void WriteResult(const char* path) = 0;
+  virtual void WriteResult(const std::string& path) = 0;
 
   thrust::host_vector<index_t> get_closet_eids(int im) const {
     thrust::host_vector<index_t> res = closest_eids_[im];

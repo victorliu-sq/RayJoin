@@ -38,7 +38,7 @@ template<typename CONTEXT_T>
 void WriteOutputChainNative(CONTEXT_T& ctx,
                             const thrust::device_vector<dev::IntersectionNative<typename CONTEXT_T::coord_t>>* xsect_edges_sorted_pair,
                             const thrust::device_vector<index_t>* point_in_polygon_pair,
-                            const char* path) {
+                            const std::string& path) {
   using coord_t = typename CONTEXT_T::coord_t;
   using xsect_t = dev::IntersectionNative<coord_t>;
 

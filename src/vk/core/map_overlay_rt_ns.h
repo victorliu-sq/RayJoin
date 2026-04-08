@@ -716,7 +716,7 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
   }
 
 
-  void WriteResult(const char *path) override {
+  void WriteResult(const std::string &path) override {
     using polygon_id_t = index_t;
 
     struct OutputChain {

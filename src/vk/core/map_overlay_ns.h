@@ -31,7 +31,7 @@ class MapOverlayNS {
 
   virtual void ComputeOutputPolygons() = 0;
 
-  virtual void WriteResult(const char* path) = 0;
+  virtual void WriteResult(const std::string& path) = 0;
 
  protected:
   CONTEXT_NS_T& ctx_;  // reference to inputs initialized from outside
