@@ -1514,7 +1514,7 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
     }
 
     ofs << "map_id,primitive_id,min_x,min_y,min_z,max_x,max_y,max_z,eid_begin,eid_end\n";
-    ofs << std::fixed << std::setprecision(9);
+    ofs << std::fixed << std::setprecision(7);
 
     for (uint32_t i = 0; i < n; ++i) {
       const auto &a = h_aabbs[i];
