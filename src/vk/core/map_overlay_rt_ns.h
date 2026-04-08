@@ -3,6 +3,7 @@
 
 #include "map_overlay_ns.h"
 #include "query_config.h"
+#include "vk/engine/as_scene.h"
 #include "vk/engine/vk_buffer.h"
 #include "vk/engine/vk_buffer_readback.h"
 #include "vk/engine/vk_compute_engine.h"
@@ -13,7 +14,6 @@
 #include "vk/map/_NOUSE_pip_rt_pass.h"
 #include "vk/map/map.h"
 #include "vk/rt/_NOUSE_rt_engine.h"
-#include "vk/rt/as_scene.h"
 #include "vk/util/type_native.h"
 
 //////////////////////////////////////////////////
