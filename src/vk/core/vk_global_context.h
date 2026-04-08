@@ -1,6 +1,8 @@
 #ifndef RAYJOIN_VK_GLOBAL_CONTEXT_H
 #define RAYJOIN_VK_GLOBAL_CONTEXT_H
 
+#include <vk_mem_alloc.h>
+
 #include "vk/engine/vk_compute_context.h"
 
 class VkGlobalRuntime {

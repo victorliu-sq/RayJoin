@@ -6,7 +6,7 @@
 
 #include "vk/engine/vk_compute_context.h"
 #include "vk/engine/vk_helpers.h"
-#include "vk/map/gpu_edge_types.h"
+#include "vk/map/_NOUSE_gpu_edge_types.h"
 
 namespace rayjoin {
 namespace vk {

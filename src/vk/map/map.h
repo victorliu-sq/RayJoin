@@ -2,12 +2,10 @@
 #define RAYJOIN_MAP_H
 
 #include "../engine/vk_buffer_readback.h"
-#include "edge_init_pass_i64_raii.h"
+#include "_NOUSE_scale_points_raii.h"
 #include "glog/logging.h"
 #include "planar_graph.h"
-#include "scale_points_raii.h"
-#include "vk/map/gpu_edge_types.h"
-#include "vk/map/scaling.h"
+#include "vk/map/_NOUSE_scaling.h"
 
 // For Dumping
 #include <filesystem>

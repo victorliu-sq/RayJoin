@@ -1,20 +1,21 @@
 #ifndef RAYJOIN_MAP_OVERLAY_RT_NS_H
 #define RAYJOIN_MAP_OVERLAY_RT_NS_H
 
-#include "../engine/vk_buffer_readback.h"
-#include "../engine/vk_compute_engine.h"
 #include "map_overlay_ns.h"
 #include "query_config.h"
 #include "vk/core/lsi_rt.h"
 #include "vk/engine/vk_buffer.h"
+#include "vk/engine/vk_buffer_readback.h"
+#include "vk/engine/vk_compute_engine.h"
 #include "vk/engine/vk_rt_engine.h"
 #include "vk/map/_NOUSE_lsi_finalize_pass_ns.h"
+#include "vk/map/_NOUSE_lsi_rt_pass.h"
 #include "vk/map/_NOUSE_pip_finalize_pass_ns.h"
-#include "vk/map/lsi_rt_pass.h"
+#include "vk/map/_NOUSE_pip_rt_pass.h"
 #include "vk/map/map.h"
-#include "vk/map/pip_rt_pass.h"
+#include "vk/rt/_NOUSE_rt_engine.h"
 #include "vk/rt/as_scene.h"
-#include "vk/rt/rt_engine.h"
+#include "vk/util/type_native.h"
 
 //////////////////////////////////////////////////
 #include <filesystem>
@@ -27,19 +28,6 @@
 namespace rayjoin {
 namespace vk {
 
-template<typename POINT_COORD_T>
-  requires PointCoordType<POINT_COORD_T>
-struct Intersection {
-  POINT_COORD_T x;
-  POINT_COORD_T y;
-
-  uint64_t eid0;
-  uint64_t eid1;
-
-  uint mid_point_polygon_id = 0;
-  uint pad;
-};
-
 
 template<typename CONTEXT_NS_T>
   requires ContextNSType<CONTEXT_NS_T>
@@ -48,7 +36,7 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
   using map_t = CONTEXT_NS_T::map_t;
   using point_t = CONTEXT_NS_T::point_t;
   using edge_t = CONTEXT_NS_T::edge_t;
-  using xsect_t = Intersection<coord_t>;
+  using xsect_t = IntersectionNS<coord_t>;
 
  public:
   explicit MapOverlayRTNS(CONTEXT_NS_T &ctx) : MapOverlayNS<CONTEXT_NS_T>(ctx) {}
@@ -773,6 +761,7 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
 
       SortXsectByQueryEid(xsect_sort_entries_buf, xsect_edges_sorted_buf, n_xsects);
 
+      // -----------------------------------------------------------------------------------
       xsect_edges_sorted = readBackStorageBuffer<xsect_t>(xsect_edges_sorted_buf, n_xsects);
 
       if (xsect_edges_sorted.size() != n_xsects) {
@@ -787,32 +776,84 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
 
       auto base_eid_of = [im](const xsect_t &x) -> uint64_t { return (im == 0) ? x.eid1 : x.eid0; };
 
-      for (size_t i = 1; i < xsect_edges_sorted.size(); ++i) {
-        if (query_eid_of(xsect_edges_sorted[i - 1]) > query_eid_of(xsect_edges_sorted[i])) {
-          LOG(ERROR) << "GPU sort failed at i=" << i << " prev_eid=" << query_eid_of(xsect_edges_sorted[i - 1])
-                     << " curr_eid=" << query_eid_of(xsect_edges_sorted[i]);
-          throw std::runtime_error("ComputeOutputPolygons(): GPU sort order invalid");
-        }
-      }
+      // for (size_t i = 1; i < xsect_edges_sorted.size(); ++i) {
+      //   if (query_eid_of(xsect_edges_sorted[i - 1]) > query_eid_of(xsect_edges_sorted[i])) {
+      //     LOG(ERROR) << "GPU sort failed at i=" << i << " prev_eid=" << query_eid_of(xsect_edges_sorted[i - 1])
+      //                << " curr_eid=" << query_eid_of(xsect_edges_sorted[i]);
+      //     throw std::runtime_error("ComputeOutputPolygons(): GPU sort order invalid");
+      //   }
+      // }
 
       xsect_edges_sorted_member = xsect_edges_sorted;
 
       // ===========================================================================
-      // Deduplication
+      // Deduplication on Host
+
+      // std::vector<index_t> unique_eids;
+      // unique_eids.reserve(xsect_edges_sorted.size());
+      //
+      // for (const auto &x: xsect_edges_sorted) {
+      //   const index_t eid = static_cast<index_t>(query_eid_of(x));
+      //   if (unique_eids.empty() || unique_eids.back() != eid) {
+      //     unique_eids.push_back(eid);
+      //   }
+      // }
+
+      // ===========================================================================
+      // Deduplication on device: build unique_eids, then read back to host
+      VkDeviceBuf unique_eids_buf;
+      unique_eids_buf.Init(sizeof(uint64_t) * n_xsects);
+
+      VkDeviceBuf unique_count_buf;
+      unique_count_buf.Init(sizeof(uint32_t));
+
+      // Reset unique_count to zero
+      writeToStorageBuffer<uint32_t>(unique_count_buf, 0u);
+
+      {
+        struct LaunchParamsDedupUniqueEids {
+          int32_t query_map_id;
+          uint32_t xsect_count;
+          uint32_t _pad0;
+          uint32_t _pad1;
+        };
+
+        LaunchParamsDedupUniqueEids params{.query_map_id = static_cast<int32_t>(query_map_id), .xsect_count = n_xsects, ._pad0 = 0u, ._pad1 = 0u};
+
+        std::string dedup_spv = std::string(SHADER_KERNEL_NS_DIR) + "/cop_dedup_unique_eids_ns.spv";
+
+        RunComputePass(n_xsects,
+                       dedup_spv.c_str(),
+                       params,
+                       xsect_edges_sorted_buf,  // binding 0 -> gXsectsSorted
+                       unique_eids_buf,  // binding 1 -> gUniqueEids
+                       unique_count_buf);  // binding 2 -> gUniqueCount
+      }
+
+      uint32_t unique_count = readBackStorageBuffer<uint32_t>(unique_count_buf);
+      if (unique_count > n_xsects) {
+        throw std::runtime_error("ComputeOutputPolygons(): invalid unique_count from device dedup");
+      }
+
+      auto unique_eids64 = readBackStorageBuffer<uint64_t>(unique_eids_buf, unique_count);
+
+      if (unique_eids64.size() != unique_count) {
+        throw std::runtime_error("ComputeOutputPolygons(): failed to read unique_eids from device");
+      }
+
+      std::vector<index_t> unique_eids;
+      unique_eids.reserve(unique_count);
+      for (uint64_t eid64: unique_eids64) {
+        unique_eids.push_back(static_cast<index_t>(eid64));
+      }
+
+      // ============================================================================
+      // Group Intersections By Eid
       auto query_edges = readBackStorageBuffer<edge_t>(query_map->getEdgesBuffer(), query_map->get_edges_num());
       auto query_points = readBackStorageBuffer<point_t>(query_map->getPointsBuffer(), query_map->get_points_num());
 
-
-      std::vector<index_t> unique_eids;
-      unique_eids.reserve(xsect_edges_sorted.size());
-
-      for (const auto &x: xsect_edges_sorted) {
-        const index_t eid = static_cast<index_t>(query_eid_of(x));
-        if (unique_eids.empty() || unique_eids.back() != eid) {
-          unique_eids.push_back(eid);
-        }
-      }
-
+      // ----------------------------------------------------------------------------
+      // Host Group and Scan
       std::vector<uint32_t> xsect_index(unique_eids.size() + 1, 0);
       {
         size_t pos = 0;
@@ -829,6 +870,65 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
         }
       }
 
+      // ----------------------------------------------------------------------------
+      // Device Group and Scan
+      // VkDeviceBuf n_xsects_per_edge_buf;
+      // n_xsects_per_edge_buf.Init(sizeof(uint32_t) * std::max<uint32_t>(1u, unique_count));
+      //
+      // VkDeviceBuf xsect_index_buf;
+      // xsect_index_buf.Init(sizeof(uint32_t) * std::max<uint32_t>(1u, unique_count + 1u));
+      //
+      // if (unique_count > 0) {
+      //   {
+      //     struct LaunchParamsGroupXsectsPerEid {
+      //       int32_t query_map_id;
+      //       uint32_t xsect_count;
+      //       uint32_t unique_count;
+      //       uint32_t _pad0;
+      //     };
+      //
+      //     LaunchParamsGroupXsectsPerEid params{
+      //         .query_map_id = static_cast<int32_t>(query_map_id), .xsect_count = n_xsects, .unique_count = unique_count, ._pad0 = 0u};
+      //
+      //     std::string spv = std::string(SHADER_KERNEL_NS_DIR) + "/cop_group_xsects_per_eid_ns.spv";
+      //
+      //     RunComputePass(unique_count,
+      //                    spv.c_str(),
+      //                    params,
+      //                    xsect_edges_sorted_buf,  // binding 0 -> gXsectsSorted
+      //                    unique_eids_buf,  // binding 1 -> gUniqueEids
+      //                    n_xsects_per_edge_buf);  // binding 2 -> gNXsectsPerEdge
+      //   }
+      //
+      //   {
+      //     struct LaunchParamsScanXsectIndex {
+      //       uint32_t unique_count;
+      //       uint32_t _pad0;
+      //       uint32_t _pad1;
+      //       uint32_t _pad2;
+      //     };
+      //
+      //     LaunchParamsScanXsectIndex params{.unique_count = unique_count, ._pad0 = 0u, ._pad1 = 0u, ._pad2 = 0u};
+      //
+      //     std::string spv = std::string(SHADER_KERNEL_NS_DIR) + "/cop_scan_xsect_index_ns.spv";
+      //
+      //     RunComputePass(1u,
+      //                    spv.c_str(),
+      //                    params,
+      //                    n_xsects_per_edge_buf,  // binding 0 -> gNXsectsPerEdge
+      //                    xsect_index_buf);  // binding 1 -> gXsectIndex
+      //   }
+      // }
+      //
+      // std::vector<uint32_t> xsect_index = readBackStorageBuffer<uint32_t>(xsect_index_buf, unique_count + 1u);
+      //
+      // if (xsect_index.size() != unique_count + 1u) {
+      //   throw std::runtime_error("ComputeOutputPolygons(): failed to read xsect_index buffer");
+      // }
+
+      // ==================================================================================
+      // Find midpoints
+      // n intersection points have n-1 mid points
       const uint32_t n_mid_points = xsect_index.back() - static_cast<uint32_t>(unique_eids.size());
 
       struct MidPointTask {

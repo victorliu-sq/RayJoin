@@ -1,7 +1,7 @@
 #ifndef RAYJOIN_MAP_OVERLAY_H
 #define RAYJOIN_MAP_OVERLAY_H
 
-#include "vk/core/lsi.h"
+#include "vk/core/_NOUSE_lsi.h"
 #include "vk/rt/_NOUSE_rt_engine.h"
 
 namespace rayjoin {

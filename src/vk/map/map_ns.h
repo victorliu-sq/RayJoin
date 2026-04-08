@@ -8,27 +8,14 @@
 #include <string>
 #include <type_traits>
 
-#include "../engine/vk_buffer_readback.h"
 #include "glog/logging.h"
 #include "planar_graph.h"
 #include "vk/engine/vk_buffer.h"
-#include "vk/map/edge_init_pass_raii_ns.h"
+#include "vk/engine/vk_buffer_readback.h"
+#include "vk/util/type_native.h"
 
 namespace rayjoin {
 namespace vk {
-
-template<EdgeCoeffType COEFF_T>
-struct EdgeNS {
-  COEFF_T a;
-  COEFF_T b;
-  COEFF_T c;
-
-  uint64_t eid;
-  uint64_t p1_idx;
-  uint64_t p2_idx;
-  uint64_t left_polygon_id;
-  uint64_t right_polygon_id;
-};
 
 template<PointCoordType POINT_COORD_T>
 class MapNS {
