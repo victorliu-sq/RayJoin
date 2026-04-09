@@ -5,6 +5,7 @@
 
 #include "vk/engine/vk_compute_context.h"
 
+namespace rayjoin::vk {
 class VkGlobalRuntime {
  public:
   static VkComputeContext ctx;  // Compute Context
@@ -23,5 +24,6 @@ class VkGlobalRuntime {
 static inline VkComputeContext& GetVkComputeContext() { return VkGlobalRuntime::ctx; }
 
 static inline VkGlobalRuntime CreateVkGlobalRuntime() { return VkGlobalRuntime(); }
+}  // namespace rayjoin::vk
 
 #endif  // RAYJOIN_VK_GLOBAL_CONTEXT_H

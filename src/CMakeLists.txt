@@ -104,6 +104,10 @@ add_library(rayjoin_lib_vk SHARED
         vk/core/vma_impl.cc
 )
 
+target_include_directories(rayjoin_lib_vk PUBLIC
+        ${PROJECT_SOURCE_DIR}/src
+)
+
 target_link_libraries(rayjoin_lib_vk PUBLIC
         #        CUDA::cudart
         #        CUDA::cuda_driver
@@ -168,7 +172,7 @@ set(SPV_RT_DIR "${SPV_OUTPUT_DIR}/rt")
 set(SPV_KERNEL_NS_DIR "${SPV_OUTPUT_DIR_NS}")
 set(SPV_RT_NS_DIR "${SPV_OUTPUT_DIR_NS}/rt")
 
-target_compile_definitions(rayjoin_lib_vk PRIVATE
+target_compile_definitions(rayjoin_lib_vk PUBLIC
         SHADER_KERNEL_DIR="${SPV_KERNEL_DIR}"
         SHADER_RT_DIR="${SPV_RT_DIR}"
         SHADER_KERNEL_NS_DIR="${SPV_KERNEL_NS_DIR}"

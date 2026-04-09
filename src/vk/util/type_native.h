@@ -30,6 +30,8 @@ namespace rayjoin::vk {
 //   uint pad;
 // };
 
+// ===============================================================
+// xsect
 template<typename COEFF_T>
 struct EdgeNS {
   COEFF_T a;
@@ -43,6 +45,9 @@ struct EdgeNS {
   index_t right_polygon_id;
 };
 
+
+// ===============================================================
+// xsect
 template<typename POINT_COORD_T>
   requires PointCoordType<POINT_COORD_T>
 struct IntersectionNS {
@@ -54,6 +59,19 @@ struct IntersectionNS {
 
   polygon_id_t mid_point_polygon_id = DONTKNOW;
 };
+
+template<typename T>
+struct is_intersection_ns : std::false_type {};
+
+template<typename POINT_COORD_T>
+  requires PointCoordType<POINT_COORD_T>
+struct is_intersection_ns<IntersectionNS<POINT_COORD_T>> : std::true_type {};
+
+template<typename T>
+inline constexpr bool is_intersection_ns_v = is_intersection_ns<T>::value;
+
+template<typename T>
+concept IntersectionNSType = is_intersection_ns_v<T>;
 
 }  // namespace rayjoin::vk
 

@@ -7,6 +7,8 @@
 #include "vk/engine/vk_helpers.h"  // your AllocBuf + beginOneTime/endSubmitWait
 #include "vk_compute_engine.h"
 
+namespace rayjoin::vk {
+
 template<typename T>
 std::vector<T> readBackStorageBuffer(const VkDeviceBuf& deviceBuf, uint32_t elementCount) {
   VkDeviceSize size = sizeof(T) * elementCount;
@@ -56,6 +58,8 @@ inline void zeroDeviceBuffer(const VkDeviceBuf& buf, VkDeviceSize size) {
   vkCmdFillBuffer(cmd, buf.Buf(), 0, size, 0u);
   endSubmitWait(vk_ctx.device, vk_ctx.queue, vk_ctx.cmdPool, cmd);
 }
+
+}  // namespace rayjoin::vk
 
 
 #endif  // RAYJOIN_VK_DEBUG_READBACK_H

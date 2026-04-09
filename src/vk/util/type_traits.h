@@ -59,6 +59,7 @@ static_assert(sizeof(Intersection128) == 80);
 static_assert(alignof(Intersection128) == 16);
 static_assert(std::is_trivially_copyable_v<Intersection128>);
 
+
 }  // namespace vk
 }  // namespace rayjoin
 

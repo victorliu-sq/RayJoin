@@ -6,7 +6,7 @@
 int main(int argc, char* argv[]) {
   auto gflag_guard = CreateGflagsGuard(argc, argv, "Usage: -poly1 -poly2");
   auto glog_guard = CreateGlogGuardAlsoToStderr("polyover_vk");
-  auto vk_runtime = CreateVkGlobalRuntime();
+  auto vk_runtime = rayjoin::vk::CreateVkGlobalRuntime();
 
   auto config = rayjoin::CreateOverlayConfig(argv[0]);
   rayjoin::vk::RunOverlayNS(config);

@@ -6,6 +6,9 @@
 #include "vk_mem_alloc.h"
 #include "vulkan/vulkan_core.h"
 
+namespace rayjoin {
+namespace vk {
+
 class VkAbsBuf {
  public:
   VkAbsBuf() : vk_ctx(GetVkComputeContext()) {};
@@ -166,5 +169,8 @@ class VkStagingBuf : public VkAbsBuf {
     endSubmitWait(vk_ctx.device, vk_ctx.queue, vk_ctx.cmdPool, cmd);
   }
 };
+
+}  // namespace vk
+}  // namespace rayjoin
 
 #endif  // RAYJOIN_VK_BUFFER_H

@@ -4,6 +4,7 @@
 
 #include "vk/engine/vk_buffer.h"
 #include "vk/engine/vk_compute_engine.h"
+#include "vk/util/type_native.h"
 
 namespace rayjoin::vk {
 namespace algo {
@@ -29,7 +30,7 @@ struct XsectSortEntryGPU {
 };
 static_assert(std::is_trivially_copyable_v<XsectSortEntryGPU>);
 
-template<typename XsectT>
+template<IntersectionNSType XsectT>
 inline void SortXsectsByQueryEid(const VkDeviceBuf& src_xsects_buf, int32_t query_map_id, uint32_t count, VkDeviceBuf& dst_sorted_xsects_buf) {
   if (count == 0u) {
     dst_sorted_xsects_buf = VkDeviceBuf{};

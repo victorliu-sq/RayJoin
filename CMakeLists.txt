@@ -15,7 +15,7 @@
 # ======================================================================== #
 
 if (POLICY CMP0048)
-    cmake_policy(SET CMP0048 NEW)
+  cmake_policy(SET CMP0048 NEW)
 endif (POLICY CMP0048)
 
 cmake_minimum_required(VERSION 3.10)
@@ -23,9 +23,9 @@ cmake_minimum_required(VERSION 3.10)
 project(rayjoin LANGUAGES CUDA C CXX VERSION 1.0.1)
 
 if (NOT WIN32)
-    # visual studio doesn't like these (not need them):
-    set(CMAKE_CXX_FLAGS "--std=c++20")
-    set(CUDA_PROPAGATE_HOST_FLAGS ON CACHE STRING "Propagate C/CXX_FLAGS and friends to the host compiler via -Xcompile")
+  # visual studio doesn't like these (not need them):
+  set(CMAKE_CXX_FLAGS "--std=c++20")
+  set(CUDA_PROPAGATE_HOST_FLAGS ON CACHE STRING "Propagate C/CXX_FLAGS and friends to the host compiler via -Xcompile")
 endif ()
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/lib")
@@ -33,39 +33,39 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin")
 
 if (WIN32 AND "${CMAKE_GENERATOR}" MATCHES "^(Visual Studio).*")
-    # Set the base folder where the per-project "core" folders with the *.ptx or *.optixir files get created.
-    set(MODULE_TARGET_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$(ConfigurationName)")
-    # Enable multi-processor build on all Visual Studio versions.
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
+  # Set the base folder where the per-project "core" folders with the *.ptx or *.optixir files get created.
+  set(MODULE_TARGET_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/$(ConfigurationName)")
+  # Enable multi-processor build on all Visual Studio versions.
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
 else ()
-    # DAR This should be independent of ${CMAKE_BUILD_TYPE} because that single-configuration generator will not create subfolders, will it?
-    # Otherwise add something with if("${CMAKE_BUILD_TYPE}" STREQUAL "")
-    set(MODULE_TARGET_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
+  # DAR This should be independent of ${CMAKE_BUILD_TYPE} because that single-configuration generator will not create subfolders, will it?
+  # Otherwise add something with if("${CMAKE_BUILD_TYPE}" STREQUAL "")
+  set(MODULE_TARGET_DIR "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 endif ()
 
 # Some useful macros
 macro(ADD_TARGET_PROPERTIES _target _name)
-    set(_properties)
-    foreach (_prop ${ARGN})
-        set(_properties "${_properties} ${_prop}")
-    endforeach (_prop)
-    get_target_property(_old_properties ${_target} ${_name})
-    if (NOT _old_properties)
-        # In case it's NOTFOUND
-        set(_old_properties)
-    endif (NOT _old_properties)
-    set_target_properties(${_target} PROPERTIES ${_name} "${_old_properties} ${_properties}")
+  set(_properties)
+  foreach (_prop ${ARGN})
+    set(_properties "${_properties} ${_prop}")
+  endforeach (_prop)
+  get_target_property(_old_properties ${_target} ${_name})
+  if (NOT _old_properties)
+    # In case it's NOTFOUND
+    set(_old_properties)
+  endif (NOT _old_properties)
+  set_target_properties(${_target} PROPERTIES ${_name} "${_old_properties} ${_properties}")
 endmacro(ADD_TARGET_PROPERTIES)
 
 macro(TARGET_INCLUDE_SYMBOL target symbol)
-    if (WIN32)
-        if (LOCAL_ARCH STREQUAL "amd64")
-            add_target_properties(${target} LINK_FLAGS /include:${symbol})
-        endif ()
+  if (WIN32)
+    if (LOCAL_ARCH STREQUAL "amd64")
+      add_target_properties(${target} LINK_FLAGS /include:${symbol})
     endif ()
-    if (UNIX)
-        add_target_properties(${target} LINK_FLAGS "-Wl,--undefined=${symbol}")
-    endif ()
+  endif ()
+  if (UNIX)
+    add_target_properties(${target} LINK_FLAGS "-Wl,--undefined=${symbol}")
+  endif ()
 endmacro()
 
 # third-party
@@ -88,33 +88,40 @@ list(APPEND CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/deps/vulkansdk/x86_64")
 #include("cmake/FindGFlags.cmake")
 find_package(gflags 2.2.2 REQUIRED)
 if (NOT gflags_FOUND)
-    message(STATUS "gflags not found, build without gflags")
+  message(STATUS "gflags not found, build without gflags")
 else ()
-    message("gflag is found")
+  message("gflag is found")
 endif ()
 
 #include("cmake/FindGlog.cmake")
 find_package(glog 0.6.0 REQUIRED)
 if (NOT glog_FOUND)
-    message(FATAL_ERROR "glog not found, please install the glog library")
+  message(FATAL_ERROR "glog not found, please install the glog library")
 else ()
-    message("glog is found, with include directory as ${CMAKE_SOURCE_DIR}/deps/include")
+  message("glog is found, with include directory as ${CMAKE_SOURCE_DIR}/deps/include")
+endif ()
+
+find_package(GTest 1.17.0 REQUIRED) # Notice the GT
+if (NOT GTest_FOUND)
+  message(FATAL_ERROR "GTest not found, please install the GTest library")
+else ()
+  message("GTest is found, with include directory as ${CMAKE_SOURCE_DIR}/deps/include")
 endif ()
 
 # Vulkan
 find_package(Vulkan REQUIRED)
 if (NOT Vulkan_FOUND)
-    message(FATAL_ERROR "Vulkan not found, please install the Vulkan library")
+  message(FATAL_ERROR "Vulkan not found, please install the Vulkan library")
 else ()
-    message("Vulkan is found. with include directory as ${Vulkan_INCLUDE_DIRS}")
+  message("Vulkan is found. with include directory as ${Vulkan_INCLUDE_DIRS}")
 endif ()
 
 # VMA
 find_package(VulkanMemoryAllocator CONFIG REQUIRED)
 if (NOT VulkanMemoryAllocator_FOUND)
-    message(FATAL_ERROR "VMA not found, please install the VMA library")
+  message(FATAL_ERROR "VMA not found, please install the VMA library")
 else ()
-    message("VMA is found. with include directory as ${VulkanMemoryAllocator_INCLUDE_DIRS}")
+  message("VMA is found. with include directory as ${VulkanMemoryAllocator_INCLUDE_DIRS}")
 endif ()
 
 # Nvpro_core2
@@ -134,5 +141,5 @@ message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 # ------------------------------------------------------------------
 # and final build rules for the project
 # ------------------------------------------------------------------
-
 add_subdirectory(src)
+add_subdirectory(test)

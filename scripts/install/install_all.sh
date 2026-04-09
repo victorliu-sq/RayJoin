@@ -34,7 +34,7 @@ bash "${INSTALLER_DIR}/installer_lbvh.sh"
 bash "${INSTALLER_DIR}/installer_vma.sh"
 
 # --- Install gtest  ----------------------------------------------------
-#bash "${INSTALLER_DIR}/installer_gtest.sh"
+bash "${INSTALLER_DIR}/installer_gtest.sh"
 
 # --- Install google benchmark  ----------------------------------------------------
 #bash "${INSTALLER_DIR}/installer_gbenchmark.sh"
