@@ -3,6 +3,7 @@
 
 #include "map_overlay_ns.h"
 #include "query_config.h"
+#include "vk/algo/exclusive_scan.h"
 #include "vk/algo/sort.h"
 #include "vk/engine/as_scene.h"
 #include "vk/engine/vk_buffer.h"
@@ -349,9 +350,7 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
 
       auto query_edges = readBackStorageBuffer<edge_t>(query_map->getEdgesBuffer(), query_map->get_edges_num());
       auto query_points = readBackStorageBuffer<point_t>(query_map->getPointsBuffer(), query_map->get_points_num());
-
       auto query_eid_of = [im](const xsect_t &x) -> index_t { return (im == 0) ? x.eid0 : x.eid1; };
-
       auto base_eid_of = [im](const xsect_t &x) -> index_t { return (im == 0) ? x.eid1 : x.eid0; };
 
       std::stable_sort(xsect_edges_sorted.begin(), xsect_edges_sorted.end(), [&](const xsect_t &a, const xsect_t &b) {
@@ -632,6 +631,9 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
         throw std::runtime_error("ComputeOutputPolygons(): null map");
       }
 
+
+      // =================================================================================
+      // Sort Xsects by Eids
       auto &xsect_edges_sorted_member = xsect_edges_sorted_[im];
       xsect_edges_sorted_member.clear();
 
@@ -680,6 +682,8 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
         throw std::runtime_error("ComputeOutputPolygons(): failed to read unique_eids from device");
       }
 
+      // =================================================================================
+      // Group xsects by eids
       auto query_edges = readBackStorageBuffer<edge_t>(query_map->getEdgesBuffer(), query_map->get_edges_num());
       auto query_points = readBackStorageBuffer<point_t>(query_map->getPointsBuffer(), query_map->get_points_num());
 
@@ -699,6 +703,7 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
         }
       }
 
+      // =================================================================================
       const uint32_t n_mid_points = xsect_index.back() - static_cast<uint32_t>(unique_eids.size());
 
       struct MidPointTask {

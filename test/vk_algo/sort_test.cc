@@ -15,11 +15,9 @@ namespace rayjoin::vk {
 // -------------------------------------------------------------------------------
 // Test Suite Setup
 static std::string test_log_name = "vk_sort_xsects_test";
-
 // -------------------------------------------------------------------------------
 // Glog Wrapper
 static GlogGuard glog_guard = CreateGlogGuardAlsoToStderr(test_log_name.c_str());
-
 // Vulkan Runtime
 static VkGlobalRuntime vk_runtime = CreateVkGlobalRuntime();
 
