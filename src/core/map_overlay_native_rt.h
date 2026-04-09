@@ -209,6 +209,8 @@ class MapOverlayNativeRT : public MapOverlayNative<CONTEXT_T> {
 
       auto end = thrust::unique(thrust::cuda::par.on(stream.cuda_stream()), unique_eids.begin(), unique_eids.end());
 
+      // =======================================================================
+      // Get Starting and ending xsect index for each eid
       unique_eids.resize(end - unique_eids.begin());
       n_xsects_per_edge.resize(unique_eids.size());
       xsect_index.resize(unique_eids.size() + 1, 0);
@@ -230,6 +232,8 @@ class MapOverlayNativeRT : public MapOverlayNative<CONTEXT_T> {
       thrust::inclusive_scan(thrust::cuda::par.on(stream.cuda_stream()), n_xsects_per_edge.begin(), n_xsects_per_edge.end(), xsect_index.begin() + 1);
       stream.Sync();
 
+      // =======================================================================
+      // Handle Midpoints
       uint32_t n_mid_points = xsect_index[xsect_index.size() - 1] - unique_eids.size();
       mid_points.resize(n_mid_points);
 

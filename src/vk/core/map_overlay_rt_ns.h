@@ -19,6 +19,7 @@
 #include <unordered_map>
 
 #include "util/dump.h"
+#include "vk/algo/index.h"
 #include "vk/algo/unique.h"
 
 namespace rayjoin {
@@ -652,40 +653,11 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
       // unique_eids_buf.Init(sizeof(index_t) * n_xsects);
       // VkDeviceBuf unique_count_buf;
       // unique_count_buf.Init(sizeof(uint32_t));
-      //
-      // writeToStorageBuffer<uint32_t>(unique_count_buf, 0u);
-      //
-      // {
-      //   struct LaunchParamsDedupUniqueEids {
-      //     int32_t query_map_id;
-      //     uint32_t xsect_count;
-      //     uint32_t _pad0;
-      //     uint32_t _pad1;
-      //   };
-      //
-      //   LaunchParamsDedupUniqueEids params{.query_map_id = static_cast<int32_t>(query_map_id), .xsect_count = n_xsects, ._pad0 = 0u, ._pad1 = 0u};
-      //
-      //   std::string dedup_spv = std::string(SHADER_KERNEL_NS_DIR) + "/cop_dedup_unique_eids_ns.spv";
-      //
-      //   RunComputePass(n_xsects, dedup_spv.c_str(), params, xsect_edges_sorted_buf, unique_eids_buf, unique_count_buf);
-      // }
-      //
-      // uint32_t unique_count = readBackStorageBuffer<uint32_t>(unique_count_buf);
-      // if (unique_count > n_xsects) {
-      //   throw std::runtime_error("ComputeOutputPolygons(): invalid unique_count from device dedup");
-      // }
-      //
-      // auto unique_eids = readBackStorageBuffer<index_t>(unique_eids_buf, unique_count);
-      //
-      // if (unique_eids.size() != unique_count) {
-      //   throw std::runtime_error("ComputeOutputPolygons(): failed to read unique_eids from device");
-      // }
-      // =================================================================================
-      // Deduplication
+
       VkDeviceBuf unique_eids_buf;
       VkDeviceBuf unique_count_buf;
 
-      algo::DedupSortedXsectsToUniqueEids(xsect_edges_sorted_buf, static_cast<int32_t>(query_map_id), n_xsects, unique_eids_buf, unique_count_buf);
+      algo::DedupSortedXsectsToUniqueEids(xsect_edges_sorted_buf, query_map_id, n_xsects, unique_eids_buf, unique_count_buf);
 
       uint32_t unique_count = readBackStorageBuffer<uint32_t>(unique_count_buf);
       if (unique_count > n_xsects) {
@@ -698,25 +670,34 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
         throw std::runtime_error("ComputeOutputPolygons(): failed to read unique_eids from device");
       }
 
-      // =================================================================================
-      // Group xsects by eids
+      // =======================================================================
+      // Get Starting and ending xsect index for each eid
       auto query_edges = readBackStorageBuffer<edge_t>(query_map->getEdgesBuffer(), query_map->get_edges_num());
       auto query_points = readBackStorageBuffer<point_t>(query_map->getPointsBuffer(), query_map->get_points_num());
 
-      std::vector<uint32_t> xsect_index(unique_eids.size() + 1, 0);
-      {
-        size_t pos = 0;
-        size_t group_idx = 0;
-        while (pos < xsect_edges_sorted.size()) {
-          const index_t eid = query_eid_of(xsect_edges_sorted[pos]);
-          size_t end = pos + 1;
-          while (end < xsect_edges_sorted.size() && query_eid_of(xsect_edges_sorted[end]) == eid) {
-            ++end;
-          }
-          xsect_index[group_idx + 1] = xsect_index[group_idx] + static_cast<uint32_t>(end - pos);
-          pos = end;
-          ++group_idx;
-        }
+      // std::vector<uint32_t> xsect_index(unique_eids.size() + 1, 0);
+      // {
+      //   size_t pos = 0;
+      //   size_t group_idx = 0;
+      //   while (pos < xsect_edges_sorted.size()) {
+      //     const index_t eid = query_eid_of(xsect_edges_sorted[pos]);
+      //     size_t end = pos + 1;
+      //     while (end < xsect_edges_sorted.size() && query_eid_of(xsect_edges_sorted[end]) == eid) {
+      //       ++end;
+      //     }
+      //     xsect_index[group_idx + 1] = xsect_index[group_idx] + static_cast<uint32_t>(end - pos);
+      //     pos = end;
+      //     ++group_idx;
+      //   }
+      // }
+      VkDeviceBuf xsect_index_buf;
+      algo::BuildXsectIndexFromSortedXsects(
+          xsect_edges_sorted_buf, unique_eids_buf, static_cast<int32_t>(query_map_id), n_xsects, unique_count, xsect_index_buf);
+
+      auto xsect_index = readBackStorageBuffer<uint32_t>(xsect_index_buf, unique_count + 1u);
+
+      if (xsect_index.size() != unique_count + 1u) {
+        throw std::runtime_error("ComputeOutputPolygons(): failed to read xsect_index buffer");
       }
 
       // =================================================================================
