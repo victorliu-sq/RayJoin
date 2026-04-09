@@ -1,9 +1,8 @@
 #ifndef RAYJOIN_CONTEXT_NS_H
 #define RAYJOIN_CONTEXT_NS_H
 
-#include "map_ns.h"
 #include "vk/map/bounding_box.h"
-#include "vk/map/map.h"
+#include "vk/map/map_ns.h"
 
 namespace rayjoin {
 namespace vk {

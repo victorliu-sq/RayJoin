@@ -1,6 +1,6 @@
 #include "util/guard_gflag.h"
 #include "util/guard_glog.h"
-#include "vk/core/run_overlay.h"
+#include "vk/core/run_overlay_ns.h"
 #include "vk/core/vk_global_context.h"
 
 int main(int argc, char* argv[]) {

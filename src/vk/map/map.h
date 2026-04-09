@@ -1,11 +1,9 @@
 #ifndef RAYJOIN_MAP_H
 #define RAYJOIN_MAP_H
 
-#include "../engine/vk_buffer_readback.h"
-#include "_NOUSE_scale_points_raii.h"
 #include "glog/logging.h"
 #include "planar_graph.h"
-#include "vk/map/_NOUSE_scaling.h"
+#include "vk/engine/vk_buffer_readback.h"
 
 // For Dumping
 #include <filesystem>

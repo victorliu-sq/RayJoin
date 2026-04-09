@@ -97,7 +97,7 @@ add_library(rayjoin_lib_vk SHARED
         flag/flags.cc
         #        ${PROGRAM_MODULES}
         #       VK
-        vk/core/run_overlay.cc
+        #        vk/core/run_overlay.cc
         vk/core/run_overlay_ns.cc
         vk/core/vk_global_context.cc
         #        vk/rt/_NOUSE_rt_engine.cc

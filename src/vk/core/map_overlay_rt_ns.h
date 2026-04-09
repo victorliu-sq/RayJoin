@@ -3,17 +3,12 @@
 
 #include "map_overlay_ns.h"
 #include "query_config.h"
-#include "vk/_NOUSE_rt/_NOUSE_rt_engine.h"
+#include "vk/algo/sort.h"
 #include "vk/engine/as_scene.h"
 #include "vk/engine/vk_buffer.h"
 #include "vk/engine/vk_buffer_readback.h"
 #include "vk/engine/vk_compute_engine.h"
 #include "vk/engine/vk_rt_engine.h"
-#include "vk/map/_NOUSE_lsi_finalize_pass_ns.h"
-#include "vk/map/_NOUSE_lsi_rt_pass.h"
-#include "vk/map/_NOUSE_pip_finalize_pass_ns.h"
-#include "vk/map/_NOUSE_pip_rt_pass.h"
-#include "vk/map/map.h"
 #include "vk/util/type_native.h"
 
 //////////////////////////////////////////////////
@@ -26,7 +21,6 @@
 
 namespace rayjoin {
 namespace vk {
-
 
 template<typename CONTEXT_NS_T>
   requires ContextNSType<CONTEXT_NS_T>
@@ -641,62 +635,17 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
       auto &xsect_edges_sorted_member = xsect_edges_sorted_[im];
       xsect_edges_sorted_member.clear();
 
-      std::vector<xsect_t> xsect_edges_sorted;
-
-      if (n_xsects == 0) {
-        continue;
-      }
-
-      struct XsectSortEntry {
-        index_t query_eid;
-        uint32_t src_idx;
-        uint32_t _pad0;
-        uint32_t _pad1;
-      };
-      static_assert(std::is_trivially_copyable_v<XsectSortEntry>);
-
-      const uint32_t sort_count = NextPow2U32(n_xsects);
-
       VkDeviceBuf xsect_edges_sorted_buf;
-      xsect_edges_sorted_buf.Init(sizeof(xsect_t) * sort_count);
+      algo::SortXsectsByQueryEid<xsect_t>(xsect_buf_, static_cast<int32_t>(query_map_id), n_xsects, xsect_edges_sorted_buf);
 
-      VkDeviceBuf xsect_sort_entries_buf;
-      xsect_sort_entries_buf.Init(sizeof(XsectSortEntry) * sort_count);
-
-      {
-        struct LaunchParamsPrepareSortEntries {
-          int32_t query_map_id;
-          uint32_t xsect_count;
-          uint32_t padded_count;
-          uint32_t _pad0;
-        };
-
-        LaunchParamsPrepareSortEntries params{
-            .query_map_id = static_cast<int32_t>(query_map_id), .xsect_count = n_xsects, .padded_count = sort_count, ._pad0 = 0u};
-
-        std::string prepare_spv = std::string(SHADER_KERNEL_NS_DIR) + "/cop_prepare_sort_entries_ns.spv";
-
-        RunComputePass(sort_count, prepare_spv.c_str(), params, xsect_buf_, xsect_edges_sorted_buf, xsect_sort_entries_buf);
-      }
-
-      SortXsectByQueryEid(xsect_sort_entries_buf, xsect_edges_sorted_buf, n_xsects);
-
-      xsect_edges_sorted = readBackStorageBuffer<xsect_t>(xsect_edges_sorted_buf, n_xsects);
-
-      if (xsect_edges_sorted.size() != n_xsects) {
-        throw std::runtime_error("ComputeOutputPolygons(): failed to read GPU-sorted xsect buffer");
-      }
-
-      if (xsect_edges_sorted.empty()) {
-        continue;
-      }
-
-      auto query_eid_of = [im](const xsect_t &x) -> index_t { return (im == 0) ? x.eid0 : x.eid1; };
-
-      auto base_eid_of = [im](const xsect_t &x) -> index_t { return (im == 0) ? x.eid1 : x.eid0; };
-
+      auto xsect_edges_sorted = readBackStorageBuffer<xsect_t>(xsect_edges_sorted_buf, n_xsects);
       xsect_edges_sorted_member = xsect_edges_sorted;
 
+      auto query_eid_of = [im](const xsect_t &x) -> index_t { return (im == 0) ? x.eid0 : x.eid1; };
+      auto base_eid_of = [im](const xsect_t &x) -> index_t { return (im == 0) ? x.eid1 : x.eid0; };
+
+      // =================================================================================
+      // Deduplication
       VkDeviceBuf unique_eids_buf;
       unique_eids_buf.Init(sizeof(index_t) * n_xsects);
 

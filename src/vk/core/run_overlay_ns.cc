@@ -2,15 +2,11 @@
 #include <memory>
 
 #include "core/overlay_config.h"
-#include "map_overlay_rt_ns.h"
 #include "query_config.h"
 #include "shader/config.h"
 #include "util/stopwatch.h"
 #include "util/timer.h"
-#include "vk/core/map_overlay.h"
-#include "vk/core/map_overlay_rt.h"
-#include "vk/core/run_overlay.h"
-#include "vk/map/context.h"
+#include "vk/core/map_overlay_rt_ns.h"
 #include "vk/map/context_ns.h"
 #include "vk/map/map_ns.h"
 #include "vk/map/planar_graph.h"

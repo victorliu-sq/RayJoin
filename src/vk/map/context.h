@@ -1,9 +1,7 @@
 #ifndef RAYJOIN_CONTEXT_H
 #define RAYJOIN_CONTEXT_H
 
-#include "../core/vk_global_context.h"
 #include "vk/engine/vk_compute_context.h"
-#include "vk/map/_NOUSE_scaling.h"
 #include "vk/map/bounding_box.h"
 #include "vk/map/map.h"
 
