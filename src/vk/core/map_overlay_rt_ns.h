@@ -19,6 +19,7 @@
 #include <unordered_map>
 
 #include "util/dump.h"
+#include "vk/algo/unique.h"
 
 namespace rayjoin {
 namespace vk {
@@ -631,7 +632,6 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
         throw std::runtime_error("ComputeOutputPolygons(): null map");
       }
 
-
       // =================================================================================
       // Sort Xsects by Eids
       auto &xsect_edges_sorted_member = xsect_edges_sorted_[im];
@@ -648,28 +648,44 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
 
       // =================================================================================
       // Deduplication
+      // VkDeviceBuf unique_eids_buf;
+      // unique_eids_buf.Init(sizeof(index_t) * n_xsects);
+      // VkDeviceBuf unique_count_buf;
+      // unique_count_buf.Init(sizeof(uint32_t));
+      //
+      // writeToStorageBuffer<uint32_t>(unique_count_buf, 0u);
+      //
+      // {
+      //   struct LaunchParamsDedupUniqueEids {
+      //     int32_t query_map_id;
+      //     uint32_t xsect_count;
+      //     uint32_t _pad0;
+      //     uint32_t _pad1;
+      //   };
+      //
+      //   LaunchParamsDedupUniqueEids params{.query_map_id = static_cast<int32_t>(query_map_id), .xsect_count = n_xsects, ._pad0 = 0u, ._pad1 = 0u};
+      //
+      //   std::string dedup_spv = std::string(SHADER_KERNEL_NS_DIR) + "/cop_dedup_unique_eids_ns.spv";
+      //
+      //   RunComputePass(n_xsects, dedup_spv.c_str(), params, xsect_edges_sorted_buf, unique_eids_buf, unique_count_buf);
+      // }
+      //
+      // uint32_t unique_count = readBackStorageBuffer<uint32_t>(unique_count_buf);
+      // if (unique_count > n_xsects) {
+      //   throw std::runtime_error("ComputeOutputPolygons(): invalid unique_count from device dedup");
+      // }
+      //
+      // auto unique_eids = readBackStorageBuffer<index_t>(unique_eids_buf, unique_count);
+      //
+      // if (unique_eids.size() != unique_count) {
+      //   throw std::runtime_error("ComputeOutputPolygons(): failed to read unique_eids from device");
+      // }
+      // =================================================================================
+      // Deduplication
       VkDeviceBuf unique_eids_buf;
-      unique_eids_buf.Init(sizeof(index_t) * n_xsects);
-
       VkDeviceBuf unique_count_buf;
-      unique_count_buf.Init(sizeof(uint32_t));
 
-      writeToStorageBuffer<uint32_t>(unique_count_buf, 0u);
-
-      {
-        struct LaunchParamsDedupUniqueEids {
-          int32_t query_map_id;
-          uint32_t xsect_count;
-          uint32_t _pad0;
-          uint32_t _pad1;
-        };
-
-        LaunchParamsDedupUniqueEids params{.query_map_id = static_cast<int32_t>(query_map_id), .xsect_count = n_xsects, ._pad0 = 0u, ._pad1 = 0u};
-
-        std::string dedup_spv = std::string(SHADER_KERNEL_NS_DIR) + "/cop_dedup_unique_eids_ns.spv";
-
-        RunComputePass(n_xsects, dedup_spv.c_str(), params, xsect_edges_sorted_buf, unique_eids_buf, unique_count_buf);
-      }
+      algo::DedupSortedXsectsToUniqueEids(xsect_edges_sorted_buf, static_cast<int32_t>(query_map_id), n_xsects, unique_eids_buf, unique_count_buf);
 
       uint32_t unique_count = readBackStorageBuffer<uint32_t>(unique_count_buf);
       if (unique_count > n_xsects) {
