@@ -3,6 +3,7 @@
 
 #include "map_overlay_ns.h"
 #include "query_config.h"
+#include "vk/algo/assign.h"
 #include "vk/algo/exclusive_scan.h"
 #include "vk/algo/sort.h"
 #include "vk/engine/as_scene.h"
@@ -612,6 +613,243 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
     }
   }
 
+  // void ComputeOutputPolygons() override {
+  //   using polygon_id_t = rayjoin::polygon_id_t;
+  //
+  //   auto &ctx = this->ctx_;
+  //
+  //   auto xcnt = readBackStorageBuffer<uint32_t>(xsect_counter_buf_, 1);
+  //   if (xcnt.empty()) {
+  //     throw std::runtime_error("ComputeOutputPolygons(): failed to read xsect counter");
+  //   }
+  //
+  //   const uint32_t n_xsects = xcnt[0];
+  //
+  //   for (int im = 0; im < 2; ++im) {
+  //     const int query_map_id = im;
+  //     const int base_map_id = 1 - im;
+  //
+  //     auto query_map = ctx.get_map(query_map_id);
+  //     auto base_map = ctx.get_map(base_map_id);
+  //
+  //     if (!query_map || !base_map) {
+  //       throw std::runtime_error("ComputeOutputPolygons(): null map");
+  //     }
+  //
+  //     // =================================================================================
+  //     // Sort Xsects by Eids
+  //     auto &xsect_edges_sorted_member = xsect_edges_sorted_[im];
+  //     xsect_edges_sorted_member.clear();
+  //
+  //     VkDeviceBuf xsect_edges_sorted_buf;
+  //     algo::SortXsectsByQueryEid<xsect_t>(xsect_buf_, static_cast<int32_t>(query_map_id), n_xsects, xsect_edges_sorted_buf);
+  //
+  //     auto xsect_edges_sorted = readBackStorageBuffer<xsect_t>(xsect_edges_sorted_buf, n_xsects);
+  //     xsect_edges_sorted_member = xsect_edges_sorted;
+  //
+  //     auto query_eid_of = [im](const xsect_t &x) -> index_t { return (im == 0) ? x.eid0 : x.eid1; };
+  //     auto base_eid_of = [im](const xsect_t &x) -> index_t { return (im == 0) ? x.eid1 : x.eid0; };
+  //
+  //     // =================================================================================
+  //     // Deduplication
+  //     VkDeviceBuf unique_eids_buf;
+  //     VkDeviceBuf unique_count_buf;
+  //
+  //     algo::DedupSortedXsectsToUniqueEids(xsect_edges_sorted_buf, query_map_id, n_xsects, unique_eids_buf, unique_count_buf);
+  //
+  //     uint32_t unique_count = readBackStorageBuffer<uint32_t>(unique_count_buf);
+  //     if (unique_count > n_xsects) {
+  //       throw std::runtime_error("ComputeOutputPolygons(): invalid unique_count from device dedup");
+  //     }
+  //
+  //     auto unique_eids = readBackStorageBuffer<index_t>(unique_eids_buf, unique_count);
+  //     if (unique_eids.size() != unique_count) {
+  //       throw std::runtime_error("ComputeOutputPolygons(): failed to read unique_eids from device");
+  //     }
+  //
+  //     // =================================================================================
+  //     // Get starting and ending xsect index for each eid
+  //     VkDeviceBuf xsect_index_buf;
+  //     algo::BuildXsectIndexFromSortedXsects(
+  //         xsect_edges_sorted_buf, unique_eids_buf, static_cast<int32_t>(query_map_id), n_xsects, unique_count, xsect_index_buf);
+  //
+  //     auto xsect_index = readBackStorageBuffer<uint32_t>(xsect_index_buf, unique_count + 1u);
+  //     if (xsect_index.size() != unique_count + 1u) {
+  //       throw std::runtime_error("ComputeOutputPolygons(): failed to read xsect_index buffer");
+  //     }
+  //
+  //     // =================================================================================
+  //     // Reorder Xsects + Compute Midpoints on device, but keep later steps on host
+  //     VkDeviceBuf reordered_xsects_buf;
+  //     VkDeviceBuf mid_points_buf;
+  //
+  //     const uint32_t n_mid_points = algo::ReorderXsectsAndComputeMidPoints<context_t>(xsect_edges_sorted_buf,
+  //                                                                                     xsect_index_buf,
+  //                                                                                     query_map->getEdgesBuffer(),
+  //                                                                                     query_map->getPointsBuffer(),
+  //                                                                                     static_cast<int32_t>(query_map_id),
+  //                                                                                     n_xsects,
+  //                                                                                     unique_count,
+  //                                                                                     reordered_xsects_buf,
+  //                                                                                     mid_points_buf);
+  //
+  //     // Read back reordered xsects so downstream host logic remains unchanged
+  //     xsect_edges_sorted = readBackStorageBuffer<xsect_t>(reordered_xsects_buf, n_xsects);
+  //     if (xsect_edges_sorted.size() != n_xsects) {
+  //       throw std::runtime_error("ComputeOutputPolygons(): failed to read reordered xsect buffer");
+  //     }
+  //
+  //     for (auto &x: xsect_edges_sorted) {
+  //       x.mid_point_polygon_id = DONTKNOW;
+  //     }
+  //
+  //     xsect_edges_sorted_member = xsect_edges_sorted;
+  //
+  //     if (n_mid_points == 0u) {
+  //       continue;
+  //     }
+  //     // Read back device-generated midpoints for existing host-side downstream logic
+  //     auto host_mid_points = readBackStorageBuffer<point_t>(mid_points_buf, n_mid_points);
+  //     if (host_mid_points.size() != n_mid_points) {
+  //       throw std::runtime_error("ComputeOutputPolygons(): failed to read midpoint buffer");
+  //     }
+  //
+  //     struct MidPointTask {
+  //       size_t xsect_idx;
+  //       point_t p;
+  //     };
+  //
+  //     std::vector<MidPointTask> tasks;
+  //     tasks.reserve(n_mid_points);
+  //
+  //     // midpoint_idx = begin - group_idx + local_idx
+  //     // xsect_idx    = begin + local_idx
+  //     for (size_t group_idx = 0; group_idx < unique_eids.size(); ++group_idx) {
+  //       const uint32_t begin = xsect_index[group_idx];
+  //       const uint32_t end = xsect_index[group_idx + 1];
+  //       const uint32_t n_xsect = end - begin;
+  //
+  //       if (n_xsect <= 1) {
+  //         continue;
+  //       }
+  //
+  //       for (uint32_t local_idx = 0; local_idx + 1u < n_xsect; ++local_idx) {
+  //         const uint32_t midpoint_idx = begin - static_cast<uint32_t>(group_idx) + local_idx;
+  //
+  //         tasks.push_back(MidPointTask{
+  //             .xsect_idx = static_cast<size_t>(begin + local_idx),
+  //             .p = host_mid_points[midpoint_idx],
+  //         });
+  //       }
+  //     }
+  //
+  //     if (tasks.size() != n_mid_points) {
+  //       throw std::runtime_error("ComputeOutputPolygons(): midpoint task count mismatch");
+  //     }
+  //
+  //     if (rayjoin::ShouldDumpStage(config_.dump_results, "pipmid")) {
+  //       const auto out_dir = rayjoin::DumpSubdir(config_.dump_dir, "results_midpoints");
+  //       DumpSortedMidPointsCSV(query_map_id, unique_eids, xsect_index, xsect_edges_sorted, host_mid_points, out_dir, "vulkan");
+  //     }
+  //
+  //     // =================================================================================
+  //     // PIP each midpoint
+  //     std::string rgen_spv = std::string(SHADER_RT_NS_DIR) + "/pip_rgen_ns.spv";
+  //     std::string rint_spv = std::string(SHADER_RT_NS_DIR) + "/pip_rint_ns.spv";
+  //     std::string rahit_spv = std::string(SHADER_RT_NS_DIR) + "/pip_rahit_ns.spv";
+  //     std::string rchit_spv = std::string(SHADER_RT_NS_DIR) + "/pip_rchit_ns.spv";
+  //     std::string rmiss_spv = std::string(SHADER_RT_NS_DIR) + "/pip_rmiss_ns.spv";
+  //
+  //     VkDeviceBuf mid_closest_eids_buf;
+  //     mid_closest_eids_buf.Init(sizeof(index_t) * n_mid_points);
+  //
+  //     VkDeviceBuf mid_best_ys_buf;
+  //     mid_best_ys_buf.Init(sizeof(double) * n_mid_points);
+  //
+  //     VkDeviceBuf mid_debug_counter_buf;
+  //     mid_debug_counter_buf.Init(sizeof(uint32_t) * 8);
+  //
+  //     struct LaunchParamsPIP {
+  //       int32_t query_map_id;
+  //       uint32_t query_point_count;
+  //       uint32_t _pad0;
+  //       uint32_t _pad1;
+  //     };
+  //
+  //     RunRTPass(rgen_spv.c_str(),
+  //               rint_spv.c_str(),
+  //               rahit_spv.c_str(),
+  //               rchit_spv.c_str(),
+  //               rmiss_spv.c_str(),
+  //               accel_[base_map_id].GetTraverseHandle(),
+  //               LaunchParamsPIP{.query_map_id = static_cast<int32_t>(query_map_id), .query_point_count = n_mid_points, ._pad0 = 0u, ._pad1 = 0u},
+  //               n_mid_points,
+  //               base_map->getEdgesBuffer(),
+  //               base_map->getPointsBuffer(),
+  //               eid_range_buf_[base_map_id],
+  //               mid_points_buf,
+  //               mid_closest_eids_buf,
+  //               mid_best_ys_buf,
+  //               mid_debug_counter_buf);
+  //
+  //     auto mid_closest_eids = readBackStorageBuffer<index_t>(mid_closest_eids_buf, n_mid_points);
+  //     if (mid_closest_eids.size() != n_mid_points) {
+  //       throw std::runtime_error("ComputeOutputPolygons(): failed to read midpoint closest eids");
+  //     }
+  //
+  //     auto mid_best_ys = readBackStorageBuffer<double>(mid_best_ys_buf, n_mid_points);
+  //     if (mid_best_ys.size() != n_mid_points) {
+  //       throw std::runtime_error("ComputeOutputPolygons(): failed to read midpoint best ys");
+  //     }
+  //
+  //     if (rayjoin::ShouldDumpStage(config_.dump_results, "pipmid")) {
+  //       DumpMidPointClosestEidsCSV(query_map_id,
+  //                                  unique_eids,
+  //                                  xsect_index,
+  //                                  xsect_edges_sorted,
+  //                                  host_mid_points,
+  //                                  mid_closest_eids,
+  //                                  mid_best_ys,
+  //                                  rayjoin::DumpSubdir(config_.dump_dir, "results_midpoint_closest"),
+  //                                  "vulkan");
+  //     }
+  //
+  //     VkDeviceBuf mid_point_in_polygon_buf;
+  //     mid_point_in_polygon_buf.Init(sizeof(polygon_id_t) * n_mid_points);
+  //
+  //     std::string finalize_spv = std::string(SHADER_KERNEL_NS_DIR) + "/pip_finalize_ns.spv";
+  //
+  //     struct LaunchParamsPIPFinalize {
+  //       uint32_t point_count;
+  //       int32_t exterior_face_id;
+  //       uint32_t _pad0;
+  //       uint32_t _pad1;
+  //     };
+  //     RunComputePass(
+  //         n_mid_points,
+  //         finalize_spv.c_str(),
+  //         LaunchParamsPIPFinalize{.point_count = n_mid_points, .exterior_face_id = static_cast<int32_t>(EXTERIOR_FACE_ID), ._pad0 = 0u, ._pad1 =
+  //         0u}, base_map->getEdgesBuffer(), base_map->getPointsBuffer(), mid_closest_eids_buf, mid_point_in_polygon_buf);
+  //
+  //     auto mid_poly_ids = readBackStorageBuffer<polygon_id_t>(mid_point_in_polygon_buf, n_mid_points);
+  //     if (mid_poly_ids.size() != n_mid_points) {
+  //       throw std::runtime_error("ComputeOutputPolygons(): failed to read midpoint polygon ids");
+  //     }
+  //     // Keep this final assignment on host in this intermediate version
+  //     for (size_t i = 0; i < tasks.size(); ++i) {
+  //       xsect_edges_sorted[tasks[i].xsect_idx].mid_point_polygon_id = mid_poly_ids[i];
+  //     }
+  //
+  //     xsect_edges_sorted_member = xsect_edges_sorted;
+  //   }
+  //
+  //   if (rayjoin::ShouldDumpStage(config_.dump_results, "pipmid")) {
+  //     const auto out_dir = rayjoin::DumpSubdir(config_.dump_dir, "results_mid");
+  //     DumpComputeOutputPolygonsCSV(0, out_dir, "vulkan");
+  //     DumpComputeOutputPolygonsCSV(1, out_dir, "vulkan");
+  //   }
+  // }
+
   void ComputeOutputPolygons() override {
     using polygon_id_t = rayjoin::polygon_id_t;
 
@@ -643,12 +881,6 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
       VkDeviceBuf xsect_edges_sorted_buf;
       algo::SortXsectsByQueryEid<xsect_t>(xsect_buf_, static_cast<int32_t>(query_map_id), n_xsects, xsect_edges_sorted_buf);
 
-      auto xsect_edges_sorted = readBackStorageBuffer<xsect_t>(xsect_edges_sorted_buf, n_xsects);
-      xsect_edges_sorted_member = xsect_edges_sorted;
-
-      auto query_eid_of = [im](const xsect_t &x) -> index_t { return (im == 0) ? x.eid0 : x.eid1; };
-      auto base_eid_of = [im](const xsect_t &x) -> index_t { return (im == 0) ? x.eid1 : x.eid0; };
-
       // =================================================================================
       // Deduplication
       VkDeviceBuf unique_eids_buf;
@@ -678,7 +910,7 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
       }
 
       // =================================================================================
-      // Reorder Xsects + Compute Midpoints on device, but keep later steps on host
+      // Reorder xsects + compute midpoints on device
       VkDeviceBuf reordered_xsects_buf;
       VkDeviceBuf mid_points_buf;
 
@@ -692,67 +924,45 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
                                                                                       reordered_xsects_buf,
                                                                                       mid_points_buf);
 
-      // Read back reordered xsects so downstream host logic remains unchanged
-      xsect_edges_sorted = readBackStorageBuffer<xsect_t>(reordered_xsects_buf, n_xsects);
-      if (xsect_edges_sorted.size() != n_xsects) {
-        throw std::runtime_error("ComputeOutputPolygons(): failed to read reordered xsect buffer");
-      }
-
-      for (auto &x: xsect_edges_sorted) {
-        x.mid_point_polygon_id = DONTKNOW;
-      }
-
-      xsect_edges_sorted_member = xsect_edges_sorted;
+      // Optional debug readback only
+      std::vector<xsect_t> xsect_edges_sorted;
+      std::vector<point_t> host_mid_points;
 
       if (n_mid_points == 0u) {
+        xsect_edges_sorted = readBackStorageBuffer<xsect_t>(reordered_xsects_buf, n_xsects);
+        if (xsect_edges_sorted.size() != n_xsects) {
+          throw std::runtime_error("ComputeOutputPolygons(): failed to read reordered xsect buffer");
+        }
+
+        for (auto &x: xsect_edges_sorted) {
+          x.mid_point_polygon_id = DONTKNOW;
+        }
+
+        xsect_edges_sorted_member = xsect_edges_sorted;
         continue;
-      }
-      // Read back device-generated midpoints for existing host-side downstream logic
-      auto host_mid_points = readBackStorageBuffer<point_t>(mid_points_buf, n_mid_points);
-      if (host_mid_points.size() != n_mid_points) {
-        throw std::runtime_error("ComputeOutputPolygons(): failed to read midpoint buffer");
-      }
-
-      struct MidPointTask {
-        size_t xsect_idx;
-        point_t p;
-      };
-
-      std::vector<MidPointTask> tasks;
-      tasks.reserve(n_mid_points);
-
-      // midpoint_idx = begin - group_idx + local_idx
-      // xsect_idx    = begin + local_idx
-      for (size_t group_idx = 0; group_idx < unique_eids.size(); ++group_idx) {
-        const uint32_t begin = xsect_index[group_idx];
-        const uint32_t end = xsect_index[group_idx + 1];
-        const uint32_t n_xsect = end - begin;
-
-        if (n_xsect <= 1) {
-          continue;
-        }
-
-        for (uint32_t local_idx = 0; local_idx + 1u < n_xsect; ++local_idx) {
-          const uint32_t midpoint_idx = begin - static_cast<uint32_t>(group_idx) + local_idx;
-
-          tasks.push_back(MidPointTask{
-              .xsect_idx = static_cast<size_t>(begin + local_idx),
-              .p = host_mid_points[midpoint_idx],
-          });
-        }
-      }
-
-      if (tasks.size() != n_mid_points) {
-        throw std::runtime_error("ComputeOutputPolygons(): midpoint task count mismatch");
       }
 
       if (rayjoin::ShouldDumpStage(config_.dump_results, "pipmid")) {
+        xsect_edges_sorted = readBackStorageBuffer<xsect_t>(reordered_xsects_buf, n_xsects);
+        if (xsect_edges_sorted.size() != n_xsects) {
+          throw std::runtime_error("ComputeOutputPolygons(): failed to read reordered xsect buffer");
+        }
+
+        for (auto &x: xsect_edges_sorted) {
+          x.mid_point_polygon_id = DONTKNOW;
+        }
+
+        host_mid_points = readBackStorageBuffer<point_t>(mid_points_buf, n_mid_points);
+        if (host_mid_points.size() != n_mid_points) {
+          throw std::runtime_error("ComputeOutputPolygons(): failed to read midpoint buffer");
+        }
+
         const auto out_dir = rayjoin::DumpSubdir(config_.dump_dir, "results_midpoints");
         DumpSortedMidPointsCSV(query_map_id, unique_eids, xsect_index, xsect_edges_sorted, host_mid_points, out_dir, "vulkan");
       }
 
       // =================================================================================
-      // PIP each midpoint
+      // PIP each midpoint directly from device midpoint buffer
       std::string rgen_spv = std::string(SHADER_RT_NS_DIR) + "/pip_rgen_ns.spv";
       std::string rint_spv = std::string(SHADER_RT_NS_DIR) + "/pip_rint_ns.spv";
       std::string rahit_spv = std::string(SHADER_RT_NS_DIR) + "/pip_rahit_ns.spv";
@@ -791,17 +1001,34 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
                 mid_best_ys_buf,
                 mid_debug_counter_buf);
 
-      auto mid_closest_eids = readBackStorageBuffer<index_t>(mid_closest_eids_buf, n_mid_points);
-      if (mid_closest_eids.size() != n_mid_points) {
-        throw std::runtime_error("ComputeOutputPolygons(): failed to read midpoint closest eids");
-      }
-
-      auto mid_best_ys = readBackStorageBuffer<double>(mid_best_ys_buf, n_mid_points);
-      if (mid_best_ys.size() != n_mid_points) {
-        throw std::runtime_error("ComputeOutputPolygons(): failed to read midpoint best ys");
-      }
-
       if (rayjoin::ShouldDumpStage(config_.dump_results, "pipmid")) {
+        auto mid_closest_eids = readBackStorageBuffer<index_t>(mid_closest_eids_buf, n_mid_points);
+        if (mid_closest_eids.size() != n_mid_points) {
+          throw std::runtime_error("ComputeOutputPolygons(): failed to read midpoint closest eids");
+        }
+
+        auto mid_best_ys = readBackStorageBuffer<double>(mid_best_ys_buf, n_mid_points);
+        if (mid_best_ys.size() != n_mid_points) {
+          throw std::runtime_error("ComputeOutputPolygons(): failed to read midpoint best ys");
+        }
+
+        if (xsect_edges_sorted.empty()) {
+          xsect_edges_sorted = readBackStorageBuffer<xsect_t>(reordered_xsects_buf, n_xsects);
+          if (xsect_edges_sorted.size() != n_xsects) {
+            throw std::runtime_error("ComputeOutputPolygons(): failed to read reordered xsect buffer");
+          }
+          for (auto &x: xsect_edges_sorted) {
+            x.mid_point_polygon_id = DONTKNOW;
+          }
+        }
+
+        if (host_mid_points.empty()) {
+          host_mid_points = readBackStorageBuffer<point_t>(mid_points_buf, n_mid_points);
+          if (host_mid_points.size() != n_mid_points) {
+            throw std::runtime_error("ComputeOutputPolygons(): failed to read midpoint buffer");
+          }
+        }
+
         DumpMidPointClosestEidsCSV(query_map_id,
                                    unique_eids,
                                    xsect_index,
@@ -813,6 +1040,8 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
                                    "vulkan");
       }
 
+      // =================================================================================
+      // Finalize midpoint polygon ids
       VkDeviceBuf mid_point_in_polygon_buf;
       mid_point_in_polygon_buf.Init(sizeof(polygon_id_t) * n_mid_points);
 
@@ -824,6 +1053,7 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
         uint32_t _pad0;
         uint32_t _pad1;
       };
+
       RunComputePass(
           n_mid_points,
           finalize_spv.c_str(),
@@ -833,13 +1063,14 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
           mid_closest_eids_buf,
           mid_point_in_polygon_buf);
 
-      auto mid_poly_ids = readBackStorageBuffer<polygon_id_t>(mid_point_in_polygon_buf, n_mid_points);
-      if (mid_poly_ids.size() != n_mid_points) {
-        throw std::runtime_error("ComputeOutputPolygons(): failed to read midpoint polygon ids");
-      }
-      // Keep this final assignment on host in this intermediate version
-      for (size_t i = 0; i < tasks.size(); ++i) {
-        xsect_edges_sorted[tasks[i].xsect_idx].mid_point_polygon_id = mid_poly_ids[i];
+      // =================================================================================
+      // Assign midpoint polygon ids back to reordered xsects on device
+      algo::AssignMidPointPolygonIdsToXsects<context_t>(reordered_xsects_buf, xsect_index_buf, mid_point_in_polygon_buf, unique_count);
+
+      // Final host readback only after all device-side updates are done
+      xsect_edges_sorted = readBackStorageBuffer<xsect_t>(reordered_xsects_buf, n_xsects);
+      if (xsect_edges_sorted.size() != n_xsects) {
+        throw std::runtime_error("ComputeOutputPolygons(): failed to read reordered xsect buffer");
       }
 
       xsect_edges_sorted_member = xsect_edges_sorted;
