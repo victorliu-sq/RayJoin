@@ -1,35 +1,10 @@
 #ifndef RAYJOIN_TYPE_NATIVE_H
 #define RAYJOIN_TYPE_NATIVE_H
 
+#include "shader/config.h"
 #include "vk/util/type_traits.h"
 
 namespace rayjoin::vk {
-// template<EdgeCoeffType COEFF_T>
-// struct EdgeNS {
-//   COEFF_T a;
-//   COEFF_T b;
-//   COEFF_T c;
-//
-//   uint64_t eid;
-//   uint64_t p1_idx;
-//   uint64_t p2_idx;
-//   uint64_t left_polygon_id;
-//   uint64_t right_polygon_id;
-// };
-//
-// template<typename POINT_COORD_T>
-//   requires PointCoordType<POINT_COORD_T>
-// struct Intersection {
-//   POINT_COORD_T x;
-//   POINT_COORD_T y;
-//
-//   uint64_t eid0;
-//   uint64_t eid1;
-//
-//   uint mid_point_polygon_id = 0;
-//   uint pad;
-// };
-
 // ===============================================================
 // xsect
 template<typename COEFF_T>

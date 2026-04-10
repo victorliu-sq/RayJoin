@@ -8,6 +8,8 @@
 #define EXTERIOR_FACE_ID (0)
 #define FOR2 for (int im = 0; im < 2; im++)
 
+#include <cstdint>
+
 namespace rayjoin {
 using index_t = uint32_t;
 using polygon_id_t = int;

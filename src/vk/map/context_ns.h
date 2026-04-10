@@ -34,6 +34,7 @@ class ContextNS {
   using bounding_box_t = BoundingBox<coord_t>;
   using point_t = Vec2<coord_t>;
   using edge_t = EdgeNS<coord_t>;
+  using xsect_t = IntersectionNS<coord_t>;
 
   ContextNS() = delete;
 

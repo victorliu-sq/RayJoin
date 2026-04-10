@@ -233,7 +233,7 @@ class MapOverlayNativeRT : public MapOverlayNative<CONTEXT_T> {
       stream.Sync();
 
       // =======================================================================
-      // Handle Midpoints
+      // Compute Midpoints
       uint32_t n_mid_points = xsect_index[xsect_index.size() - 1] - unique_eids.size();
       mid_points.resize(n_mid_points);
 
@@ -276,6 +276,8 @@ class MapOverlayNativeRT : public MapOverlayNative<CONTEXT_T> {
 
       stream.Sync();
 
+      // =======================================================================
+      // PIP each midpoints
       config_.eid_range = eid_range_[base_map_id];
       config_.handle = traverse_handles_[base_map_id];
 
