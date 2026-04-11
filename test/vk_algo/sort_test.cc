@@ -13,21 +13,7 @@
 
 namespace rayjoin::vk {
 
-class TestSortXsectsFixture : public TestVkFixture {
- protected:
-  using coord_t = double;
-  using xsect_t = IntersectionNS<coord_t>;
-
-  static xsect_t MakeXsect(coord_t x, coord_t y, index_t eid0, index_t eid1, polygon_id_t mid = DONTKNOW) {
-    xsect_t v{};
-    v.x = x;
-    v.y = y;
-    v.eid0 = eid0;
-    v.eid1 = eid1;
-    v.mid_point_polygon_id = mid;
-    return v;
-  }
-};
+class TestSortXsectsFixture : public TestVkFixture {};
 
 TEST_F(TestSortXsectsFixture, SortByEid1Basic) {
   std::vector<xsect_t> host_xsects = {

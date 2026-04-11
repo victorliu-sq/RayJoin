@@ -18,19 +18,6 @@ namespace rayjoin::vk {
 
 class TestDedupUniqueEidsFixture : public TestVkFixture {
  protected:
-  using coord_t = double;
-  using xsect_t = IntersectionNS<coord_t>;
-
-  static xsect_t MakeXsect(coord_t x, coord_t y, index_t eid0, index_t eid1, polygon_id_t mid = DONTKNOW) {
-    xsect_t v{};
-    v.x = x;
-    v.y = y;
-    v.eid0 = eid0;
-    v.eid1 = eid1;
-    v.mid_point_polygon_id = mid;
-    return v;
-  }
-
   static std::vector<index_t> CpuDedupSortedByQueryMapId(std::vector<xsect_t> xs, int32_t query_map_id) {
     auto query_eid_of = [query_map_id](const xsect_t& x) -> index_t { return (query_map_id == 0) ? x.eid0 : x.eid1; };
 

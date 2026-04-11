@@ -8,6 +8,7 @@
 #include "util/guard_glog.h"
 #include "vk/core/vk_global_context.h"
 #include "vk/engine/vk_compute_context.h"
+#include "vk/map/context_ns.h"
 
 namespace rayjoin::vk {
 
@@ -44,6 +45,27 @@ class TestVkFixture : public ::testing::Test {
 
   inline static std::unique_ptr<GlogGuard> glog_guard_;
   inline static std::unique_ptr<VkGlobalRuntime> vk_runtime_;
+
+  // Specfic to Xsect
+  using context_t = ContextNS<double>;
+  using coord_t = typename context_t::coord_t;
+  using xsect_t = typename context_t::xsect_t;
+  using edge_t = typename context_t::edge_t;
+  using point_t = typename context_t::point_t;
+
+  static xsect_t MakeXsect(coord_t x, coord_t y, index_t eid0, index_t eid1, polygon_id_t mid = DONTKNOW) {
+    xsect_t v{};
+    v.x = x;
+    v.y = y;
+    v.eid0 = eid0;
+    v.eid1 = eid1;
+    v.mid_point_polygon_id = mid;
+    return v;
+  }
+
+  static bool SameXsect(const xsect_t& a, const xsect_t& b) {
+    return a.x == b.x && a.y == b.y && a.eid0 == b.eid0 && a.eid1 == b.eid1 && a.mid_point_polygon_id == b.mid_point_polygon_id;
+  }
 };
 
 }  // namespace rayjoin::vk
