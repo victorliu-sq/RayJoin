@@ -1001,45 +1001,6 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
                 mid_best_ys_buf,
                 mid_debug_counter_buf);
 
-      if (rayjoin::ShouldDumpStage(config_.dump_results, "pipmid")) {
-        auto mid_closest_eids = readBackStorageBuffer<index_t>(mid_closest_eids_buf, n_mid_points);
-        if (mid_closest_eids.size() != n_mid_points) {
-          throw std::runtime_error("ComputeOutputPolygons(): failed to read midpoint closest eids");
-        }
-
-        auto mid_best_ys = readBackStorageBuffer<double>(mid_best_ys_buf, n_mid_points);
-        if (mid_best_ys.size() != n_mid_points) {
-          throw std::runtime_error("ComputeOutputPolygons(): failed to read midpoint best ys");
-        }
-
-        if (xsect_edges_sorted.empty()) {
-          xsect_edges_sorted = readBackStorageBuffer<xsect_t>(reordered_xsects_buf, n_xsects);
-          if (xsect_edges_sorted.size() != n_xsects) {
-            throw std::runtime_error("ComputeOutputPolygons(): failed to read reordered xsect buffer");
-          }
-          for (auto &x: xsect_edges_sorted) {
-            x.mid_point_polygon_id = DONTKNOW;
-          }
-        }
-
-        if (host_mid_points.empty()) {
-          host_mid_points = readBackStorageBuffer<point_t>(mid_points_buf, n_mid_points);
-          if (host_mid_points.size() != n_mid_points) {
-            throw std::runtime_error("ComputeOutputPolygons(): failed to read midpoint buffer");
-          }
-        }
-
-        DumpMidPointClosestEidsCSV(query_map_id,
-                                   unique_eids,
-                                   xsect_index,
-                                   xsect_edges_sorted,
-                                   host_mid_points,
-                                   mid_closest_eids,
-                                   mid_best_ys,
-                                   rayjoin::DumpSubdir(config_.dump_dir, "results_midpoint_closest"),
-                                   "vulkan");
-      }
-
       // =================================================================================
       // Finalize midpoint polygon ids
       VkDeviceBuf mid_point_in_polygon_buf;
