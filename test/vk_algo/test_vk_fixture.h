@@ -14,6 +14,9 @@ namespace rayjoin::vk {
 
 class TestVkFixture : public ::testing::Test {
  protected:
+  inline static std::unique_ptr<GlogGuard> glog_guard_;
+  inline static std::unique_ptr<VkGlobalRuntime> vk_runtime_;
+
   static void SetUpTestSuite() {
     glog_guard_ = CreateGlogGuardAlsoToStderr("vk-algo-test");
     vk_runtime_ = CreateVkGlobalRuntime();
@@ -43,10 +46,8 @@ class TestVkFixture : public ::testing::Test {
     LOG(INFO) << "TearDown: finished test " << info->test_suite_name() << "." << info->name();
   }
 
-  inline static std::unique_ptr<GlogGuard> glog_guard_;
-  inline static std::unique_ptr<VkGlobalRuntime> vk_runtime_;
-
-  // Specfic to Xsect
+  // =======================================================================================================================
+  // Helper method Specfic to Xsect
   using context_t = ContextNS<double>;
   using coord_t = typename context_t::coord_t;
   using xsect_t = typename context_t::xsect_t;
