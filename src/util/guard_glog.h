@@ -27,11 +27,20 @@ class GlogGuard {
   std::string log_dir_;
 };
 
-static inline GlogGuard CreateGlogGuard(const char* test_name, const char* log_dir = "tmp/logs") { return GlogGuard(test_name, log_dir); }
+// static inline GlogGuard CreateGlogGuard(const char* test_name, const char* log_dir = "tmp/logs") { return GlogGuard(test_name, log_dir); }
+//
+// static inline GlogGuard CreateGlogGuardAlsoToStderr(const char* test_name, const char* log_dir = "tmp/logs") {
+//   FLAGS_alsologtostderr = true;
+//   return GlogGuard(test_name, log_dir);
+// }
 
-static inline GlogGuard CreateGlogGuardAlsoToStderr(const char* test_name, const char* log_dir = "tmp/logs") {
+static inline std::unique_ptr<GlogGuard> CreateGlogGuard(const char* test_name, const char* log_dir = "tmp/logs") {
+  return std::make_unique<GlogGuard>(test_name, log_dir);
+}
+
+static inline std::unique_ptr<GlogGuard> CreateGlogGuardAlsoToStderr(const char* test_name, const char* log_dir = "tmp/logs") {
   FLAGS_alsologtostderr = true;
-  return GlogGuard(test_name, log_dir);
+  return std::make_unique<GlogGuard>(test_name, log_dir);
 }
 
 #endif  // RAYJOIN_GUARD_GLOG_H

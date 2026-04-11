@@ -23,7 +23,8 @@ class VkGlobalRuntime {
 
 static inline VkComputeContext& GetVkComputeContext() { return VkGlobalRuntime::ctx; }
 
-static inline VkGlobalRuntime CreateVkGlobalRuntime() { return VkGlobalRuntime(); }
+// static inline VkGlobalRuntime CreateVkGlobalRuntime() { return VkGlobalRuntime(); }
+static inline std::unique_ptr<VkGlobalRuntime> CreateVkGlobalRuntime() { return std::make_unique<VkGlobalRuntime>(); }
 }  // namespace rayjoin::vk
 
 #endif  // RAYJOIN_VK_GLOBAL_CONTEXT_H
