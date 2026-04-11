@@ -2,11 +2,14 @@
 
 #include <algorithm>
 #include <gtest/gtest.h>
+#include <memory>
 #include <random>
 #include <string>
 #include <vector>
 
+#include "test/vk_algo/test_vk_fixture.h"
 #include "util/guard_glog.h"
+#include "vk/algo/index.h"
 #include "vk/algo/sort.h"
 #include "vk/algo/unique.h"
 #include "vk/core/map_overlay_rt_ns.h"
@@ -15,49 +18,10 @@
 
 namespace rayjoin::vk {
 
-// -------------------------------------------------------------------------------
-// Test Suite Setup
-static std::string test_log_name = "vk_index_xsects_test";
-
-// -------------------------------------------------------------------------------
-// Glog Wrapper
-static GlogGuard glog_guard = CreateGlogGuardAlsoToStderr(test_log_name.c_str());
-
-// Vulkan Runtime
-static VkGlobalRuntime vk_runtime = CreateVkGlobalRuntime();
-
-// -------------------------------------------------------------------------------
-// Test Environment
-class TestEnvironment : public ::testing::Environment {
- public:
-  ~TestEnvironment() override = default;
-  void SetUp() override {}
-  void TearDown() override {}
-};
-
-// Register the environment before any tests run
-::testing::Environment* const global_env = ::testing::AddGlobalTestEnvironment(new TestEnvironment);
-
-// -------------------------------------------------------------------------------
-// Test Fixture
-class TestBuildXsectIndexFixture : public ::testing::Test {
+class TestBuildXsectIndexFixture : public TestVkFixture {
  protected:
   using coord_t = double;
   using xsect_t = IntersectionNS<coord_t>;
-
-  void SetUp() override {
-    auto info = ::testing::UnitTest::GetInstance()->current_test_info();
-    std::string test_suite = info->test_suite_name();
-    std::string test_name = info->name();
-    std::string prefix = glog_guard.LogDir() + "/log-" + test_suite + "-" + test_name;
-
-    google::SetLogDestination(google::INFO, (prefix + ".INFO.").c_str());
-    google::SetLogDestination(google::WARNING, (prefix + ".WARNING.").c_str());
-    google::SetLogDestination(google::ERROR, (prefix + ".ERROR.").c_str());
-    google::SetLogDestination(google::FATAL, (prefix + ".FATAL.").c_str());
-  }
-
-  void TearDown() override {}
 
   static xsect_t MakeXsect(coord_t x, coord_t y, index_t eid0, index_t eid1, polygon_id_t mid = DONTKNOW) {
     xsect_t v{};
@@ -76,8 +40,9 @@ class TestBuildXsectIndexFixture : public ::testing::Test {
 
     std::vector<index_t> unique_eids;
     unique_eids.reserve(xs.size());
+
     for (const auto& x: xs) {
-      index_t eid = query_eid_of(x);
+      const index_t eid = query_eid_of(x);
       if (unique_eids.empty() || unique_eids.back() != eid) {
         unique_eids.push_back(eid);
       }
@@ -86,16 +51,19 @@ class TestBuildXsectIndexFixture : public ::testing::Test {
     std::vector<uint32_t> xsect_index(unique_eids.size() + 1u, 0u);
     size_t pos = 0;
     size_t group_idx = 0;
+
     while (pos < xs.size()) {
-      index_t eid = query_eid_of(xs[pos]);
+      const index_t eid = query_eid_of(xs[pos]);
       size_t end = pos + 1;
       while (end < xs.size() && query_eid_of(xs[end]) == eid) {
         ++end;
       }
+
       xsect_index[group_idx + 1] = xsect_index[group_idx] + static_cast<uint32_t>(end - pos);
       pos = end;
       ++group_idx;
     }
+
     return xsect_index;
   }
 };
@@ -112,7 +80,7 @@ TEST_F(TestBuildXsectIndexFixture, BasicQueryMap1) {
   };
 
   const int32_t query_map_id = 1;
-  auto expected = CpuReferenceIndex(host_xsects, query_map_id);
+  const auto expected = CpuReferenceIndex(host_xsects, query_map_id);
 
   VkDeviceBuf src_buf;
   src_buf.Init(sizeof(xsect_t) * host_xsects.size());
@@ -125,15 +93,16 @@ TEST_F(TestBuildXsectIndexFixture, BasicQueryMap1) {
   VkDeviceBuf unique_count_buf;
   algo::DedupSortedXsectsToUniqueEids(sorted_buf, query_map_id, static_cast<uint32_t>(host_xsects.size()), unique_eids_buf, unique_count_buf);
 
-  uint32_t unique_count = readBackStorageBuffer<uint32_t>(unique_count_buf);
+  const uint32_t unique_count = readBackStorageBuffer<uint32_t>(unique_count_buf);
 
   VkDeviceBuf xsect_index_buf;
   algo::BuildXsectIndexFromSortedXsects(
       sorted_buf, unique_eids_buf, query_map_id, static_cast<uint32_t>(host_xsects.size()), unique_count, xsect_index_buf);
 
-  auto actual = readBackStorageBuffer<uint32_t>(xsect_index_buf, unique_count + 1u);
+  const auto actual = readBackStorageBuffer<uint32_t>(xsect_index_buf, unique_count + 1u);
 
   ASSERT_EQ(actual.size(), expected.size());
+
   for (size_t i = 0; i < actual.size(); ++i) {
     EXPECT_EQ(actual[i], expected[i]) << "Mismatch at i=" << i << " expected=" << expected[i] << " actual=" << actual[i];
   }
@@ -151,7 +120,7 @@ TEST_F(TestBuildXsectIndexFixture, Random100QueryMap1) {
   }
 
   const int32_t query_map_id = 1;
-  auto expected = CpuReferenceIndex(host_xsects, query_map_id);
+  const auto expected = CpuReferenceIndex(host_xsects, query_map_id);
 
   VkDeviceBuf src_buf;
   src_buf.Init(sizeof(xsect_t) * host_xsects.size());
@@ -164,17 +133,19 @@ TEST_F(TestBuildXsectIndexFixture, Random100QueryMap1) {
   VkDeviceBuf unique_count_buf;
   algo::DedupSortedXsectsToUniqueEids(sorted_buf, query_map_id, static_cast<uint32_t>(host_xsects.size()), unique_eids_buf, unique_count_buf);
 
-  uint32_t unique_count = readBackStorageBuffer<uint32_t>(unique_count_buf);
+  const uint32_t unique_count = readBackStorageBuffer<uint32_t>(unique_count_buf);
 
   VkDeviceBuf xsect_index_buf;
   algo::BuildXsectIndexFromSortedXsects(
       sorted_buf, unique_eids_buf, query_map_id, static_cast<uint32_t>(host_xsects.size()), unique_count, xsect_index_buf);
 
-  auto actual = readBackStorageBuffer<uint32_t>(xsect_index_buf, unique_count + 1u);
+  const auto actual = readBackStorageBuffer<uint32_t>(xsect_index_buf, unique_count + 1u);
 
   ASSERT_EQ(actual.size(), expected.size());
+
   for (size_t i = 0; i < actual.size(); ++i) {
     EXPECT_EQ(actual[i], expected[i]) << "Mismatch at i=" << i << " expected=" << expected[i] << " actual=" << actual[i];
   }
 }
+
 }  // namespace rayjoin::vk

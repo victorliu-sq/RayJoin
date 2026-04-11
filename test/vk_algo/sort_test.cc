@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "test_vk_fixture.h"
 #include "util/guard_glog.h"
 #include "vk/core/map_overlay_rt_ns.h"
 #include "vk/engine/vk_buffer_readback.h"
@@ -12,47 +13,10 @@
 
 namespace rayjoin::vk {
 
-// -------------------------------------------------------------------------------
-// Test Suite Setup
-static std::string test_log_name = "vk_sort_xsects_test";
-// -------------------------------------------------------------------------------
-// Glog Wrapper
-static GlogGuard glog_guard = CreateGlogGuardAlsoToStderr(test_log_name.c_str());
-// Vulkan Runtime
-static VkGlobalRuntime vk_runtime = CreateVkGlobalRuntime();
-
-// -------------------------------------------------------------------------------
-// Test Environment
-class TestEnvironment : public ::testing::Environment {
- public:
-  ~TestEnvironment() override = default;
-  void SetUp() override {}
-  void TearDown() override {}
-};
-
-// Register the environment before any tests run
-::testing::Environment* const global_env = ::testing::AddGlobalTestEnvironment(new TestEnvironment);
-
-// -------------------------------------------------------------------------------
-// Test Fixture
-class TestSortXsectsFixture : public ::testing::Test {
+class TestSortXsectsFixture : public TestVkFixture {
  protected:
   using coord_t = double;
   using xsect_t = IntersectionNS<coord_t>;
-
-  void SetUp() override {
-    auto info = ::testing::UnitTest::GetInstance()->current_test_info();
-    std::string test_suite = info->test_suite_name();
-    std::string test_name = info->name();
-    std::string prefix = glog_guard.LogDir() + "/log-" + test_suite + "-" + test_name;
-
-    google::SetLogDestination(google::INFO, (prefix + ".INFO.").c_str());
-    google::SetLogDestination(google::WARNING, (prefix + ".WARNING.").c_str());
-    google::SetLogDestination(google::ERROR, (prefix + ".ERROR.").c_str());
-    google::SetLogDestination(google::FATAL, (prefix + ".FATAL.").c_str());
-  }
-
-  void TearDown() override {}
 
   static xsect_t MakeXsect(coord_t x, coord_t y, index_t eid0, index_t eid1, polygon_id_t mid = DONTKNOW) {
     xsect_t v{};

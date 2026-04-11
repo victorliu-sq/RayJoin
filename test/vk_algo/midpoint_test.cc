@@ -4,54 +4,22 @@
 #include <string>
 #include <vector>
 
+#include "test/vk_algo/test_vk_fixture.h"
 #include "util/guard_glog.h"
+#include "vk/algo/midpoint.h"
 #include "vk/engine/vk_buffer_readback.h"
 #include "vk/engine/vk_compute_context.h"
 #include "vk/map/context_ns.h"
 
 namespace rayjoin::vk {
 
-// -------------------------------------------------------------------------------
-// Test Suite Setup
-static std::string test_log_name = "vk_midpoint_group_test";
-
-// -------------------------------------------------------------------------------
-// Glog Wrapper
-static GlogGuard glog_guard = CreateGlogGuardAlsoToStderr(test_log_name.c_str());
-
-// Vulkan Runtime
-static VkGlobalRuntime vk_runtime = CreateVkGlobalRuntime();
-
-// -------------------------------------------------------------------------------
-// Test Environment
-class TestEnvironment : public ::testing::Environment {
- public:
-  ~TestEnvironment() override = default;
-  void SetUp() override {}
-  void TearDown() override {}
-};
-
-::testing::Environment* const global_env = ::testing::AddGlobalTestEnvironment(new TestEnvironment);
-
-// -------------------------------------------------------------------------------
-// Test Fixture
-class TestMidPointGroupedFixture : public ::testing::Test {
+class TestMidPointGroupedFixture : public TestVkFixture {
  protected:
   using context_t = ContextNS<double>;
   using coord_t = typename context_t::coord_t;
   using xsect_t = typename context_t::xsect_t;
   using edge_t = typename context_t::edge_t;
   using point_t = typename context_t::point_t;
-
-  void SetUp() override {
-    auto info = ::testing::UnitTest::GetInstance()->current_test_info();
-    std::string prefix = glog_guard.LogDir() + "/log-" + info->test_suite_name() + "-" + info->name();
-
-    google::SetLogDestination(google::INFO, (prefix + ".INFO.").c_str());
-    google::SetLogDestination(google::WARNING, (prefix + ".WARNING.").c_str());
-    google::SetLogDestination(google::ERROR, (prefix + ".ERROR.").c_str());
-    google::SetLogDestination(google::FATAL, (prefix + ".FATAL.").c_str());
-  }
 
   static xsect_t MakeXsect(coord_t x, coord_t y, index_t eid0, index_t eid1, polygon_id_t mid = DONTKNOW) {
     xsect_t v{};
@@ -69,30 +37,6 @@ class TestMidPointGroupedFixture : public ::testing::Test {
 };
 
 TEST_F(TestMidPointGroupedFixture, QueryMap0_AlreadySortedByEid_ReordersWithinGroupAndBuildsMidpoints) {
-  // query_map_id = 0 -> groups by eid0
-  //
-  // Group 0: eid0 = 0, p1 = (0, 0)
-  //   Unsorted by d2 on purpose:
-  //     x=3 base=30
-  //     x=1 base=10
-  //     x=2 base=20
-  //
-  //   Expected reordered:
-  //     x=1, x=2, x=3
-  //   Expected mids:
-  //     1.5, 2.5
-  //
-  // Group 1: eid0 = 1, p1 = (10, 0)
-  //   Unsorted by d2 on purpose:
-  //     x=14 base=41   d2=16
-  //     x=12 base=43   d2=4
-  //     x=11 base=42   d2=1
-  //
-  //   Expected reordered:
-  //     x=11, x=12, x=14
-  //   Expected mids:
-  //     11.5, 13.0
-
   std::vector<point_t> query_points(2);
   query_points[0].x = 0.0;
   query_points[0].y = 0.0;
@@ -101,11 +45,25 @@ TEST_F(TestMidPointGroupedFixture, QueryMap0_AlreadySortedByEid_ReordersWithinGr
 
   std::vector<edge_t> query_edges(2);
   query_edges[0] = edge_t{};
+  query_edges[0].a = 0.0;
+  query_edges[0].b = 0.0;
+  query_edges[0].c = 0.0;
+  query_edges[0].eid = 0;
   query_edges[0].p1_idx = 0;
-  query_edges[1] = edge_t{};
-  query_edges[1].p1_idx = 1;
+  query_edges[0].p2_idx = 0;
+  query_edges[0].left_polygon_id = 0;
+  query_edges[0].right_polygon_id = 0;
 
-  // Already sorted by query eid (eid0), but NOT sorted within each group by distance.
+  query_edges[1] = edge_t{};
+  query_edges[1].a = 0.0;
+  query_edges[1].b = 0.0;
+  query_edges[1].c = 0.0;
+  query_edges[1].eid = 1;
+  query_edges[1].p1_idx = 1;
+  query_edges[1].p2_idx = 1;
+  query_edges[1].left_polygon_id = 0;
+  query_edges[1].right_polygon_id = 0;
+
   std::vector<xsect_t> sorted_by_eid = {
       MakeXsect(3.0, 0.0, 0, 30),
       MakeXsect(1.0, 0.0, 0, 10),
@@ -188,21 +146,6 @@ TEST_F(TestMidPointGroupedFixture, QueryMap0_AlreadySortedByEid_ReordersWithinGr
 }
 
 TEST_F(TestMidPointGroupedFixture, QueryMap1_AlreadySortedByEid_ReordersWithinGroupAndBuildsMidpoints) {
-  // query_map_id = 1 -> groups by eid1
-  //
-  // Group eid1=5, p1=(100,0):
-  //   x=103 base(eid0)=9
-  //   x=101 base(eid0)=7
-  //   x=102 base(eid0)=8
-  // -> reordered: 101,102,103
-  // -> mids: 101.5, 102.5
-  //
-  // Group eid1=6, p1=(200,0):
-  //   x=204 base=12
-  //   x=201 base=11
-  // -> reordered: 201,204
-  // -> mids: 202.5
-
   std::vector<point_t> query_points(2);
   query_points[0].x = 100.0;
   query_points[0].y = 0.0;
@@ -210,13 +153,20 @@ TEST_F(TestMidPointGroupedFixture, QueryMap1_AlreadySortedByEid_ReordersWithinGr
   query_points[1].y = 0.0;
 
   std::vector<edge_t> query_edges(7);
-  for (auto& e: query_edges) {
-    e = edge_t{};
+  for (size_t i = 0; i < query_edges.size(); ++i) {
+    query_edges[i] = edge_t{};
+    query_edges[i].a = 0.0;
+    query_edges[i].b = 0.0;
+    query_edges[i].c = 0.0;
+    query_edges[i].eid = static_cast<index_t>(i);
+    query_edges[i].p1_idx = 0;
+    query_edges[i].p2_idx = 0;
+    query_edges[i].left_polygon_id = 0;
+    query_edges[i].right_polygon_id = 0;
   }
   query_edges[5].p1_idx = 0;
   query_edges[6].p1_idx = 1;
 
-  // Already sorted by query eid (eid1)
   std::vector<xsect_t> sorted_by_eid = {
       MakeXsect(103.0, 0.0, 9, 5),
       MakeXsect(101.0, 0.0, 7, 5),
@@ -293,4 +243,5 @@ TEST_F(TestMidPointGroupedFixture, QueryMap1_AlreadySortedByEid_ReordersWithinGr
   EXPECT_DOUBLE_EQ(actual_mid_points[2].x, 202.5);
   EXPECT_DOUBLE_EQ(actual_mid_points[2].y, 0.0);
 }
+
 }  // namespace rayjoin::vk

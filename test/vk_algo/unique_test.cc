@@ -6,57 +6,20 @@
 #include <string>
 #include <vector>
 
+#include "test/vk_algo/test_vk_fixture.h"
 #include "util/guard_glog.h"
 #include "vk/algo/sort.h"
+#include "vk/algo/unique.h"
 #include "vk/core/map_overlay_rt_ns.h"
 #include "vk/engine/vk_buffer_readback.h"
 #include "vk/engine/vk_compute_context.h"
 
 namespace rayjoin::vk {
 
-// -------------------------------------------------------------------------------
-// Test Suite Setup
-static std::string test_log_name = "vk_dedup_unique_eids_test";
-
-// -------------------------------------------------------------------------------
-// Glog Wrapper
-static GlogGuard glog_guard = CreateGlogGuardAlsoToStderr(test_log_name.c_str());
-
-// Vulkan Runtime
-static VkGlobalRuntime vk_runtime = CreateVkGlobalRuntime();
-
-// -------------------------------------------------------------------------------
-// Test Environment
-class TestEnvironment : public ::testing::Environment {
- public:
-  ~TestEnvironment() override = default;
-  void SetUp() override {}
-  void TearDown() override {}
-};
-
-// Register the environment before any tests run
-::testing::Environment* const global_env = ::testing::AddGlobalTestEnvironment(new TestEnvironment);
-
-// -------------------------------------------------------------------------------
-// Test Fixture
-class TestDedupUniqueEidsFixture : public ::testing::Test {
+class TestDedupUniqueEidsFixture : public TestVkFixture {
  protected:
   using coord_t = double;
   using xsect_t = IntersectionNS<coord_t>;
-
-  void SetUp() override {
-    auto info = ::testing::UnitTest::GetInstance()->current_test_info();
-    std::string test_suite = info->test_suite_name();
-    std::string test_name = info->name();
-    std::string prefix = glog_guard.LogDir() + "/log-" + test_suite + "-" + test_name;
-
-    google::SetLogDestination(google::INFO, (prefix + ".INFO.").c_str());
-    google::SetLogDestination(google::WARNING, (prefix + ".WARNING.").c_str());
-    google::SetLogDestination(google::ERROR, (prefix + ".ERROR.").c_str());
-    google::SetLogDestination(google::FATAL, (prefix + ".FATAL.").c_str());
-  }
-
-  void TearDown() override {}
 
   static xsect_t MakeXsect(coord_t x, coord_t y, index_t eid0, index_t eid1, polygon_id_t mid = DONTKNOW) {
     xsect_t v{};
@@ -77,11 +40,12 @@ class TestDedupUniqueEidsFixture : public ::testing::Test {
     unique_eids.reserve(xs.size());
 
     for (const auto& x: xs) {
-      index_t eid = query_eid_of(x);
+      const index_t eid = query_eid_of(x);
       if (unique_eids.empty() || unique_eids.back() != eid) {
         unique_eids.push_back(eid);
       }
     }
+
     return unique_eids;
   }
 };
@@ -98,7 +62,7 @@ TEST_F(TestDedupUniqueEidsFixture, DedupBasicQueryMap1) {
   };
 
   const int32_t query_map_id = 1;
-  std::vector<index_t> expected = CpuDedupSortedByQueryMapId(host_xsects, query_map_id);
+  const std::vector<index_t> expected = CpuDedupSortedByQueryMapId(host_xsects, query_map_id);
 
   VkDeviceBuf src_buf;
   src_buf.Init(sizeof(xsect_t) * host_xsects.size());
@@ -111,8 +75,8 @@ TEST_F(TestDedupUniqueEidsFixture, DedupBasicQueryMap1) {
   VkDeviceBuf unique_count_buf;
   algo::DedupSortedXsectsToUniqueEids(sorted_buf, query_map_id, static_cast<uint32_t>(host_xsects.size()), unique_eids_buf, unique_count_buf);
 
-  uint32_t unique_count = readBackStorageBuffer<uint32_t>(unique_count_buf);
-  auto actual = readBackStorageBuffer<index_t>(unique_eids_buf, unique_count);
+  const uint32_t unique_count = readBackStorageBuffer<uint32_t>(unique_count_buf);
+  const auto actual = readBackStorageBuffer<index_t>(unique_eids_buf, unique_count);
 
   ASSERT_EQ(unique_count, expected.size());
   ASSERT_EQ(actual.size(), expected.size());
@@ -132,15 +96,15 @@ TEST_F(TestDedupUniqueEidsFixture, DedupRandom100QueryMap1) {
   host_xsects.reserve(100);
 
   for (int i = 0; i < 100; ++i) {
-    coord_t x = static_cast<coord_t>(i);
-    coord_t y = static_cast<coord_t>(100 - i);
-    index_t eid0 = eid_dist(rng);
-    index_t eid1 = eid_dist(rng);
+    const coord_t x = static_cast<coord_t>(i);
+    const coord_t y = static_cast<coord_t>(100 - i);
+    const index_t eid0 = eid_dist(rng);
+    const index_t eid1 = eid_dist(rng);
     host_xsects.push_back(MakeXsect(x, y, eid0, eid1));
   }
 
   const int32_t query_map_id = 1;
-  std::vector<index_t> expected = CpuDedupSortedByQueryMapId(host_xsects, query_map_id);
+  const std::vector<index_t> expected = CpuDedupSortedByQueryMapId(host_xsects, query_map_id);
 
   VkDeviceBuf src_buf;
   src_buf.Init(sizeof(xsect_t) * host_xsects.size());
@@ -153,8 +117,8 @@ TEST_F(TestDedupUniqueEidsFixture, DedupRandom100QueryMap1) {
   VkDeviceBuf unique_count_buf;
   algo::DedupSortedXsectsToUniqueEids(sorted_buf, query_map_id, static_cast<uint32_t>(host_xsects.size()), unique_eids_buf, unique_count_buf);
 
-  uint32_t unique_count = readBackStorageBuffer<uint32_t>(unique_count_buf);
-  auto actual = readBackStorageBuffer<index_t>(unique_eids_buf, unique_count);
+  const uint32_t unique_count = readBackStorageBuffer<uint32_t>(unique_count_buf);
+  const auto actual = readBackStorageBuffer<index_t>(unique_eids_buf, unique_count);
 
   ASSERT_EQ(unique_count, expected.size());
   ASSERT_EQ(actual.size(), expected.size());
