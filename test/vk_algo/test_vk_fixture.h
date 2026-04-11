@@ -49,10 +49,10 @@ class TestVkFixture : public ::testing::Test {
   // =======================================================================================================================
   // Helper method Specfic to Xsect
   using context_t = ContextNS<double>;
-  using coord_t = typename context_t::coord_t;
-  using xsect_t = typename context_t::xsect_t;
-  using edge_t = typename context_t::edge_t;
-  using point_t = typename context_t::point_t;
+  using coord_t = context_t::coord_t;
+  using xsect_t = context_t::xsect_t;
+  using edge_t = context_t::edge_t;
+  using point_t = context_t::point_t;
 
   static xsect_t MakeXsect(coord_t x, coord_t y, index_t eid0, index_t eid1, polygon_id_t mid = DONTKNOW) {
     xsect_t v{};
