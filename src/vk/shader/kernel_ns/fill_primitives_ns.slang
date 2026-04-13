@@ -18,7 +18,7 @@ struct Edge {
   uint right_polygon_id;
 };
 
-struct Vec2d {
+struct Point {
   double x;
   double y;
 };
@@ -45,7 +45,7 @@ struct PushConstants {
 };
 
 [[vk::binding(0, 0)]]
-StructuredBuffer<Vec2d> points;
+StructuredBuffer<Point> points;
 
 [[vk::binding(1, 0)]]
 StructuredBuffer<Edge> edges;
@@ -90,8 +90,8 @@ void main(uint3 tid: SV_DispatchThreadID) {
 
   Edge e = edges[eid];
 
-  Vec2d p1 = points[e.p1_idx];
-  Vec2d p2 = points[e.p2_idx];
+  Point p1 = points[e.p1_idx];
+  Point p2 = points[e.p2_idx];
 
   double x1 = p1.x;
   double y1 = p1.y;

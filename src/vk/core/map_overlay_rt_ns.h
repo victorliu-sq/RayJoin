@@ -98,48 +98,66 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
     prof_counter_buf_.Init(sizeof(uint32_t) * 20);
   }
 
+  // void BuildIndex() override {
+  //   auto &ctx = this->ctx_;
+  //
+  //   struct FillPrimitivesParams {
+  //     uint32_t numEdges;
+  //     uint32_t maxIter;
+  //     float unused;
+  //     uint32_t pad;
+  //   };
+  //
+  //   static_assert(std::is_trivially_copyable_v<FillPrimitivesParams>);
+  //   static_assert(sizeof(FillPrimitivesParams) == 16);
+  //
+  //   const bool dump_index = rayjoin::ShouldDumpStage(config_.dump_results, "index");
+  //   const std::string index_dir = rayjoin::DumpSubdir(config_.dump_dir, "results_index");
+  //
+  //   for (int im = 0; im < 2; ++im) {
+  //     auto map = ctx.get_map(im);
+  //
+  //     // std::string spvPath = std::string(SHADER_DIR_NS) + "/fill_primitives_ns.spv";
+  //     std::string spvPath = std::string(SHADER_KERNEL_NS_DIR) + "/fill_primitives_ns.spv";
+  //
+  //     FillPrimitivesParams params{};
+  //     params.numEdges = static_cast<uint32_t>(map_edge_count_[im]);
+  //     params.maxIter = static_cast<uint32_t>(ROUNDING_ITER);
+  //     params.unused = 0.0f;
+  //     params.pad = 0;
+  //
+  //     RunComputePass(static_cast<uint32_t>(map_edge_count_[im]),
+  //                    spvPath.c_str(),
+  //                    params,
+  //                    map->getPointsBuffer(),
+  //                    map->getEdgesBuffer(),
+  //                    aabbs_buf_,
+  //                    eid_range_buf_[im]);
+  //
+  //     if (dump_index) {
+  //       DumpIndexResultsCSV(im, index_dir, "vulkan");
+  //     }
+  //
+  //     LOG(INFO) << "Map-" << im << " builds " << map_edge_count_[im] << " primtives.";
+  //     accel_[im].BuildAccelCustom(aabbs_buf_, static_cast<uint32_t>(map_edge_count_[im]));
+  //   }
+  // }
+
   void BuildIndex() override {
     auto &ctx = this->ctx_;
-
-    struct FillPrimitivesParams {
-      uint32_t numEdges;
-      uint32_t maxIter;
-      float unused;
-      uint32_t pad;
-    };
-
-    static_assert(std::is_trivially_copyable_v<FillPrimitivesParams>);
-    static_assert(sizeof(FillPrimitivesParams) == 16);
-
-    const bool dump_index = rayjoin::ShouldDumpStage(config_.dump_results, "index");
-    const std::string index_dir = rayjoin::DumpSubdir(config_.dump_dir, "results_index");
 
     for (int im = 0; im < 2; ++im) {
       auto map = ctx.get_map(im);
 
-      // std::string spvPath = std::string(SHADER_DIR_NS) + "/fill_primitives_ns.spv";
-      std::string spvPath = std::string(SHADER_KERNEL_NS_DIR) + "/fill_primitives_ns.spv";
-
-      FillPrimitivesParams params{};
-      params.numEdges = static_cast<uint32_t>(map_edge_count_[im]);
-      params.maxIter = static_cast<uint32_t>(ROUNDING_ITER);
-      params.unused = 0.0f;
-      params.pad = 0;
-
-      RunComputePass(static_cast<uint32_t>(map_edge_count_[im]),
-                     spvPath.c_str(),
-                     params,
-                     map->getPointsBuffer(),
-                     map->getEdgesBuffer(),
-                     aabbs_buf_,
-                     eid_range_buf_[im]);
-
-      if (dump_index) {
-        DumpIndexResultsCSV(im, index_dir, "vulkan");
+      if (config_.ag == 0) {
+        BuildIndexSimple(im, map);
+      } else if (config_.ag == 2) {
+        BuildIndexAG2(im, map);
+      } else if (config_.ag == 1) {
+        throw std::runtime_error("BuildIndex(): ag == 1 is not implemented yet");
+      } else {
+        throw std::runtime_error("BuildIndex(): unsupported ag mode = " + std::to_string(config_.ag));
       }
-
-      LOG(INFO) << "Map-" << im << " builds " << map_edge_count_[im] << " primtives.";
-      accel_[im].BuildAccelCustom(aabbs_buf_, static_cast<uint32_t>(map_edge_count_[im]));
     }
   }
 
@@ -1296,6 +1314,165 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
   // Build Index
   // std::unique_ptr<FillPrimitivesNS<FillPrimitivesParams>> fill_primitives_ns_pass_;
   AccelStructScene accel_[2];
+
+  void BuildIndexSimple(int im, const std::shared_ptr<map_t> &map) {
+    struct FillPrimitivesParams {
+      uint32_t numEdges;
+      uint32_t maxIter;
+      float unused;
+      uint32_t pad;
+    };
+
+    static_assert(std::is_trivially_copyable_v<FillPrimitivesParams>);
+    static_assert(sizeof(FillPrimitivesParams) == 16);
+
+    const bool dump_index = rayjoin::ShouldDumpStage(config_.dump_results, "index");
+    const std::string index_dir = rayjoin::DumpSubdir(config_.dump_dir, "results_index");
+
+    const uint32_t ne = static_cast<uint32_t>(map_edge_count_[im]);
+    std::string spvPath = std::string(SHADER_KERNEL_NS_DIR) + "/fill_primitives_ns.spv";
+
+    FillPrimitivesParams params{};
+    params.numEdges = ne;
+    params.maxIter = static_cast<uint32_t>(ROUNDING_ITER);
+    params.unused = 0.0f;
+    params.pad = 0u;
+
+    RunComputePass(ne, spvPath.c_str(), params, map->getPointsBuffer(), map->getEdgesBuffer(), aabbs_buf_, eid_range_buf_[im]);
+
+    if (dump_index) {
+      DumpIndexResultsCSV(im, index_dir, "vulkan");
+    }
+
+    LOG(INFO) << "Map-" << im << " builds " << ne << " primitives.";
+    accel_[im].BuildAccelCustom(aabbs_buf_, ne);
+  }
+
+  void BuildPrimitiveGroupPrefix(const VkDeviceBuf &n_grp_buf, uint32_t n_wins, VkDeviceBuf &psum_n_grp_buf) {
+    psum_n_grp_buf.Init(sizeof(uint32_t) * std::max<uint32_t>(1u, n_wins + 1u));
+
+    if (n_wins == 0u) {
+      writeToStorageBuffer<uint32_t>(psum_n_grp_buf, std::vector<uint32_t>{0u});
+      return;
+    }
+
+    VkDeviceBuf grp_pos_buf;
+    grp_pos_buf.Init(sizeof(uint32_t) * n_wins);
+
+    algo::ExclusiveScanUInt32(n_grp_buf, grp_pos_buf, n_wins);
+
+    struct LaunchParamsFinalize {
+      uint32_t winCount;
+      uint32_t _pad0;
+      uint32_t _pad1;
+      uint32_t _pad2;
+    };
+
+    std::string spvPath = std::string(SHADER_KERNEL_NS_DIR) + "/fill_primitives_group_prefix_finalize_ns.spv";
+
+    RunComputePass(n_wins,
+                   spvPath.c_str(),
+                   LaunchParamsFinalize{
+                       .winCount = n_wins,
+                       ._pad0 = 0u,
+                       ._pad1 = 0u,
+                       ._pad2 = 0u,
+                   },
+                   n_grp_buf,  // binding 0
+                   grp_pos_buf,  // binding 1
+                   psum_n_grp_buf  // binding 2
+    );
+  }
+
+  void BuildIndexAG2(int im, const std::shared_ptr<map_t> &map) {
+    struct FillPrimitivesGroupCountParams {
+      uint32_t numEdges;
+      uint32_t winSize;
+      float areaEnlarge;
+      uint32_t pad;
+    };
+
+    struct FillPrimitivesGroupEmitParams {
+      uint32_t numEdges;
+      uint32_t winSize;
+      float areaEnlarge;
+      uint32_t pad;
+    };
+
+    static_assert(std::is_trivially_copyable_v<FillPrimitivesGroupCountParams>);
+    static_assert(sizeof(FillPrimitivesGroupCountParams) == 16);
+
+    static_assert(std::is_trivially_copyable_v<FillPrimitivesGroupEmitParams>);
+    static_assert(sizeof(FillPrimitivesGroupEmitParams) == 16);
+
+    const bool dump_index = rayjoin::ShouldDumpStage(config_.dump_results, "index");
+    const std::string index_dir = rayjoin::DumpSubdir(config_.dump_dir, "results_index");
+
+    const uint32_t ne = static_cast<uint32_t>(map_edge_count_[im]);
+    const uint32_t win_size = static_cast<uint32_t>(std::max(1, config_.win));
+    const float area_enlarge = config_.enlarge;
+    const uint32_t n_wins = (ne + win_size - 1u) / win_size;
+
+    VkDeviceBuf n_grp_buf;
+    n_grp_buf.Init(sizeof(uint32_t) * std::max<uint32_t>(1u, n_wins));
+
+    {
+      std::string spvPath = std::string(SHADER_KERNEL_NS_DIR) + "/fill_primitives_group_count_ns.spv";
+
+      FillPrimitivesGroupCountParams params{};
+      params.numEdges = ne;
+      params.winSize = win_size;
+      params.areaEnlarge = area_enlarge;
+      params.pad = 0u;
+
+      RunComputePass(n_wins,
+                     spvPath.c_str(),
+                     params,
+                     map->getPointsBuffer(),  // binding 0
+                     map->getEdgesBuffer(),  // binding 1
+                     n_grp_buf  // binding 2
+      );
+    }
+
+    VkDeviceBuf psum_n_grp_buf;
+    BuildPrimitiveGroupPrefix(n_grp_buf, n_wins, psum_n_grp_buf);
+
+    auto psum_host = readBackStorageBuffer<uint32_t>(psum_n_grp_buf, n_wins + 1u);
+    if (psum_host.size() != n_wins + 1u) {
+      throw std::runtime_error("BuildIndexAG2(): failed to read psum_n_grp buffer");
+    }
+
+    const uint32_t n_grps = psum_host.back();
+
+    {
+      std::string spvPath = std::string(SHADER_KERNEL_NS_DIR) + "/fill_primitives_group_emit_ns.spv";
+
+      FillPrimitivesGroupEmitParams params{};
+      params.numEdges = ne;
+      params.winSize = win_size;
+      params.areaEnlarge = area_enlarge;
+      params.pad = 0u;
+
+      RunComputePass(n_wins,
+                     spvPath.c_str(),
+                     params,
+                     map->getPointsBuffer(),  // binding 0
+                     map->getEdgesBuffer(),  // binding 1
+                     psum_n_grp_buf,  // binding 2
+                     aabbs_buf_,  // binding 3
+                     eid_range_buf_[im]  // binding 4
+      );
+    }
+
+    if (dump_index) {
+      DumpIndexResultsCSV(im, index_dir, "vulkan");
+    }
+
+    LOG(INFO) << "Map-" << im << " builds " << n_grps << " grouped primitives from " << ne << " edges. ag=2"
+              << " win=" << win_size << " enlarge=" << area_enlarge;
+
+    accel_[im].BuildAccelCustom(aabbs_buf_, n_grps);  // no longer ne but ngroups
+  }
 
   void DebugPrintAABBs(std::shared_ptr<map_t> map, const VkDeviceBuf &aabbBuf, const VkDeviceBuf &eidRangeBuf, uint32_t edge_count) const {
     const uint32_t checkCount = std::min<uint32_t>(edge_count, 10);
