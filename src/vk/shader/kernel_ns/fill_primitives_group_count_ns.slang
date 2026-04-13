@@ -61,7 +61,7 @@ AABB makeEdgeAABB(uint eid) {
   a.minY = float(min(y1, y2));
   a.maxY = float(max(y1, y2));
   a.minZ = -PRIMITIVE_HEIGHT * 0.5f;
-  a.maxZ =  PRIMITIVE_HEIGHT * 0.5f;
+  a.maxZ = PRIMITIVE_HEIGHT * 0.5f;
   return a;
 }
 
@@ -84,7 +84,7 @@ float aabbArea(AABB a) {
 
 [shader("compute")]
 [numthreads(64, 1, 1)]
-void main(uint3 tid : SV_DispatchThreadID) {
+void main(uint3 tid: SV_DispatchThreadID) {
   uint winId = tid.x;
   uint nWins = (pc.numEdges + pc.winSize - 1u) / pc.winSize;
 
@@ -92,7 +92,7 @@ void main(uint3 tid : SV_DispatchThreadID) {
     return;
 
   uint eidBegin = min(winId * pc.winSize, pc.numEdges);
-  uint eidEnd   = min((winId + 1u) * pc.winSize, pc.numEdges);
+  uint eidEnd = min((winId + 1u) * pc.winSize, pc.numEdges);
 
   if (eidBegin >= eidEnd) {
     outNumGroups[winId] = 0u;
@@ -113,14 +113,7 @@ void main(uint3 tid : SV_DispatchThreadID) {
       float area = aabbArea(lastAABB);
       float mergedArea = aabbArea(merged);
 
-      bool canMerge = false;
-      if (area <= 0.0f) {
-        canMerge = (mergedArea <= 0.0f);
-      } else {
-        canMerge = ((mergedArea / area) < pc.areaEnlarge);
-      }
-
-      if (canMerge) {
+      if ((mergedArea / area) < pc.areaEnlarge) {
         lastAABB = merged;
       } else {
         lastAABB = curr;

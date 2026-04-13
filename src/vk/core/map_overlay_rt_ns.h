@@ -1341,7 +1341,7 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
     RunComputePass(ne, spvPath.c_str(), params, map->getPointsBuffer(), map->getEdgesBuffer(), aabbs_buf_, eid_range_buf_[im]);
 
     if (dump_index) {
-      DumpIndexResultsCSV(im, index_dir, "vulkan");
+      DumpIndexResultsCSV(im, ne, index_dir, "vulkan");
     }
 
     LOG(INFO) << "Map-" << im << " builds " << ne << " primitives.";
@@ -1465,11 +1465,13 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
     }
 
     if (dump_index) {
-      DumpIndexResultsCSV(im, index_dir, "vulkan");
+      // DumpIndexResultsCSV(im, index_dir, "vulkan");
+      DumpIndexResultsCSV(im, n_grps, index_dir, "vulkan");
     }
 
+    const float compress_ratio = (ne == 0u) ? 0.0f : static_cast<float>(ne - n_grps) / static_cast<float>(ne);
     LOG(INFO) << "Map-" << im << " builds " << n_grps << " grouped primitives from " << ne << " edges. ag=2"
-              << " win=" << win_size << " enlarge=" << area_enlarge;
+              << " win=" << win_size << " enlarge=" << area_enlarge << " compress_ratio=" << compress_ratio;
 
     accel_[im].BuildAccelCustom(aabbs_buf_, n_grps);  // no longer ne but ngroups
   }
@@ -1995,12 +1997,11 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
     LOG(INFO) << "DumpMidPointClosestEidsCSV: wrote " << path;
   }
 
-
-  void DumpIndexResultsCSV(int map_id, const std::string &out_dir, const std::string &impl_tag) const {
+  void DumpIndexResultsCSV(int map_id, uint32_t primitive_count, const std::string &out_dir, const std::string &impl_tag) const {
     namespace fs = std::filesystem;
     fs::create_directories(out_dir);
 
-    const uint32_t n = static_cast<uint32_t>(map_edge_count_[map_id]);
+    const uint32_t n = primitive_count;
 
     auto h_aabbs = readBackStorageBuffer<VkAabbPositionsKHR>(aabbs_buf_, n);
     auto h_ranges = readBackStorageBuffer<EidRange>(eid_range_buf_[map_id], n);
@@ -2031,7 +2032,7 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
     }
 
     ofs.close();
-    LOG(INFO) << "DumpIndexResultsCSV: wrote " << path;
+    LOG(INFO) << "DumpIndexResultsCSV: wrote " << path << " with primitive_count=" << n;
   }
 };
 

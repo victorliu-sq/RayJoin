@@ -12,7 +12,7 @@ native_output="${base_dir}/results/br_countyXbr_soil_result_native.txt"
 
 mkdir -p "${base_dir}/results"
 
-AG_FLAG=0
+AG_FLAG=2
 
 # =========================================================
 # Run Vulkan native/no-scaling with dumps enabled

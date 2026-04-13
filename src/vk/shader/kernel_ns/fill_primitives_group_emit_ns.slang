@@ -1,3 +1,4 @@
+public static const int ROUNDING_ITER = 2;
 public static const float PRIMITIVE_HEIGHT = 0.01;
 
 struct Edge {
@@ -56,6 +57,27 @@ RWStructuredBuffer<Range> outRange;
 [[vk::push_constant]]
 PushConstants pc;
 
+float nextFloatFromDouble(double v, int dir, uint iter) {
+  float fv = (float)v;
+
+  if (fv == 0.0f)
+    return 0.0f;
+
+  float inf = 1.0f / 0.0f;
+  float to;
+
+  if (v * (double)dir < 0.0)
+    to = 0.0f;
+  else
+    to = (dir > 0) ? inf : -inf;
+
+  for (uint i = 0; i < iter; ++i) {
+    fv = nextafter(fv, to);
+  }
+
+  return fv;
+}
+
 AABB makeEdgeAABB(uint eid) {
   Edge e = edges[eid];
   Point p1 = points[e.p1_idx];
@@ -67,12 +89,12 @@ AABB makeEdgeAABB(uint eid) {
   double y2 = p2.y;
 
   AABB a;
-  a.minX = float(min(x1, x2));
-  a.maxX = float(max(x1, x2));
-  a.minY = float(min(y1, y2));
-  a.maxY = float(max(y1, y2));
+  a.minX = (float)min(x1, x2);
+  a.maxX = (float)max(x1, x2);
+  a.minY = (float)min(y1, y2);
+  a.maxY = (float)max(y1, y2);
   a.minZ = -PRIMITIVE_HEIGHT * 0.5f;
-  a.maxZ =  PRIMITIVE_HEIGHT * 0.5f;
+  a.maxZ = PRIMITIVE_HEIGHT * 0.5f;
   return a;
 }
 
@@ -93,22 +115,20 @@ float aabbArea(AABB a) {
   return dx * dy;
 }
 
-float roundDown1(float v) { return nextafter(v, -1.0f / 0.0f); }
-float roundUp1(float v)   { return nextafter(v,  1.0f / 0.0f); }
-
 AABB roundAABBUp(AABB a) {
-  a.minX = roundDown1(a.minX);
-  a.minY = roundDown1(a.minY);
-  a.minZ = roundDown1(a.minZ);
-  a.maxX = roundUp1(a.maxX);
-  a.maxY = roundUp1(a.maxY);
-  a.maxZ = roundUp1(a.maxZ);
-  return a;
+  AABB r;
+  r.minX = nextFloatFromDouble((double)a.minX, -1, ROUNDING_ITER);
+  r.maxX = nextFloatFromDouble((double)a.maxX, 1, ROUNDING_ITER);
+  r.minY = nextFloatFromDouble((double)a.minY, -1, ROUNDING_ITER);
+  r.maxY = nextFloatFromDouble((double)a.maxY, 1, ROUNDING_ITER);
+  r.minZ = nextFloatFromDouble((double)a.minZ, -1, ROUNDING_ITER);
+  r.maxZ = nextFloatFromDouble((double)a.maxZ, 1, ROUNDING_ITER);
+  return r;
 }
 
 [shader("compute")]
 [numthreads(64, 1, 1)]
-void main(uint3 tid : SV_DispatchThreadID) {
+void main(uint3 tid: SV_DispatchThreadID) {
   uint winId = tid.x;
   uint nWins = (pc.numEdges + pc.winSize - 1u) / pc.winSize;
 
@@ -116,7 +136,7 @@ void main(uint3 tid : SV_DispatchThreadID) {
     return;
 
   uint eidBegin = min(winId * pc.winSize, pc.numEdges);
-  uint eidEnd   = min((winId + 1u) * pc.winSize, pc.numEdges);
+  uint eidEnd = min((winId + 1u) * pc.winSize, pc.numEdges);
   uint gidBegin = inPrefix[winId];
 
   if (eidBegin >= eidEnd)
@@ -137,14 +157,7 @@ void main(uint3 tid : SV_DispatchThreadID) {
       float area = aabbArea(lastAABB);
       float mergedArea = aabbArea(merged);
 
-      bool canMerge = false;
-      if (area <= 0.0f) {
-        canMerge = (mergedArea <= 0.0f);
-      } else {
-        canMerge = ((mergedArea / area) < pc.areaEnlarge);
-      }
-
-      if (canMerge) {
+      if ((mergedArea / area) < pc.areaEnlarge) {
         lastAABB = merged;
       } else {
         outAABB[gidBegin + localGroupCount] = roundAABBUp(lastAABB);
