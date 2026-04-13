@@ -77,60 +77,29 @@ include(cmake/nvcuda_compile_module.cmake)
 #include(cmake/CompileSlang.cmake)
 include(CompileSlang)
 
-include_directories(${PROJECT_SOURCE_DIR})
-
 #find_package(CUDA 11.8 REQUIRED)
 find_package(CUDAToolkit REQUIRED)
 
+# ============================================================================================
+# Where to find these depepdencies.
 list(APPEND CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/deps")
 list(APPEND CMAKE_PREFIX_PATH "${CMAKE_SOURCE_DIR}/deps/vulkansdk/x86_64")
 
-#include("cmake/FindGFlags.cmake")
-find_package(gflags 2.2.2 REQUIRED)
-if (NOT gflags_FOUND)
-  message(STATUS "gflags not found, build without gflags")
-else ()
-  message("gflag is found")
-endif ()
+include(cmake/CheckReqPkg.cmake)
 
-#include("cmake/FindGlog.cmake")
-find_package(glog 0.6.0 REQUIRED)
-if (NOT glog_FOUND)
-  message(FATAL_ERROR "glog not found, please install the glog library")
-else ()
-  message("glog is found, with include directory as ${CMAKE_SOURCE_DIR}/deps/include")
-endif ()
-
-find_package(GTest 1.17.0 REQUIRED) # Notice the GT
-if (NOT GTest_FOUND)
-  message(FATAL_ERROR "GTest not found, please install the GTest library")
-else ()
-  message("GTest is found, with include directory as ${CMAKE_SOURCE_DIR}/deps/include")
-endif ()
-
-# Vulkan
+find_package(gflags REQUIRED)
+find_package(glog REQUIRED)
+find_package(GTest REQUIRED) # Notice the GT
 find_package(Vulkan REQUIRED)
-if (NOT Vulkan_FOUND)
-  message(FATAL_ERROR "Vulkan not found, please install the Vulkan library")
-else ()
-  message("Vulkan is found. with include directory as ${Vulkan_INCLUDE_DIRS}")
-endif ()
+find_package(VulkanMemoryAllocator REQUIRED)
 
-# VMA
-find_package(VulkanMemoryAllocator CONFIG REQUIRED)
-if (NOT VulkanMemoryAllocator_FOUND)
-  message(FATAL_ERROR "VMA not found, please install the VMA library")
-else ()
-  message("VMA is found. with include directory as ${VulkanMemoryAllocator_INCLUDE_DIRS}")
-endif ()
+check_required_package(gflags)
+check_required_package(glog)
+check_required_package(GTest)
+check_required_package(Vulkan)
+check_required_package(VulkanMemoryAllocator)
 
-# Nvpro_core2
-#find_package(NvproCore2 REQUIRED)
-#if (NOT NvproCore2_FOUND)
-#    message(FATAL_ERROR "NvproCore2 not found, please install the NvproCore2 library")
-#else ()
-#    message("NvproCore2 is found. with include directory as ${NvproCore2_INCLUDE_DIRS}")
-#endif ()
+# ============================================================================================
 
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--disable-new-dtags")  # this line of code allows cmake to search library path
 set(CMAKE_BUILD_RPATH ${INSTALL_PREFIX_LIBRARY})
