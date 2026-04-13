@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-#include "test/vk_algo/test_vk_fixture.h"
+#include "test_vk_fixture.h"
 #include "util/guard_glog.h"
 #include "vk/algo/sort.h"
 #include "vk/algo/unique.h"
