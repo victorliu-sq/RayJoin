@@ -5,10 +5,6 @@
 namespace rayjoin {
 namespace vk {
 
-struct EidRange {
-  uint32_t first = 0;
-  uint32_t second = 0;
-};
 
 struct QueryConfigRT {
   // algorithm knobs

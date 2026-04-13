@@ -5,8 +5,9 @@
 #include "vk/util/type_traits.h"
 
 namespace rayjoin::vk {
+
 // ===============================================================
-// xsect
+// Edge
 template<typename COEFF_T>
 struct EdgeNS {
   COEFF_T a;
@@ -18,6 +19,12 @@ struct EdgeNS {
   index_t p2_idx;
   index_t left_polygon_id;
   index_t right_polygon_id;
+};
+
+// ===============================================================
+struct EidRange {
+  uint32_t first = 0;
+  uint32_t second = 0;
 };
 
 
