@@ -327,6 +327,20 @@ class VkRTEngine : public VkRTEngineBase {
   VkShaderModule m_rmiss = VK_NULL_HANDLE;
 };
 
+// template<typename ParamsT, typename... Buffers>
+// void RunRTPass(const char* rgen_spv,
+//                const char* rint_spv,
+//                const char* rahit_spv,
+//                const char* rchit_spv,
+//                const char* rmiss_spv,
+//                VkAccelerationStructureKHR scene,
+//                const ParamsT& params,
+//                uint32_t traceWidth,
+//                const Buffers&... buffers) {
+//   VkRTEngine<ParamsT> pass(rgen_spv, rint_spv, rahit_spv, rchit_spv, rmiss_spv, scene, params, traceWidth, buffers...);
+//   pass.run();
+// }
+
 template<typename ParamsT, typename... Buffers>
 void RunRTPass(const char* rgen_spv,
                const char* rint_spv,
@@ -337,8 +351,25 @@ void RunRTPass(const char* rgen_spv,
                const ParamsT& params,
                uint32_t traceWidth,
                const Buffers&... buffers) {
+  using clock = std::chrono::high_resolution_clock;
+
+  const auto t0 = clock::now();
+
   VkRTEngine<ParamsT> pass(rgen_spv, rint_spv, rahit_spv, rchit_spv, rmiss_spv, scene, params, traceWidth, buffers...);
+
+  const auto t1 = clock::now();
+
   pass.run();
+
+  const auto t2 = clock::now();
+
+  const double construct_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+  const double run_ms = std::chrono::duration<double, std::milli>(t2 - t1).count();
+  const double total_ms = std::chrono::duration<double, std::milli>(t2 - t0).count();
+
+  LOG(INFO) << "RunRTPass timing: traceWidth=" << traceWidth << " construct=" << construct_ms << " ms"
+            << " run=" << run_ms << " ms"
+            << " total=" << total_ms << " ms";
 }
 
 }  // namespace vk
