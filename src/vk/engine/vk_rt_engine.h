@@ -367,7 +367,7 @@ void RunRTPass(const char* rgen_spv,
   const double run_ms = std::chrono::duration<double, std::milli>(t2 - t1).count();
   const double total_ms = std::chrono::duration<double, std::milli>(t2 - t0).count();
 
-  LOG(INFO) << "RunRTPass timing: traceWidth=" << traceWidth << " construct=" << construct_ms << " ms"
+  LOG(INFO) << "RunRTPass timing: " << " construct=" << construct_ms << " ms"
             << " run=" << run_ms << " ms"
             << " total=" << total_ms << " ms";
 }

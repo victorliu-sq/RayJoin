@@ -14,6 +14,7 @@
 #include "vk/util/type_native.h"
 
 //////////////////////////////////////////////////
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <string>
@@ -79,6 +80,9 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
 
       // besty
       best_ys_buf_[im].Init(sizeof(double) * np);
+      // Host-side init for closest eid / best y / locks
+      writeToStorageBuffer<index_t>(closest_eids_buf_[im], std::vector<index_t>(np, std::numeric_limits<index_t>::max()));
+      writeToStorageBuffer<double>(best_ys_buf_[im], std::vector<double>(np, 1.0e30));
     }
 
     // -------------------------------
@@ -161,7 +165,88 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
     }
   }
 
+  // void IntersectEdge(int query_map_id) override {
+  //   const int base_map_id = 1 - query_map_id;
+  //
+  //   auto query_map = this->ctx_.get_map(query_map_id);
+  //   auto base_map = this->ctx_.get_map(base_map_id);
+  //
+  //   if (!query_map || !base_map) {
+  //     throw std::runtime_error("IntersectEdge(): null map");
+  //   }
+  //
+  //   std::string rgen_spv = std::string(SHADER_RT_NS_DIR) + "/lsi_rgen_ns.spv";
+  //   std::string rint_spv = std::string(SHADER_RT_NS_DIR) + "/lsi_rint_ns.spv";
+  //   std::string rahit_spv = std::string(SHADER_RT_NS_DIR) + "/lsi_rahit_ns.spv";
+  //   std::string rchit_spv = std::string(SHADER_RT_NS_DIR) + "/lsi_rchit_ns.spv";
+  //   std::string rmiss_spv = std::string(SHADER_RT_NS_DIR) + "/lsi_rmiss_ns.spv";
+  //
+  //   struct LaunchParamsLSI {
+  //     int32_t query_map_id;
+  //     uint32_t query_edge_count;
+  //     uint32_t xsect_capacity;
+  //     uint32_t _pad0;
+  //   };
+  //
+  //   RunRTPass(rgen_spv.c_str(),
+  //             rint_spv.c_str(),
+  //             rahit_spv.c_str(),
+  //             rchit_spv.c_str(),
+  //             rmiss_spv.c_str(),
+  //             accel_[base_map_id].GetTraverseHandle(),
+  //             LaunchParamsLSI{.query_map_id = static_cast<int32_t>(query_map_id),
+  //                             .query_edge_count = static_cast<uint32_t>(query_map->get_edges_num()),
+  //                             .xsect_capacity = static_cast<uint32_t>(xsect_capacity_),
+  //                             ._pad0 = 0u},
+  //             static_cast<uint32_t>(query_map->get_edges_num()),
+  //             base_map->getEdgesBuffer(),  // binding 1 -> gBaseEdges
+  //             base_map->getPointsBuffer(),  // binding 2 -> gBasePoints
+  //             eid_range_buf_[base_map_id],  // binding 3 -> gEidRanges
+  //             query_map->getEdgesBuffer(),  // binding 4 -> gQueryEdges
+  //             query_map->getPointsBuffer(),  // binding 5 -> gQueryPoints
+  //             xsect_buf_,  // binding 6 -> gXsects
+  //             xsect_counter_buf_,  // binding 7 -> gXsectCounter
+  //             prof_counter_buf_);  // binding 8 -> gTestCounter
+  //
+  //   // std::string finalize_spv = std::string(SHADER_DIR_NS) + "/lsi_finalize_ns.spv";
+  //   std::string finalize_spv = std::string(SHADER_KERNEL_NS_DIR) + "/lsi_finalize_ns.spv";
+  //
+  //   struct LaunchParamsLSIFinalize {
+  //     int32_t query_map_id;
+  //     uint32_t query_edge_count;
+  //     uint32_t xsect_capacity;
+  //     uint32_t _pad0;
+  //   };
+  //
+  //   RunComputePass(static_cast<uint32_t>(xsect_capacity_),
+  //                  finalize_spv.c_str(),
+  //                  LaunchParamsLSIFinalize{.query_map_id = query_map_id,
+  //                                          .query_edge_count = static_cast<uint32_t>(query_map->get_edges_num()),
+  //                                          .xsect_capacity = static_cast<uint32_t>(xsect_capacity_),
+  //                                          ._pad0 = 0u},
+  //                  base_map->getEdgesBuffer(),
+  //                  base_map->getPointsBuffer(),
+  //                  query_map->getEdgesBuffer(),
+  //                  query_map->getPointsBuffer(),
+  //                  xsect_buf_,
+  //                  xsect_counter_buf_);
+  //
+  //   // this->DebugPrintLSIProfiling(query_map_id);
+  //   // this->DebugPrintIntersectionsDetailed(query_map_id);
+  //
+  //   // Test
+  //   // if (rayjoin::ShouldDumpStage(config_.dump_results, "lsi")) {
+  //   //   DumpLSIResultsCSV(query_map_id, rayjoin::DumpSubdir(config_.dump_dir, "results_lsi"), "vulkan");
+  //   // }
+  //   if (query_map_id == 0 && rayjoin::ShouldDumpStage(config_.dump_results, "lsi")) {
+  //     DumpLSIResultsCSV(rayjoin::DumpSubdir(config_.dump_dir, "results_lsi"), "vulkan");
+  //   }
+  // }
+
+
   void IntersectEdge(int query_map_id) override {
+    using Clock = std::chrono::steady_clock;
+
     const int base_map_id = 1 - query_map_id;
 
     auto query_map = this->ctx_.get_map(query_map_id);
@@ -184,6 +269,8 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
       uint32_t _pad0;
     };
 
+    const auto rt_t0 = Clock::now();
+
     RunRTPass(rgen_spv.c_str(),
               rint_spv.c_str(),
               rahit_spv.c_str(),
@@ -204,7 +291,11 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
               xsect_counter_buf_,  // binding 7 -> gXsectCounter
               prof_counter_buf_);  // binding 8 -> gTestCounter
 
-    // std::string finalize_spv = std::string(SHADER_DIR_NS) + "/lsi_finalize_ns.spv";
+    const auto rt_t1 = Clock::now();
+    const double rt_ms = std::chrono::duration<double, std::milli>(rt_t1 - rt_t0).count();
+
+    LOG(INFO) << "IntersectEdge(): query_map_id=" << query_map_id << " RunRTPass took " << rt_ms << " ms";
+
     std::string finalize_spv = std::string(SHADER_KERNEL_NS_DIR) + "/lsi_finalize_ns.spv";
 
     struct LaunchParamsLSIFinalize {
@@ -213,6 +304,8 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
       uint32_t xsect_capacity;
       uint32_t _pad0;
     };
+
+    const auto cp_t0 = Clock::now();
 
     RunComputePass(static_cast<uint32_t>(xsect_capacity_),
                    finalize_spv.c_str(),
@@ -227,19 +320,122 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
                    xsect_buf_,
                    xsect_counter_buf_);
 
-    // this->DebugPrintLSIProfiling(query_map_id);
-    // this->DebugPrintIntersectionsDetailed(query_map_id);
+    const auto cp_t1 = Clock::now();
+    const double compute_ms = std::chrono::duration<double, std::milli>(cp_t1 - cp_t0).count();
 
-    // Test
-    // if (rayjoin::ShouldDumpStage(config_.dump_results, "lsi")) {
-    //   DumpLSIResultsCSV(query_map_id, rayjoin::DumpSubdir(config_.dump_dir, "results_lsi"), "vulkan");
-    // }
+    LOG(INFO) << "IntersectEdge(): query_map_id=" << query_map_id << " RunComputePass took " << compute_ms << " ms";
+
+    LOG(INFO) << "IntersectEdge(): query_map_id=" << query_map_id << " total LSI step took " << (rt_ms + compute_ms) << " ms";
+
     if (query_map_id == 0 && rayjoin::ShouldDumpStage(config_.dump_results, "lsi")) {
       DumpLSIResultsCSV(rayjoin::DumpSubdir(config_.dump_dir, "results_lsi"), "vulkan");
     }
   }
 
+  // void LocateVerticesInOtherMap(int query_map_id) override {
+  //   auto &ctx = this->ctx_;
+  //   const int base_map_id = 1 - query_map_id;
+  //
+  //   auto query_map = ctx.get_map(query_map_id);
+  //   auto base_map = ctx.get_map(base_map_id);
+  //
+  //   if (!query_map || !base_map) {
+  //     throw std::runtime_error("LocateVerticesInOtherMap(): null map");
+  //   }
+  //
+  //   // ------------------------------------------------------------
+  //   // RT pass: query point -> closest crossing edge in base map
+  //   // ------------------------------------------------------------
+  //   std::string rgen_spv = std::string(SHADER_RT_NS_DIR) + "/pip_rgen_ns.spv";
+  //   std::string rint_spv = std::string(SHADER_RT_NS_DIR) + "/pip_rint_ns.spv";
+  //   std::string rahit_spv = std::string(SHADER_RT_NS_DIR) + "/pip_rahit_ns.spv";
+  //   std::string rchit_spv = std::string(SHADER_RT_NS_DIR) + "/pip_rchit_ns.spv";
+  //   std::string rmiss_spv = std::string(SHADER_RT_NS_DIR) + "/pip_rmiss_ns.spv";
+  //
+  //   struct LaunchParamsPIP {
+  //     int32_t query_map_id;
+  //     uint32_t query_point_count;
+  //     uint32_t _pad0;
+  //     uint32_t _pad1;
+  //   };
+  //
+  //   RunRTPass(rgen_spv.c_str(),
+  //             rint_spv.c_str(),
+  //             rahit_spv.c_str(),
+  //             rchit_spv.c_str(),
+  //             rmiss_spv.c_str(),
+  //             accel_[base_map_id].GetTraverseHandle(),
+  //             LaunchParamsPIP{.query_map_id = static_cast<int32_t>(query_map_id),
+  //                             .query_point_count = static_cast<uint32_t>(map_point_count_[query_map_id]),
+  //                             ._pad0 = 0u,
+  //                             ._pad1 = 0u},
+  //             static_cast<uint32_t>(map_point_count_[query_map_id]),
+  //             base_map->getEdgesBuffer(),  // binding 1 -> gBaseEdges
+  //             base_map->getPointsBuffer(),  // binding 2 -> gBasePoints
+  //             eid_range_buf_[base_map_id],  // binding 3 -> gEidRanges
+  //             query_map->getPointsBuffer(),  // binding 4 -> gQueryPoints
+  //             closest_eids_buf_[query_map_id],  // binding 5 -> gClosestEids
+  //             best_ys_buf_[query_map_id],  // binding 6 -> gBestYs
+  //             pip_debug_counter_buf_[query_map_id]);  // binding 7 -> gDebugCounter
+  //
+  //   // Debug raw
+  //   // this->DebugPrintPIPRawCounters(query_map_id);
+  //
+  //   // ------------------------------------------------------------
+  //   // Finalize pass: closest_eid -> polygon_id
+  //   // ------------------------------------------------------------
+  //   // std::string finalize_spv = std::string(SHADER_DIR_NS) + "/pip_finalize_ns.spv";
+  //
+  //   // PIPFinalizePassNS finalize_pass(finalize_spv.c_str(),
+  //   //                                 static_cast<uint32_t>(map_point_count_[query_map_id]),
+  //   //                                 static_cast<uint32_t>(EXTERIOR_FACE_ID),
+  //   //                                 base_map->getEdgesBuffer(),
+  //   //                                 base_map->getPointsBuffer(),
+  //   //                                 closest_eids_buf_[query_map_id],
+  //   //                                 point_in_polygon_buf_[query_map_id]);
+  //   //
+  //   // finalize_pass.run();
+  //
+  //   // std::string finalize_spv = std::string(SHADER_DIR_NS) + "/pip_finalize_ns.spv";
+  //   std::string finalize_spv = std::string(SHADER_KERNEL_NS_DIR) + "/pip_finalize_ns.spv";
+  //
+  //   struct LaunchParamsPIPFinalize {
+  //     uint32_t point_count;
+  //     uint32_t exterior_face_id;
+  //     uint32_t _pad0;
+  //     uint32_t _pad1;
+  //   };
+  //
+  //   RunComputePass(static_cast<uint32_t>(map_point_count_[query_map_id]),
+  //                  finalize_spv.c_str(),
+  //                  LaunchParamsPIPFinalize{.point_count = static_cast<uint32_t>(map_point_count_[query_map_id]),
+  //                                          .exterior_face_id = static_cast<uint32_t>(EXTERIOR_FACE_ID),
+  //                                          ._pad0 = 0u,
+  //                                          ._pad1 = 0u},
+  //                  base_map->getEdgesBuffer(),
+  //                  base_map->getPointsBuffer(),
+  //                  closest_eids_buf_[query_map_id],
+  //                  point_in_polygon_buf_[query_map_id]);
+  //
+  //   // Compare results from Vulkan and Optix
+  //   // DumpPIPResultsCSV(query_map_id, "tmp/results_pip", "vulkan");
+  //
+  //   // optional debug
+  //   // this->DebugPrintPIPProfiling(query_map_id);
+  //   // this->DebugPrintPIPResults(query_map_id);
+  //
+  //   // DebugPrintPIPRawCounters(query_map_id);
+  //   if (rayjoin::ShouldDumpStage(config_.dump_results, "pip")) {
+  //     DumpPIPResultsCSV(query_map_id, rayjoin::DumpSubdir(config_.dump_dir, "results_pip"), "vulkan");
+  //   }
+  // }
+
+#include <chrono>
+
+
   void LocateVerticesInOtherMap(int query_map_id) override {
+    using Clock = std::chrono::high_resolution_clock;
+
     auto &ctx = this->ctx_;
     const int base_map_id = 1 - query_map_id;
 
@@ -266,6 +462,8 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
       uint32_t _pad1;
     };
 
+    const auto rt_t0 = Clock::now();
+
     RunRTPass(rgen_spv.c_str(),
               rint_spv.c_str(),
               rahit_spv.c_str(),
@@ -285,25 +483,17 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
               best_ys_buf_[query_map_id],  // binding 6 -> gBestYs
               pip_debug_counter_buf_[query_map_id]);  // binding 7 -> gDebugCounter
 
+    const auto rt_t1 = Clock::now();
+    const double rt_ms = std::chrono::duration<double, std::milli>(rt_t1 - rt_t0).count();
+
+    LOG(INFO) << "LocateVerticesInOtherMap(): query_map_id=" << query_map_id << " RunRTPass took " << rt_ms << " ms";
+
     // Debug raw
-    this->DebugPrintPIPRawCounters(query_map_id);
+    // this->DebugPrintPIPRawCounters(query_map_id);
 
     // ------------------------------------------------------------
     // Finalize pass: closest_eid -> polygon_id
     // ------------------------------------------------------------
-    // std::string finalize_spv = std::string(SHADER_DIR_NS) + "/pip_finalize_ns.spv";
-
-    // PIPFinalizePassNS finalize_pass(finalize_spv.c_str(),
-    //                                 static_cast<uint32_t>(map_point_count_[query_map_id]),
-    //                                 static_cast<uint32_t>(EXTERIOR_FACE_ID),
-    //                                 base_map->getEdgesBuffer(),
-    //                                 base_map->getPointsBuffer(),
-    //                                 closest_eids_buf_[query_map_id],
-    //                                 point_in_polygon_buf_[query_map_id]);
-    //
-    // finalize_pass.run();
-
-    // std::string finalize_spv = std::string(SHADER_DIR_NS) + "/pip_finalize_ns.spv";
     std::string finalize_spv = std::string(SHADER_KERNEL_NS_DIR) + "/pip_finalize_ns.spv";
 
     struct LaunchParamsPIPFinalize {
@@ -312,6 +502,8 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
       uint32_t _pad0;
       uint32_t _pad1;
     };
+
+    const auto cp_t0 = Clock::now();
 
     RunComputePass(static_cast<uint32_t>(map_point_count_[query_map_id]),
                    finalize_spv.c_str(),
@@ -324,14 +516,13 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
                    closest_eids_buf_[query_map_id],
                    point_in_polygon_buf_[query_map_id]);
 
-    // Compare results from Vulkan and Optix
-    // DumpPIPResultsCSV(query_map_id, "tmp/results_pip", "vulkan");
+    const auto cp_t1 = Clock::now();
+    const double compute_ms = std::chrono::duration<double, std::milli>(cp_t1 - cp_t0).count();
 
-    // optional debug
-    // this->DebugPrintPIPProfiling(query_map_id);
-    // this->DebugPrintPIPResults(query_map_id);
+    LOG(INFO) << "LocateVerticesInOtherMap(): query_map_id=" << query_map_id << " RunComputePass took " << compute_ms << " ms";
 
-    // DebugPrintPIPRawCounters(query_map_id);
+    LOG(INFO) << "LocateVerticesInOtherMap(): query_map_id=" << query_map_id << " total PIP step took " << (rt_ms + compute_ms) << " ms";
+
     if (rayjoin::ShouldDumpStage(config_.dump_results, "pip")) {
       DumpPIPResultsCSV(query_map_id, rayjoin::DumpSubdir(config_.dump_dir, "results_pip"), "vulkan");
     }

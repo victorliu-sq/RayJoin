@@ -198,8 +198,8 @@ bool intersect_test_with_point(EdgeD e1, PointD e1_p1, PointD e1_p2, EdgeD e2, P
 void raygenMain() {
   uint eid = DispatchRaysIndex().x;
 
-  uint old0;
-  InterlockedAdd(gTestCounter[0], 1, old0);
+  // uint old0;
+  // InterlockedAdd(gTestCounter[0], 1, old0);
 
   gTestCounter[4] = eid;
 
@@ -239,8 +239,8 @@ void raygenMain() {
 
 [shader("miss")]
 void missMain(inout Payload payload) {
-  uint old1;
-  InterlockedAdd(gTestCounter[1], 1, old1);
+  // uint old1;
+  // InterlockedAdd(gTestCounter[1], 1, old1);
 }
 
 [shader("intersection")]
@@ -253,8 +253,8 @@ void intersectionMain() {
 
   uint query_eid = ray_id;
 
-  uint old2;
-  InterlockedAdd(gTestCounter[2], 1, old2);
+  // uint old2;
+  // InterlockedAdd(gTestCounter[2], 1, old2);
   gTestCounter[5] = prim_idx;
 
   LaunchParamsLSI params = gParams;
@@ -273,8 +273,8 @@ void intersectionMain() {
     PointD base_e_p1 = gBasePoints[base_e.p1_idx];
     PointD base_e_p2 = gBasePoints[base_e.p2_idx];
 
-    uint old3;
-    InterlockedAdd(gTestCounter[3], 1, old3);
+    // uint old3;
+    // InterlockedAdd(gTestCounter[3], 1, old3);
 
     double xq, yq;
     if (intersect_test_with_point(query_e, query_e_p1, query_e_p2, base_e, base_e_p1, base_e_p2, xq,
@@ -304,8 +304,8 @@ void intersectionMain() {
   }
 
   uint nTests = end_eid - begin_eid;
-  uint old6;
-  InterlockedAdd(gTestCounter[6], nTests, old6);
+  // uint old6;
+  // InterlockedAdd(gTestCounter[6], nTests, old6);
 }
 
 [shader("anyhit")]
