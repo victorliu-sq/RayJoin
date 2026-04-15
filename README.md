@@ -218,6 +218,21 @@ Select Tab Ubuntu 24.04 => Tab RPM Network Installation
 https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/public-nvidia-driver.html#public-nvidia-driver-cuda-install
 ```
 
+Install CUDA
+
+```
+https://developer.nvidia.com/cuda/toolkit
+```
+
+Add these to shell
+
+```bash
+export CUDA_HOME=/usr/local/cuda
+export PATH=$CUDA_HOME/bin:$PATH
+export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
+export CUDACXX=$CUDA_HOME/bin/nvcc
+```
+
 ## Install Python
 
 already installed
@@ -230,6 +245,15 @@ https://docs.aws.amazon.com/cloud9/latest/user-guide/sample-python.html
 
 ```
 https://www.anaconda.com/docs/getting-started/miniconda/install/linux-install#wget
+```
+
+After installation, accept terms using these two commnads
+
+```
+ conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main
+ 
+ conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
+
 ```
 
 ## Install CMake on Ubuntu
