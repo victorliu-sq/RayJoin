@@ -1,15 +1,21 @@
 # **RayJoin**
 
-RayJoin utilizes the ray tracing hardware in modern GPUs (e.g., NVIDIA RT Cores) 
+RayJoin utilizes the ray tracing hardware in modern GPUs (e.g., NVIDIA RT Cores)
 as accelerators to achieve high-performance spatial join processing.
-Specifically, RayJoin consists of a high-performance and high-precision spatial join framework 
-that accelerates two vital spatial join queries: line segment intersection (LSI) and point-in-polygon test (PIP). 
-Polygon overlay analysis is also supported by combining the query results of LSI and PIP. Besides these ray tracing-backed
-algorithms, RayJoin also contains new solutions to address two challenging technical issues: (1) how to meet the high precision
-requirement of spatial data analysis with the insufficient precision support by the underlying hardware, and (2) how to reduce the high
-buildup cost of the hardware-accelerated index, namely Bounding Volume Hierarchy (BVH), while maintaining optimal query exe-
-cution times. RayJoin achieves speedups from 3.0x to 28.3x over any existing highly optimized methods in high precision. To the best of our knowledge, RayJoin
-stands as the sole solution capable of meeting the real-time requirements of diverse workloads, taking under 460ms to join millions of polygons.
+Specifically, RayJoin consists of a high-performance and high-precision spatial join framework
+that accelerates two vital spatial join queries: line segment intersection (LSI) and point-in-polygon test (PIP).
+Polygon overlay analysis is also supported by combining the query results of LSI and PIP. Besides these ray
+tracing-backed
+algorithms, RayJoin also contains new solutions to address two challenging technical issues: (1) how to meet the high
+precision
+requirement of spatial data analysis with the insufficient precision support by the underlying hardware, and (2) how to
+reduce the high
+buildup cost of the hardware-accelerated index, namely Bounding Volume Hierarchy (BVH), while maintaining optimal query
+exe-
+cution times. RayJoin achieves speedups from 3.0x to 28.3x over any existing highly optimized methods in high precision.
+To the best of our knowledge, RayJoin
+stands as the sole solution capable of meeting the real-time requirements of diverse workloads, taking under 460ms to
+join millions of polygons.
 
 ## Build
 
@@ -28,7 +34,8 @@ stands as the sole solution capable of meeting the real-time requirements of div
 Install gflags and glog:
 `sudo apt install libgflags-dev libgoogle-glog-dev`
 
-Install Optix: 
+Install Optix:
+
 ```shell
 export OPTIX_HOME=~/optix
 
@@ -39,6 +46,7 @@ mkdir -p $OPTIX_HOME
 ### Building Instructions
 
 - Debug (Building the project under the debug mode enables some counter to profile RayJoin)
+
 ```shell
 mkdir debug
 cd debug
@@ -47,6 +55,7 @@ make
 ```
 
 - Release
+
 ```shell
 mkdir release
 cd release
@@ -54,13 +63,15 @@ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=$OPTIX_HOME ..
 make
 ```
 
-After the project is successfully built, two binary called `polyover_exec` and `query_exec` will be generated under the `bin` of the building path.
+After the project is successfully built, two binary called `polyover_exec` and `query_exec` will be generated under the
+`bin` of the building path.
+
 ## Dataset Preparation
 
 ### Download Datasets
 
-We do not provide preprocessed datasets for now, because uploading datasets will expose our identification. 
-You need to download and process by yourself. 
+We do not provide preprocessed datasets for now, because uploading datasets will expose our identification.
+You need to download and process by yourself.
 A very small sample dataset is included under the `test` folder, which allows you to try out RayJoin.
 
 - [USCounty](https://www.arcgis.com/home/item.html?id=14c5450526a8430298b2fa74da12c2f4)
@@ -69,17 +80,21 @@ A very small sample dataset is included under the `test` folder, which allows yo
 - [WaterBodies](https://www.arcgis.com/home/item.html?id=48c77cbde9a0470fb371f8c8a8a7421a)
 - [Lakes and Parks](https://spatialhadoop.cs.umn.edu/datasets.html)
 
-
 ### Datasets format
 
-RayJoin requires CDB format to work, which is described in this [paper](https://dl.acm.org/doi/abs/10.1145/2835185.2835188). We may support more formats in the future, but for now, only CDB format is supported.
+RayJoin requires CDB format to work, which is described in
+this [paper](https://dl.acm.org/doi/abs/10.1145/2835185.2835188). We may support more formats in the future, but for
+now, only CDB format is supported.
 This format allows polygons storing in chains to save space. The chain also carries neighboring information of polygons,
 which makes point-in-polygon (PIP) test easier.
+
 ```
 <chain id> <number of points in the chain> <first point id> <last point id> <left face id> <right face id>
 <point coordinates>
 ```
+
 Example:
+
 ```text
 1 2 0 1 1 8
 -3.6580000000e+01 -4.6636000000e+00
@@ -89,16 +104,19 @@ Example:
 -3.6594300000e+01 -4.8691000000e+00
 ```
 
-We provide [preprocessed datasets](https://datadryad.org/stash/share/aIs0nLs2TsLE_dcWO2qPHiohRKoOI3kx0WGT5BnATtA) . You can also generate CDB datasets with the following steps:
+We provide [preprocessed datasets](https://datadryad.org/stash/share/aIs0nLs2TsLE_dcWO2qPHiohRKoOI3kx0WGT5BnATtA) . You
+can also generate CDB datasets with the following steps:
 
-1. If you use the datasets from ArcGIS hub, you download and save them into shapefile. If the datasets are from SpatialHadoop website, they are in the Well-known Text (WKT) format, and you need to convert them into shapefile with `misc/wkt2shp.py input.wkt output.shp`.
-2. Load the shapefile in ArcGIS, and go through the two following steps. We need to convert polygons in shapefile into polylines with neighboring information.
+1. If you use the datasets from ArcGIS hub, you download and save them into shapefile. If the datasets are from
+   SpatialHadoop website, they are in the Well-known Text (WKT) format, and you need to convert them into shapefile with
+   `misc/wkt2shp.py input.wkt output.shp`.
+2. Load the shapefile in ArcGIS, and go through the two following steps. We need to convert polygons in shapefile into
+   polylines with neighboring information.
+
 - Polygon To Line. Make sure "Identify and store polygon neighboring information" is checked.
 - Feature Class To Shapefile. This step dumps polylines to a shapefile.
+
 3. Run the script `misc/shp2cdb.py input.shp output.cdb`
-
-
-
 
 ## Evaluate **RayJoin**
 
@@ -137,9 +155,9 @@ We provide [preprocessed datasets](https://datadryad.org/stash/share/aIs0nLs2TsL
 
 ### Examples
 
-We provided a sample dataset and test script under `test`, which allows you to try out RayJoin without figuring out what these parameters work for. 
+We provided a sample dataset and test script under `test`, which allows you to try out RayJoin without figuring out what
+these parameters work for.
 Be sure you have built the project in debug and release mode before run the script.
-
 
 ## Trouble Shooting
 
@@ -171,17 +189,96 @@ series = {ICS '24}
 
 ## References
 
-1. [OVERPROP](https://wrfranklin.org/pmwiki/pmwiki.php/Research/OverlayingTwoMaps) helps us a lot for the polygon overlay implementation.
-2. We use [this library](https://github.com/ToruNiina/lbvh) as the LBVH implementation. 
+1. [OVERPROP](https://wrfranklin.org/pmwiki/pmwiki.php/Research/OverlayingTwoMaps) helps us a lot for the polygon
+   overlay implementation.
+2. We use [this library](https://github.com/ToruNiina/lbvh) as the LBVH implementation.
 
 ## cuSpatial Evaluation (Updated on Aug 2024)
+
 As we prepare the ICS paper, the latest version of cuSpatial is 23.12.00,
 which contains a bug that causes out-of-memory errors when processing large datasets.
 This issue arises due to the conservative memory allocation implementation in cuSpatial.
 To work around this bug, we process the queries in a batch fashion.
-However, this workaround significantly increases running time due to additional I/O, index construction, and other overheads.
-This bug has been [fixed](https://github.com/rapidsai/cuspatial/pull/1381) in cuSpatial 24.06. Recently, we have reevaluated cuSpatial on PIP queries. Below are the updated results.
+However, this workaround significantly increases running time due to additional I/O, index construction, and other
+overheads.
+This bug has been [fixed](https://github.com/rapidsai/cuspatial/pull/1381) in cuSpatial 24.06. Recently, we have
+reevaluated cuSpatial on PIP queries. Below are the updated results.
 
 | PIP Running Time | County ⋈ Zipcode | Block ⋈ Water | LKAF ⋈ PKAF | LKAS ⋈ PKAS | LKAU ⋈ PKAU | LKEU ⋈ PKEU | LKNA ⋈ PKNA | LKSA ⋈ PKSA |
-|------------------|------------------|----------------|--------------|--------------|--------------|--------------|--------------|------------|
-| cuSpatial 24.06  | 6572.397ms       | 3527.945ms     | 351.548ms    | 2035.707ms   | 236.781ms    | 6830.831ms   | 38799.309ms  | 324.018ms  |
+|------------------|------------------|---------------|-------------|-------------|-------------|-------------|-------------|-------------|
+| cuSpatial 24.06  | 6572.397ms       | 3527.945ms    | 351.548ms   | 2035.707ms  | 236.781ms   | 6830.831ms  | 38799.309ms | 324.018ms   |
+
+# Run on AWS
+
+## Install Nvidia Driver and CUDAToolkit
+
+Select Tab Ubuntu 24.04 => Tab RPM Network Installation
+
+```
+https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/public-nvidia-driver.html#public-nvidia-driver-cuda-install
+```
+
+## Install Python
+
+already installed
+
+```
+https://docs.aws.amazon.com/cloud9/latest/user-guide/sample-python.html
+```
+
+## Install Miniconda
+
+```
+https://www.anaconda.com/docs/getting-started/miniconda/install/linux-install#wget
+```
+
+## Install CMake on Ubuntu
+
+`g++` is already installed.
+
+### 1. Download and extract CMake
+
+```bash
+wget https://github.com/Kitware/CMake/releases/download/v4.3.1/cmake-4.3.1.tar.gz
+tar -xzf cmake-4.3.1.tar.gz
+cd cmake-4.3.1
+````
+
+### 2. Run bootstrap
+
+```bash
+./bootstrap
+```
+
+### 3. If `./bootstrap` fails
+
+Install the required dependencies:
+
+```bash
+sudo apt update
+sudo apt install -y libssl-dev pkg-config build-essential
+```
+
+Then run bootstrap again:
+
+```bash
+./bootstrap
+```
+
+### 4. Build and install CMake
+
+```bash
+make -j"$(nproc)"
+sudo make install
+```
+
+### 5. Verify the installation
+
+```bash
+cmake --version
+```
+
+## Reference
+
+AWS Cloud9 guide:
+https://docs.aws.amazon.com/cloud9/latest/user-guide/sample-cplusplus.html#install-cmake

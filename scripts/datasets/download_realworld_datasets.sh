@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ENV_NAME="rayjoin-env"
+
 download_and_extract_dataset() {
   local DATASET_NAME="$1"
   local URL="$2"
@@ -12,7 +14,7 @@ download_and_extract_dataset() {
     echo "[download] Downloading ${DATASET_NAME} ..."
     # Download tarball
     # wget -O "${TARBALL}" "${URL}"
-    conda run -n xb-env --live-stream python3 "${PY_SCRIPT}" "${URL}" "${TARBALL}"
+    conda run -n ${ENV_NAME} --live-stream python3 "${PY_SCRIPT}" "${URL}" "${TARBALL}"
 
     # Extract
     tar -xzf "${TARBALL}"
