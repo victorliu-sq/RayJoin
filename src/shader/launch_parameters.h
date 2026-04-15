@@ -14,7 +14,7 @@
 namespace rayjoin {
 
 struct LaunchParamsLSI {
-  using coord_t = coord_t;
+  using coord_t = rayjoin::coord_t;
   using internal_coord_t = detail::internal_coord<coord_t>::type;
   using map_t = dev::Map<internal_coord_t, coefficient_t>;
   using edge_t = typename map_t::edge_t;
@@ -41,7 +41,7 @@ struct LaunchParamsLSI {
 };
 
 struct LaunchParamsPIP {
-  using coord_t = coord_t;
+  using coord_t = rayjoin::coord_t;
   using internal_coord_t = detail::internal_coord<coord_t>::type;
   using map_t = dev::Map<internal_coord_t, coefficient_t>;
   using edge_t = typename map_t::edge_t;

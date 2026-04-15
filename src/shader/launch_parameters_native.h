@@ -16,7 +16,7 @@
 
 namespace rayjoin {
 struct LaunchParamsLSINative {
-  using coord_t = coord_t;
+  using coord_t = rayjoin::coord_t;
   using map_t = dev::MapNativeDev<coord_t>;
   using edge_t = typename map_t::edge_t;
   using point_t = typename map_t::point_t;
@@ -40,7 +40,7 @@ struct LaunchParamsLSINative {
 };
 
 struct LaunchParamsPIPNative {
-  using coord_t = coord_t;
+  using coord_t = rayjoin::coord_t;
   using map_t = dev::MapNativeDev<coord_t>;
   using edge_t = typename map_t::edge_t;
   using point_t = typename map_t::point_t;
