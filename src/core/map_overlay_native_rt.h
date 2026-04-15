@@ -170,15 +170,174 @@ class MapOverlayNativeRT : public MapOverlayNative<CONTEXT_T> {
     }
   }
 
+  // void ComputeOutputPolygons() override {
+  //   using point_t = typename CONTEXT_T::map_t::point_t;
+  //   auto& ctx = this->ctx_;
+  //   auto& stream = ctx.get_stream();
+  //   auto pip = std::dynamic_pointer_cast<PIPRTNative<CONTEXT_T>>(this->pip_);
+  //   auto xsects = this->lsi_->get_xsects();
+  //   size_t n_xsects = xsects.size();
+  //
+  //   FOR2 {
+  //     thrust::device_vector<index_t> unique_eids;
+  //     thrust::device_vector<uint32_t> n_xsects_per_edge;
+  //     thrust::device_vector<uint32_t> xsect_index;
+  //     thrust::device_vector<point_t> mid_points;
+  //
+  //     auto& xsect_edges_sorted = xsect_edges_sorted_[im];
+  //
+  //     xsect_edges_sorted.resize(n_xsects);
+  //     thrust::copy(thrust::cuda::par.on(stream.cuda_stream()), xsects.data(), xsects.data() + n_xsects, xsect_edges_sorted.begin());
+  //
+  //     thrust::sort(thrust::cuda::par.on(stream.cuda_stream()),
+  //                  xsect_edges_sorted.begin(),
+  //                  xsect_edges_sorted.end(),
+  //                  [=] __device__(const xsect_t& xsect1, const xsect_t& xsect2) { return xsect1.eid[im] < xsect2.eid[im]; });
+  //
+  //     ArrayView<xsect_t> d_xsect_edges_sorted(xsect_edges_sorted);
+  //     auto query_map_id = im;
+  //     auto base_map_id = 1 - im;
+  //     auto d_query_map = ctx.get_map(query_map_id)->DeviceObject();
+  //     auto d_base_map = ctx.get_map(base_map_id)->DeviceObject();
+  //
+  //     unique_eids.resize(n_xsects);
+  //
+  //     thrust::transform(thrust::cuda::par.on(stream.cuda_stream()),
+  //                       xsect_edges_sorted.begin(),
+  //                       xsect_edges_sorted.end(),
+  //                       unique_eids.begin(),
+  //                       [=] __device__(const xsect_t& xsect) { return xsect.eid[im]; });
+  //
+  //     auto end = thrust::unique(thrust::cuda::par.on(stream.cuda_stream()), unique_eids.begin(), unique_eids.end());
+  //
+  //     // =======================================================================
+  //     // Get Starting and ending xsect index for each eid
+  //     unique_eids.resize(end - unique_eids.begin());
+  //     n_xsects_per_edge.resize(unique_eids.size());
+  //     xsect_index.resize(unique_eids.size() + 1, 0);
+  //
+  //     thrust::transform(
+  //         thrust::cuda::par.on(stream.cuda_stream()), unique_eids.begin(), unique_eids.end(), n_xsects_per_edge.begin(), [=] __device__(index_t
+  //         eid) {
+  //           xsect_t dummy_xsect;
+  //           dummy_xsect.eid[im] = eid;
+  //
+  //           auto it = thrust::equal_range(thrust::seq,
+  //                                         d_xsect_edges_sorted.begin(),
+  //                                         d_xsect_edges_sorted.end(),
+  //                                         dummy_xsect,
+  //                                         [=] __device__(const xsect_t& xsect1, const xsect_t& xsect2) { return xsect1.eid[im] < xsect2.eid[im];
+  //                                         });
+  //
+  //           return thrust::distance(it.first, it.second);
+  //         });
+  //
+  //     thrust::inclusive_scan(thrust::cuda::par.on(stream.cuda_stream()), n_xsects_per_edge.begin(), n_xsects_per_edge.end(), xsect_index.begin() +
+  //     1); stream.Sync();
+  //
+  //     // =======================================================================
+  //     // Compute Midpoints
+  //     uint32_t n_mid_points = xsect_index[xsect_index.size() - 1] - unique_eids.size();
+  //     mid_points.resize(n_mid_points);
+  //
+  //     ArrayView<uint32_t> d_xsect_index(xsect_index);
+  //     ArrayView<point_t> d_mid_points(mid_points);
+  //     ArrayView<index_t> d_unique_eids(unique_eids);
+  //
+  //     ForEach(stream, d_unique_eids.size(), [=] __device__(size_t idx) mutable {
+  //       auto eid = d_unique_eids[idx];
+  //       auto begin = d_xsect_index[idx];
+  //       auto end = d_xsect_index[idx + 1];
+  //       auto n_xsect = end - begin;
+  //
+  //       if (n_xsect > 1) {
+  //         const auto& e = d_query_map.get_edge(eid);
+  //         const auto& p1 = d_query_map.get_point(e.p1_idx);
+  //         auto* curr_xsects = d_xsect_edges_sorted.data() + begin;
+  //
+  //         thrust::sort(thrust::seq, curr_xsects, d_xsect_edges_sorted.data() + end, [=](const xsect_t& xsect1, const xsect_t& xsect2) {
+  //           auto d1 = SQ(xsect1.x - p1.x) + SQ(xsect1.y - p1.y);
+  //           auto d2 = SQ(xsect2.x - p1.x) + SQ(xsect2.y - p1.y);
+  //
+  //           if (d1 != d2) return d1 < d2;
+  //           return xsect1.eid[1 - im] < xsect2.eid[1 - im];
+  //         });
+  //
+  //         for (int xsect_idx = 0; xsect_idx < n_xsect - 1; xsect_idx++) {
+  //           xsect_t& xsect1 = *(curr_xsects + xsect_idx);
+  //           xsect_t& xsect2 = *(curr_xsects + xsect_idx + 1);
+  //
+  //           point_t mid_p;
+  //           mid_p.x = (xsect1.x + xsect2.x) / coord_t(2);
+  //           mid_p.y = (xsect1.y + xsect2.y) / coord_t(2);
+  //
+  //           assert(begin + xsect_idx - idx < d_mid_points.size());
+  //           d_mid_points[begin + xsect_idx - idx] = mid_p;
+  //         }
+  //       }
+  //     });
+  //
+  //     stream.Sync();
+  //
+  //     // =======================================================================
+  //     // PIP each midpoints
+  //     config_.eid_range = eid_range_[base_map_id];
+  //     config_.handle = traverse_handles_[base_map_id];
+  //
+  //     pip->set_config(config_);
+  //     pip->Query(stream, query_map_id, d_mid_points);
+  //     stream.Sync();
+  //
+  //     ArrayView<index_t> d_mid_point_closest_eid(pip->get_closest_eids());
+  //
+  //     ForEach(stream, d_unique_eids.size(), [=] __device__(size_t idx) mutable {
+  //       auto begin = d_xsect_index[idx];
+  //       auto end = d_xsect_index[idx + 1];
+  //       auto n_xsect = end - begin;
+  //
+  //       if (n_xsect > 1) {
+  //         auto* curr_xsects = d_xsect_edges_sorted.data() + begin;
+  //
+  //         for (int xsect_idx = 0; xsect_idx < n_xsect - 1; xsect_idx++) {
+  //           xsect_t& xsect1 = *(curr_xsects + xsect_idx);
+  //           auto eid = d_mid_point_closest_eid[begin + xsect_idx - idx];
+  //           polygon_id_t ipol = EXTERIOR_FACE_ID;
+  //
+  //           if (eid != std::numeric_limits<index_t>::max()) {
+  //             const auto& e = d_base_map.get_edge(eid);
+  //             ipol = d_base_map.get_face_id(e);
+  //           }
+  //
+  //           xsect1.mid_point_polygon_id = ipol;
+  //         }
+  //       }
+  //     });
+  //
+  //     stream.Sync();
+  //   }
+  //
+  //   if (ShouldDumpStage(config_.dump_results, "pipmid")) {
+  //     const auto out_dir = rayjoin::DumpSubdir(config_.dump_dir, "results_mid");
+  //     DumpComputeOutputPolygonsCSV(0, out_dir, "native");
+  //     DumpComputeOutputPolygonsCSV(1, out_dir, "native");
+  //   }
+  // }
   void ComputeOutputPolygons() override {
     using point_t = typename CONTEXT_T::map_t::point_t;
+    using Clock = std::chrono::high_resolution_clock;
+
     auto& ctx = this->ctx_;
     auto& stream = ctx.get_stream();
     auto pip = std::dynamic_pointer_cast<PIPRTNative<CONTEXT_T>>(this->pip_);
     auto xsects = this->lsi_->get_xsects();
-    size_t n_xsects = xsects.size();
+    const size_t n_xsects = xsects.size();
+
+    const auto total_t0 = Clock::now();
 
     FOR2 {
+      const int query_map_id = im;
+      const int base_map_id = 1 - im;
+
       thrust::device_vector<index_t> unique_eids;
       thrust::device_vector<uint32_t> n_xsects_per_edge;
       thrust::device_vector<uint32_t> xsect_index;
@@ -186,133 +345,212 @@ class MapOverlayNativeRT : public MapOverlayNative<CONTEXT_T> {
 
       auto& xsect_edges_sorted = xsect_edges_sorted_[im];
 
-      xsect_edges_sorted.resize(n_xsects);
-      thrust::copy(thrust::cuda::par.on(stream.cuda_stream()), xsects.data(), xsects.data() + n_xsects, xsect_edges_sorted.begin());
+      double phase_sort_ms = 0.0;
+      double phase_dedup_ms = 0.0;
+      double phase_index_ms = 0.0;
+      double phase_midpoint_ms = 0.0;
+      double phase_pip_ms = 0.0;
+      double phase_assign_ms = 0.0;
 
-      thrust::sort(thrust::cuda::par.on(stream.cuda_stream()),
-                   xsect_edges_sorted.begin(),
-                   xsect_edges_sorted.end(),
-                   [=] __device__(const xsect_t& xsect1, const xsect_t& xsect2) { return xsect1.eid[im] < xsect2.eid[im]; });
+      // =========================================================================
+      // Sort Xsects by Eids
+      {
+        const auto t0 = Clock::now();
+
+        xsect_edges_sorted.resize(n_xsects);
+        thrust::copy(thrust::cuda::par.on(stream.cuda_stream()), xsects.data(), xsects.data() + n_xsects, xsect_edges_sorted.begin());
+
+        thrust::sort(thrust::cuda::par.on(stream.cuda_stream()),
+                     xsect_edges_sorted.begin(),
+                     xsect_edges_sorted.end(),
+                     [=] __device__(const xsect_t& xsect1, const xsect_t& xsect2) { return xsect1.eid[im] < xsect2.eid[im]; });
+
+        stream.Sync();
+
+        const auto t1 = Clock::now();
+        phase_sort_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+      }
 
       ArrayView<xsect_t> d_xsect_edges_sorted(xsect_edges_sorted);
-      auto query_map_id = im;
-      auto base_map_id = 1 - im;
       auto d_query_map = ctx.get_map(query_map_id)->DeviceObject();
       auto d_base_map = ctx.get_map(base_map_id)->DeviceObject();
 
-      unique_eids.resize(n_xsects);
+      // =========================================================================
+      // Deduplication
+      {
+        const auto t0 = Clock::now();
 
-      thrust::transform(thrust::cuda::par.on(stream.cuda_stream()),
-                        xsect_edges_sorted.begin(),
-                        xsect_edges_sorted.end(),
-                        unique_eids.begin(),
-                        [=] __device__(const xsect_t& xsect) { return xsect.eid[im]; });
+        unique_eids.resize(n_xsects);
 
-      auto end = thrust::unique(thrust::cuda::par.on(stream.cuda_stream()), unique_eids.begin(), unique_eids.end());
+        thrust::transform(thrust::cuda::par.on(stream.cuda_stream()),
+                          xsect_edges_sorted.begin(),
+                          xsect_edges_sorted.end(),
+                          unique_eids.begin(),
+                          [=] __device__(const xsect_t& xsect) { return xsect.eid[im]; });
 
-      // =======================================================================
-      // Get Starting and ending xsect index for each eid
-      unique_eids.resize(end - unique_eids.begin());
-      n_xsects_per_edge.resize(unique_eids.size());
-      xsect_index.resize(unique_eids.size() + 1, 0);
+        auto end = thrust::unique(thrust::cuda::par.on(stream.cuda_stream()), unique_eids.begin(), unique_eids.end());
 
-      thrust::transform(
-          thrust::cuda::par.on(stream.cuda_stream()), unique_eids.begin(), unique_eids.end(), n_xsects_per_edge.begin(), [=] __device__(index_t eid) {
-            xsect_t dummy_xsect;
-            dummy_xsect.eid[im] = eid;
+        stream.Sync();
+        unique_eids.resize(end - unique_eids.begin());
 
-            auto it = thrust::equal_range(thrust::seq,
-                                          d_xsect_edges_sorted.begin(),
-                                          d_xsect_edges_sorted.end(),
-                                          dummy_xsect,
-                                          [=] __device__(const xsect_t& xsect1, const xsect_t& xsect2) { return xsect1.eid[im] < xsect2.eid[im]; });
+        const auto t1 = Clock::now();
+        phase_dedup_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+      }
 
-            return thrust::distance(it.first, it.second);
-          });
+      // =========================================================================
+      // Get starting and ending xsect index for each eid
+      {
+        const auto t0 = Clock::now();
 
-      thrust::inclusive_scan(thrust::cuda::par.on(stream.cuda_stream()), n_xsects_per_edge.begin(), n_xsects_per_edge.end(), xsect_index.begin() + 1);
-      stream.Sync();
+        n_xsects_per_edge.resize(unique_eids.size());
+        xsect_index.resize(unique_eids.size() + 1, 0);
 
-      // =======================================================================
+        thrust::transform(thrust::cuda::par.on(stream.cuda_stream()),
+                          unique_eids.begin(),
+                          unique_eids.end(),
+                          n_xsects_per_edge.begin(),
+                          [=] __device__(index_t eid) {
+                            xsect_t dummy_xsect;
+                            dummy_xsect.eid[im] = eid;
+
+                            auto it = thrust::equal_range(
+                                thrust::seq,
+                                d_xsect_edges_sorted.begin(),
+                                d_xsect_edges_sorted.end(),
+                                dummy_xsect,
+                                [=] __device__(const xsect_t& xsect1, const xsect_t& xsect2) { return xsect1.eid[im] < xsect2.eid[im]; });
+
+                            return thrust::distance(it.first, it.second);
+                          });
+
+        thrust::inclusive_scan(
+            thrust::cuda::par.on(stream.cuda_stream()), n_xsects_per_edge.begin(), n_xsects_per_edge.end(), xsect_index.begin() + 1);
+
+        stream.Sync();
+
+        const auto t1 = Clock::now();
+        phase_index_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+      }
+
+      // =========================================================================
       // Compute Midpoints
-      uint32_t n_mid_points = xsect_index[xsect_index.size() - 1] - unique_eids.size();
-      mid_points.resize(n_mid_points);
+      {
+        const auto t0 = Clock::now();
 
-      ArrayView<uint32_t> d_xsect_index(xsect_index);
-      ArrayView<point_t> d_mid_points(mid_points);
-      ArrayView<index_t> d_unique_eids(unique_eids);
+        uint32_t n_mid_points = xsect_index[xsect_index.size() - 1] - static_cast<uint32_t>(unique_eids.size());
+        mid_points.resize(n_mid_points);
 
-      ForEach(stream, d_unique_eids.size(), [=] __device__(size_t idx) mutable {
-        auto eid = d_unique_eids[idx];
-        auto begin = d_xsect_index[idx];
-        auto end = d_xsect_index[idx + 1];
-        auto n_xsect = end - begin;
+        ArrayView<uint32_t> d_xsect_index(xsect_index);
+        ArrayView<point_t> d_mid_points(mid_points);
+        ArrayView<index_t> d_unique_eids(unique_eids);
 
-        if (n_xsect > 1) {
-          const auto& e = d_query_map.get_edge(eid);
-          const auto& p1 = d_query_map.get_point(e.p1_idx);
-          auto* curr_xsects = d_xsect_edges_sorted.data() + begin;
+        ForEach(stream, d_unique_eids.size(), [=] __device__(size_t idx) mutable {
+          auto eid = d_unique_eids[idx];
+          auto begin = d_xsect_index[idx];
+          auto end = d_xsect_index[idx + 1];
+          auto n_xsect = end - begin;
 
-          thrust::sort(thrust::seq, curr_xsects, d_xsect_edges_sorted.data() + end, [=](const xsect_t& xsect1, const xsect_t& xsect2) {
-            auto d1 = SQ(xsect1.x - p1.x) + SQ(xsect1.y - p1.y);
-            auto d2 = SQ(xsect2.x - p1.x) + SQ(xsect2.y - p1.y);
+          if (n_xsect > 1) {
+            const auto& e = d_query_map.get_edge(eid);
+            const auto& p1 = d_query_map.get_point(e.p1_idx);
+            auto* curr_xsects = d_xsect_edges_sorted.data() + begin;
 
-            if (d1 != d2) return d1 < d2;
-            return xsect1.eid[1 - im] < xsect2.eid[1 - im];
-          });
+            thrust::sort(thrust::seq, curr_xsects, d_xsect_edges_sorted.data() + end, [=](const xsect_t& xsect1, const xsect_t& xsect2) {
+              auto d1 = SQ(xsect1.x - p1.x) + SQ(xsect1.y - p1.y);
+              auto d2 = SQ(xsect2.x - p1.x) + SQ(xsect2.y - p1.y);
 
-          for (int xsect_idx = 0; xsect_idx < n_xsect - 1; xsect_idx++) {
-            xsect_t& xsect1 = *(curr_xsects + xsect_idx);
-            xsect_t& xsect2 = *(curr_xsects + xsect_idx + 1);
+              if (d1 != d2) return d1 < d2;
+              return xsect1.eid[1 - im] < xsect2.eid[1 - im];
+            });
 
-            point_t mid_p;
-            mid_p.x = (xsect1.x + xsect2.x) / coord_t(2);
-            mid_p.y = (xsect1.y + xsect2.y) / coord_t(2);
+            for (int xsect_idx = 0; xsect_idx < n_xsect - 1; xsect_idx++) {
+              xsect_t& xsect1 = *(curr_xsects + xsect_idx);
+              xsect_t& xsect2 = *(curr_xsects + xsect_idx + 1);
 
-            assert(begin + xsect_idx - idx < d_mid_points.size());
-            d_mid_points[begin + xsect_idx - idx] = mid_p;
-          }
-        }
-      });
+              point_t mid_p;
+              mid_p.x = (xsect1.x + xsect2.x) / coord_t(2);
+              mid_p.y = (xsect1.y + xsect2.y) / coord_t(2);
 
-      stream.Sync();
-
-      // =======================================================================
-      // PIP each midpoints
-      config_.eid_range = eid_range_[base_map_id];
-      config_.handle = traverse_handles_[base_map_id];
-
-      pip->set_config(config_);
-      pip->Query(stream, query_map_id, d_mid_points);
-      stream.Sync();
-
-      ArrayView<index_t> d_mid_point_closest_eid(pip->get_closest_eids());
-
-      ForEach(stream, d_unique_eids.size(), [=] __device__(size_t idx) mutable {
-        auto begin = d_xsect_index[idx];
-        auto end = d_xsect_index[idx + 1];
-        auto n_xsect = end - begin;
-
-        if (n_xsect > 1) {
-          auto* curr_xsects = d_xsect_edges_sorted.data() + begin;
-
-          for (int xsect_idx = 0; xsect_idx < n_xsect - 1; xsect_idx++) {
-            xsect_t& xsect1 = *(curr_xsects + xsect_idx);
-            auto eid = d_mid_point_closest_eid[begin + xsect_idx - idx];
-            polygon_id_t ipol = EXTERIOR_FACE_ID;
-
-            if (eid != std::numeric_limits<index_t>::max()) {
-              const auto& e = d_base_map.get_edge(eid);
-              ipol = d_base_map.get_face_id(e);
+              assert(begin + xsect_idx - idx < d_mid_points.size());
+              d_mid_points[begin + xsect_idx - idx] = mid_p;
             }
-
-            xsect1.mid_point_polygon_id = ipol;
           }
-        }
-      });
+        });
 
-      stream.Sync();
+        stream.Sync();
+
+        const auto t1 = Clock::now();
+        phase_midpoint_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+      }
+
+      // =========================================================================
+      // PIP
+      {
+        const auto t0 = Clock::now();
+
+        config_.eid_range = eid_range_[base_map_id];
+        config_.handle = traverse_handles_[base_map_id];
+
+        pip->set_config(config_);
+        pip->Query(stream, query_map_id, ArrayView<point_t>(mid_points));
+        stream.Sync();
+
+        const auto t1 = Clock::now();
+        phase_pip_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+      }
+
+      // =========================================================================
+      // PIP finalize / assign midpoint polygon ids back
+      {
+        const auto t0 = Clock::now();
+
+        ArrayView<uint32_t> d_xsect_index(xsect_index);
+        ArrayView<index_t> d_unique_eids(unique_eids);
+        ArrayView<index_t> d_mid_point_closest_eid(pip->get_closest_eids());
+
+        ForEach(stream, d_unique_eids.size(), [=] __device__(size_t idx) mutable {
+          auto begin = d_xsect_index[idx];
+          auto end = d_xsect_index[idx + 1];
+          auto n_xsect = end - begin;
+
+          if (n_xsect > 1) {
+            auto* curr_xsects = d_xsect_edges_sorted.data() + begin;
+
+            for (int xsect_idx = 0; xsect_idx < n_xsect - 1; xsect_idx++) {
+              xsect_t& xsect1 = *(curr_xsects + xsect_idx);
+              auto eid = d_mid_point_closest_eid[begin + xsect_idx - idx];
+              polygon_id_t ipol = EXTERIOR_FACE_ID;
+
+              if (eid != std::numeric_limits<index_t>::max()) {
+                const auto& e = d_base_map.get_edge(eid);
+                ipol = d_base_map.get_face_id(e);
+              }
+
+              xsect1.mid_point_polygon_id = ipol;
+            }
+          }
+        });
+
+        stream.Sync();
+
+        const auto t1 = Clock::now();
+        phase_assign_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+      }
+
+      const double map_total_ms = phase_sort_ms + phase_dedup_ms + phase_index_ms + phase_midpoint_ms + phase_pip_ms + phase_assign_ms;
+
+      LOG(INFO) << "ComputeOutputPolygons(native): map=" << query_map_id;
+      LOG(INFO) << "  Sort Xsects by Eids: " << phase_sort_ms << " ms";
+      LOG(INFO) << "  Deduplication: " << phase_dedup_ms << " ms";
+      LOG(INFO) << "  Get starting and ending xsect index for each eid: " << phase_index_ms << " ms";
+      LOG(INFO) << "  Compute Midpoints: " << phase_midpoint_ms << " ms";
+      LOG(INFO) << "  PIP: " << phase_pip_ms << " ms";
+      LOG(INFO) << "  PIP finalize / assign midpoint polygon ids back: " << phase_assign_ms << " ms";
+      LOG(INFO) << "  Total: " << map_total_ms << " ms";
     }
+
+    const auto total_t1 = Clock::now();
+    LOG(INFO) << "ComputeOutputPolygons(native): overall total: " << std::chrono::duration<double, std::milli>(total_t1 - total_t0).count() << " ms";
 
     if (ShouldDumpStage(config_.dump_results, "pipmid")) {
       const auto out_dir = rayjoin::DumpSubdir(config_.dump_dir, "results_mid");
