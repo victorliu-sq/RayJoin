@@ -2,6 +2,7 @@
 #define APP_MAP_OVERLAY_RT_H
 #include <iomanip>
 #include <random>
+#include <thrust/distance.h>
 
 #include "core/lsi_rt.h"
 #include "core/map_overlay.h"

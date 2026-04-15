@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <thrust/binary_search.h>
+#include <thrust/distance.h>
 
 #include "lsi_rt_native.h"
 #include "map_overlay_native.h"
