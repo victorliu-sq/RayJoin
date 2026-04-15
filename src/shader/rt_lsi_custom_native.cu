@@ -2,6 +2,8 @@
 #include <cuda_runtime.h>
 #include <optix.h>
 #include <optix_device.h>
+#include <cstdint>
+#include <thrust/pair.h>
 
 #include "shader/config.h"
 #include "shader/launch_parameters_native.h"

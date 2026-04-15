@@ -2,6 +2,7 @@
 #define RAYJOIN_LAUNCH_PARAMETERS_NATIVE_H
 
 #include <cstdint>
+#include <thrust/pair.h>
 #include <thrust/tuple.h>
 
 #include "config.h"

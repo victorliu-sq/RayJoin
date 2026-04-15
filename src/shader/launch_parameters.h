@@ -1,7 +1,7 @@
 #ifndef RT_LAUNCH_PARAMETERS_H
 #define RT_LAUNCH_PARAMETERS_H
 #include <cstdint>
-#include <thrust/tuple.h>
+#include <thrust/pair.h>
 
 #include "config.h"
 #include "map/map.h"
