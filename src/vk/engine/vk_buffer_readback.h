@@ -11,6 +11,9 @@ namespace rayjoin::vk {
 
 template<typename T>
 std::vector<T> readBackStorageBuffer(const VkDeviceBuf& deviceBuf, uint32_t elementCount) {
+  if (elementCount == 0u) {
+    return {};
+  }
   VkDeviceSize size = sizeof(T) * elementCount;
   std::vector<T> out(elementCount);
   VkStagingBuf staging(size);
@@ -27,6 +30,9 @@ T readBackStorageBuffer(const VkDeviceBuf& deviceBuf) {
 
 template<typename T>
 void writeToStorageBuffer(const VkDeviceBuf& deviceBuf, const std::vector<T>& in) {
+  if (in.size() == 0) {
+    return;
+  }
   auto& vk_ctx = GetVkComputeContext();
   uint32_t elementCount = static_cast<uint32_t>(in.size());
   VkDeviceSize size = sizeof(T) * elementCount;
