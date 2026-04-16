@@ -14,33 +14,27 @@ mkdir -p "${base_dir}/results"
 
 AG_FLAG=2
 
-# =========================================================
-# Run Vulkan native/no-scaling with dumps disabled
 ./build/bin/polyover_vk_exec_ns \
   -poly1 "$poly1" \
   -poly2 "$poly2" \
   -output "$vk_output" \
   -mode=rt \
+  -serialize="$cache_dir" \
   -ag="${AG_FLAG}" \
   -xsect_factor=5.0 \
   -warmup=5 -repeat=5 \
-  -query=lsi/pip \
-#  -dump_results=index,lsi,pip,pipmid \
-#  -dump_dir="$base_dir"
+  -query=lsi/pip
 
-# =========================================================
-# Run OptiX native/no-scaling with dumps disabled
 ./build/bin/polyover_exec_native \
   -poly1 "$poly1" \
   -poly2 "$poly2" \
   -output "$native_output" \
   -mode=rt \
+  -serialize="$cache_dir" \
   -ag="${AG_FLAG}" \
   -xsect_factor=5.0 \
   -warmup=5 -repeat=5 \
-  -query=lsi/pip \
-#  -dump_results=index,lsi,pip,pipmid \
-#  -dump_dir="$base_dir"
+  -query=lsi/pip
 
 status=0
 exit "$status"

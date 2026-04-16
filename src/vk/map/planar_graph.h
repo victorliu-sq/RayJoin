@@ -10,11 +10,14 @@
 #include <unistd.h>
 #include <vector>
 
+#include "assert.h"
 #include "glog/logging.h"
 #include "shader/config.h"
 #include "vk/map/bounding_box.h"
 #include "vk/util/type_traits.h"
 
+#define STREAM_WRITE_VAR(stream, var) stream.write(reinterpret_cast<char*>(&(var)), sizeof(var));
+#define STREAM_READ_VAR(stream, var) stream.read(reinterpret_cast<char*>(&var), sizeof(var));
 namespace rayjoin {
 namespace vk {
 
@@ -35,38 +38,86 @@ struct PlanarGraph {
   std::vector<point_t> points;
   BoundingBox<POINT_COORD_T> bb;
 
+  // static std::shared_ptr<PlanarGraph<POINT_COORD_T>> load_from(const std::string& path, const std::string& serialize_prefix) {
+  //   std::string escaped_path;
+  //   std::replace_copy(path.begin(), path.end(), std::back_inserter(escaped_path), '/', '-');
+  //   // Ensure serialize directory exists (if requested)
+  //   if (!serialize_prefix.empty()) {
+  //     DIR* dir = opendir(serialize_prefix.c_str());
+  //     if (dir) {
+  //       closedir(dir);
+  //     } else if (ENOENT == errno) {
+  //       if (mkdir(serialize_prefix.c_str(), 0755)) {
+  //         LOG(FATAL) << "Cannot create dir " << path;
+  //       }
+  //     } else {
+  //       LOG(FATAL) << "Cannot open dir " << path;
+  //     }
+  //   }
+  //
+  //   std::shared_ptr<PlanarGraph<POINT_COORD_T>> result;
+  //   // auto ser_path = serialize_prefix + '/' + escaped_path + ".bin";
+  //   const std::string ser_path = serialize_prefix + '/' + escaped_path + ".bin";
+  //
+  //   // Load from cache if present; otherwise read from source and (optionally)
+  //   // cache.
+  //   const bool has_cache = (access(ser_path.c_str(), R_OK) == 0);
+  //   if (has_cache) {
+  //     // result = deserialize_pgraph<COORD_T>(ser_path.c_str());
+  //   } else {
+  //     result = read_pgraph(path.c_str());
+  //     if (!serialize_prefix.empty() && access(serialize_prefix.c_str(), W_OK) == 0) {
+  //       // serialize_pgraph(result, ser_path.c_str());
+  //     }
+  //   }
+  //   return result;
+  // }
   static std::shared_ptr<PlanarGraph<POINT_COORD_T>> load_from(const std::string& path, const std::string& serialize_prefix) {
     std::string escaped_path;
     std::replace_copy(path.begin(), path.end(), std::back_inserter(escaped_path), '/', '-');
-    // Ensure serialize directory exists (if requested)
+
     if (!serialize_prefix.empty()) {
       DIR* dir = opendir(serialize_prefix.c_str());
       if (dir) {
         closedir(dir);
-      } else if (ENOENT == errno) {
-        if (mkdir(serialize_prefix.c_str(), 0755)) {
-          LOG(FATAL) << "Cannot create dir " << path;
+      } else if (errno == ENOENT) {
+        if (mkdir(serialize_prefix.c_str(), 0755) != 0) {
+          LOG(FATAL) << "Cannot create dir " << serialize_prefix;
         }
       } else {
-        LOG(FATAL) << "Cannot open dir " << path;
+        LOG(FATAL) << "Cannot open dir " << serialize_prefix;
       }
     }
 
-    std::shared_ptr<PlanarGraph<POINT_COORD_T>> result;
-    // auto ser_path = serialize_prefix + '/' + escaped_path + ".bin";
-    const std::string ser_path = serialize_prefix + '/' + escaped_path + ".bin";
+    std::string ser_path;
+    if (!serialize_prefix.empty()) {
+      ser_path = serialize_prefix + '/' + escaped_path + ".bin";
+    }
 
-    // Load from cache if present; otherwise read from source and (optionally)
-    // cache.
-    const bool has_cache = (access(ser_path.c_str(), R_OK) == 0);
+    const bool has_cache = !ser_path.empty() && (access(ser_path.c_str(), R_OK) == 0);
+
+    LOG(INFO) << "VK load_from: path=" << path << " serialize_prefix=" << serialize_prefix << " ser_path=" << ser_path << " has_cache=" << has_cache;
+
     if (has_cache) {
-      // result = deserialize_pgraph<COORD_T>(ser_path.c_str());
-    } else {
-      result = read_pgraph(path.c_str());
-      if (!serialize_prefix.empty() && access(serialize_prefix.c_str(), W_OK) == 0) {
-        // serialize_pgraph(result, ser_path.c_str());
-      }
+      LOG(INFO) << "VK loading serialized planar graph from: " << ser_path;
+      auto result = deserialize_pgraph<coord_t>(ser_path.c_str());
+      CHECK(result != nullptr) << "VK deserialize_pgraph returned nullptr for " << ser_path;
+      return result;
     }
+
+    LOG(INFO) << "VK serialized planar graph not found. Reading source map from: " << path;
+    auto result = read_pgraph(path.c_str());
+    CHECK(result != nullptr) << "VK read_pgraph returned nullptr for " << path;
+
+    if (!ser_path.empty() && access(serialize_prefix.c_str(), W_OK) == 0) {
+      LOG(INFO) << "VK serializing planar graph to: " << ser_path;
+      serialize_pgraph(result, ser_path.c_str());
+    } else if (!serialize_prefix.empty()) {
+      LOG(WARNING) << "VK serialize dir is not writable, skipping cache write: " << serialize_prefix;
+    } else {
+      LOG(INFO) << "VK serialize_prefix is empty, skipping cache write";
+    }
+
     return result;
   }
 
@@ -146,6 +197,96 @@ struct PlanarGraph {
     VLOG(1) << "Map " << path << " is loaded, chains: " << g.chains.size() << " points: " << pgraph->points.size()
             << " edges: " << g.points.size() - g.chains.size() << ", min seg len: " << *std::min_element(seg_lens.begin(), seg_lens.end())
             << ", max seg len: " << *std::max_element(seg_lens.begin(), seg_lens.end()) << ", avg seg len: " << mean << ", stdev: " << stdev;
+    return pgraph;
+  }
+  template<typename COORD_T>
+  static void serialize_pgraph(std::shared_ptr<PlanarGraph<COORD_T>> pgraph, const char* path) {
+    std::ofstream ofs;
+    ofs.open(path, std::ios::out | std::ios::binary);
+
+    uint64_t n_chains = pgraph->chains.size();
+    uint64_t n_row_index = pgraph->row_index.size();
+    uint64_t n_points = pgraph->points.size();
+    uint64_t check_sum = 0xabcdabcd;
+
+    assert(ofs.good());
+
+    STREAM_WRITE_VAR(ofs, check_sum);
+    STREAM_WRITE_VAR(ofs, n_chains);
+    STREAM_WRITE_VAR(ofs, n_row_index);
+    STREAM_WRITE_VAR(ofs, n_points);
+
+    for (auto& chain: pgraph->chains) {
+      STREAM_WRITE_VAR(ofs, chain.id);
+      STREAM_WRITE_VAR(ofs, chain.first_point_idx);
+      STREAM_WRITE_VAR(ofs, chain.last_point_idx);
+      STREAM_WRITE_VAR(ofs, chain.left_polygon_id);
+      STREAM_WRITE_VAR(ofs, chain.right_polygon_id);
+    }
+    for (auto& idx: pgraph->row_index) {
+      STREAM_WRITE_VAR(ofs, idx);
+    }
+    for (auto& p: pgraph->points) {
+      STREAM_WRITE_VAR(ofs, p.x);
+      STREAM_WRITE_VAR(ofs, p.y);
+    }
+    STREAM_WRITE_VAR(ofs, pgraph->bb.min_x);
+    STREAM_WRITE_VAR(ofs, pgraph->bb.min_y);
+    STREAM_WRITE_VAR(ofs, pgraph->bb.max_x);
+    STREAM_WRITE_VAR(ofs, pgraph->bb.max_y);
+    STREAM_WRITE_VAR(ofs, check_sum);
+
+    ofs.close();
+  }
+
+  template<typename COORD_T>
+  static std::shared_ptr<PlanarGraph<COORD_T>> deserialize_pgraph(const char* path) {
+    std::ifstream ifs;
+    ifs.open(path, std::ios::in | std::ios::binary);
+    auto pgraph = std::make_shared<PlanarGraph<COORD_T>>();
+
+    uint64_t check_sum;
+    uint64_t n_chains;
+    uint64_t n_row_index;
+    uint64_t n_points;
+
+    assert(ifs.good());
+
+    STREAM_READ_VAR(ifs, check_sum);
+    CHECK_EQ(check_sum, 0xabcdabcd);
+    STREAM_READ_VAR(ifs, n_chains);
+    STREAM_READ_VAR(ifs, n_row_index);
+    STREAM_READ_VAR(ifs, n_points);
+    pgraph->chains.resize(n_chains);
+    pgraph->row_index.resize(n_row_index);
+    pgraph->points.resize(n_points);
+
+    for (auto& chain: pgraph->chains) {
+      STREAM_READ_VAR(ifs, chain.id);
+      STREAM_READ_VAR(ifs, chain.first_point_idx);
+      STREAM_READ_VAR(ifs, chain.last_point_idx);
+      STREAM_READ_VAR(ifs, chain.left_polygon_id);
+      STREAM_READ_VAR(ifs, chain.right_polygon_id);
+    }
+    for (auto& idx: pgraph->row_index) {
+      STREAM_READ_VAR(ifs, idx);
+    }
+    for (auto& p: pgraph->points) {
+      STREAM_READ_VAR(ifs, p.x);
+      STREAM_READ_VAR(ifs, p.y);
+    }
+    STREAM_READ_VAR(ifs, pgraph->bb.min_x);
+    STREAM_READ_VAR(ifs, pgraph->bb.min_y);
+    STREAM_READ_VAR(ifs, pgraph->bb.max_x);
+    STREAM_READ_VAR(ifs, pgraph->bb.min_y);
+    STREAM_READ_VAR(ifs, pgraph->bb.max_y);
+    STREAM_READ_VAR(ifs, check_sum);
+    CHECK_EQ(check_sum, 0xabcdabcd);
+
+    ifs.close();
+
+    VLOG(1) << "Map " << path << " is deserialized, chains: " << pgraph->chains.size() << " points: " << pgraph->points.size()
+            << " edges: " << pgraph->points.size() - pgraph->chains.size();
     return pgraph;
   }
 };

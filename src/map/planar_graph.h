@@ -238,33 +238,85 @@ inline std::shared_ptr<PlanarGraph<COORD_T>> deserialize_pgraph(const char* path
   return pgraph;
 }
 
+// template<typename COORD_T>
+// std::shared_ptr<PlanarGraph<COORD_T>> load_from(const std::string& path, const std::string& serialize_prefix) {
+//   std::string escaped_path;
+//   std::replace_copy(path.begin(), path.end(), std::back_inserter(escaped_path), '/', '-');
+//   if (!serialize_prefix.empty()) {
+//     DIR* dir = opendir(serialize_prefix.c_str());
+//     if (dir) {
+//       closedir(dir);
+//     } else if (ENOENT == errno) {
+//       if (mkdir(serialize_prefix.c_str(), 0755)) {
+//         LOG(FATAL) << "Cannot create dir " << path;
+//       }
+//     } else {
+//       LOG(FATAL) << "Cannot open dir " << path;
+//     }
+//   }
+//
+//   auto ser_path = serialize_prefix + '/' + escaped_path + ".bin";
+//
+//   // Jiaxin Patch: Remove Serialization and Deserialzation
+//   if (access(ser_path.c_str(), R_OK) == 0) {
+//     LOG(INFO) << "Loading serialized planar graph from: " << ser_path;
+//     return deserialize_pgraph<COORD_T>(ser_path.c_str());
+//   }
+//
+//   LOG(INFO) << "Serialized planar graph not found. Reading source map from: " << path;
+//   auto pgraph = read_pgraph<COORD_T>(path.c_str());
+//   if (!serialize_prefix.empty() && access(serialize_prefix.c_str(), W_OK) == 0) {
+//     serialize_pgraph(pgraph, ser_path.c_str());
+//   }
+//   return pgraph;
+// }
 template<typename COORD_T>
 std::shared_ptr<PlanarGraph<COORD_T>> load_from(const std::string& path, const std::string& serialize_prefix) {
   std::string escaped_path;
   std::replace_copy(path.begin(), path.end(), std::back_inserter(escaped_path), '/', '-');
+
   if (!serialize_prefix.empty()) {
     DIR* dir = opendir(serialize_prefix.c_str());
     if (dir) {
       closedir(dir);
-    } else if (ENOENT == errno) {
-      if (mkdir(serialize_prefix.c_str(), 0755)) {
-        LOG(FATAL) << "Cannot create dir " << path;
+    } else if (errno == ENOENT) {
+      if (mkdir(serialize_prefix.c_str(), 0755) != 0) {
+        LOG(FATAL) << "Cannot create dir " << serialize_prefix;
       }
     } else {
-      LOG(FATAL) << "Cannot open dir " << path;
+      LOG(FATAL) << "Cannot open dir " << serialize_prefix;
     }
   }
 
-  auto ser_path = serialize_prefix + '/' + escaped_path + ".bin";
+  std::string ser_path;
+  if (!serialize_prefix.empty()) {
+    ser_path = serialize_prefix + '/' + escaped_path + ".bin";
+  }
 
-  // Jiaxin Patch: Remove Serialization and Deserialzation
-  if (access(ser_path.c_str(), R_OK) == 0) {
-    return deserialize_pgraph<COORD_T>(ser_path.c_str());
+  const bool has_cache = !ser_path.empty() && (access(ser_path.c_str(), R_OK) == 0);
+
+  LOG(INFO) << "load_from: path=" << path << " serialize_prefix=" << serialize_prefix << " ser_path=" << ser_path << " has_cache=" << has_cache;
+
+  if (has_cache) {
+    LOG(INFO) << "Loading serialized planar graph from: " << ser_path;
+    auto pgraph = deserialize_pgraph<COORD_T>(ser_path.c_str());
+    CHECK(pgraph != nullptr) << "deserialize_pgraph returned nullptr for " << ser_path;
+    return pgraph;
   }
+
+  LOG(INFO) << "Serialized planar graph not found. Reading source map from: " << path;
   auto pgraph = read_pgraph<COORD_T>(path.c_str());
-  if (!serialize_prefix.empty() && access(serialize_prefix.c_str(), W_OK) == 0) {
-    serialize_pgraph(pgraph, ser_path.c_str());
+  CHECK(pgraph != nullptr) << "read_pgraph returned nullptr for " << path;
+
+  if (!ser_path.empty() && access(serialize_prefix.c_str(), W_OK) == 0) {
+    LOG(INFO) << "Serializing planar graph to: " << ser_path;
+    serialize_pgraph<COORD_T>(pgraph, ser_path.c_str());
+  } else if (!serialize_prefix.empty()) {
+    LOG(WARNING) << "Serialize dir is not writable, skipping cache write: " << serialize_prefix;
+  } else {
+    LOG(INFO) << "serialize_prefix is empty, skipping cache write";
   }
+
   return pgraph;
 }
 
