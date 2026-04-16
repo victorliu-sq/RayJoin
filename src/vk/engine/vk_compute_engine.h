@@ -32,6 +32,8 @@ class VkComputeEngine : public VkComputeEngineBase {
   void setParams(const params_t& params) { m_params = params; }
   void setDispatchSize(uint32_t n) { m_n = n; }
 
+  void record(VkCommandBuffer cmd) { recordDispatch(cmd); }
+
  private:
   uint32_t m_n;
   params_t m_params;
