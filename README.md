@@ -302,6 +302,10 @@ sudo make install
 cmake --version
 ```
 
+## How to fix the mismatch of sizes of LaunchParams:
+
+Remove build files and rebuild it.
+
 ## Reference
 
 AWS Cloud9 guide:
