@@ -5,6 +5,7 @@
 #include "query_config.h"
 #include "vk/algo/assign.h"
 #include "vk/algo/exclusive_scan.h"
+#include "vk/algo/radix_sort.h"
 #include "vk/algo/sort.h"
 #include "vk/engine/as_scene.h"
 #include "vk/engine/vk_buffer.h"
@@ -1240,6 +1241,7 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
   //     DumpComputeOutputPolygonsCSV(1, out_dir, "vulkan");
   //   }
   // }
+
   void ComputeOutputPolygons() override {
     using polygon_id_t = rayjoin::polygon_id_t;
     using Clock = std::chrono::high_resolution_clock;
@@ -1302,6 +1304,8 @@ class MapOverlayRTNS : public MapOverlayNS<CONTEXT_NS_T> {
         const auto t0 = Clock::now();
 
         algo::SortXsectsByQueryEid<xsect_t>(xsect_buf_, static_cast<int32_t>(query_map_id), n_xsects, xsect_edges_sorted_buf);
+
+        // algo::RadixSortXsectsByQueryEid<xsect_t>(xsect_buf_, static_cast<int32_t>(query_map_id), n_xsects, xsect_edges_sorted_buf);
 
         const auto t1 = Clock::now();
         phase_sort_ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
