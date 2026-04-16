@@ -7,67 +7,75 @@ struct Intersection {
   int pad;
 };
 
-struct XsectSortEntry {
-  uint query_eid;
-  uint src_idx;
-  uint _pad0;
-  uint _pad1;
-};
-
 struct LaunchParams {
-  uint32_t j;
-  uint32_t k;
-  uint32_t count;
-  uint32_t _pad0;
+  int query_map_id;
+  uint j;
+  uint k;
+  uint count;
 };
 
 [[vk::binding(0, 0)]]
-RWStructuredBuffer<XsectSortEntry> gSortEntries;
-
-[[vk::binding(1, 0)]]
 RWStructuredBuffer<Intersection> gXsects;
 
 [[vk::push_constant]]
 ConstantBuffer<LaunchParams> gParams;
 
-bool lessEntry(XsectSortEntry a, XsectSortEntry b) {
-  if (a.query_eid < b.query_eid)
-    return true;
-  if (b.query_eid < a.query_eid)
-    return false;
-  return a.src_idx < b.src_idx;
+uint getQueryEid(Intersection x, int query_map_id) {
+  return (query_map_id == 0) ? x.eid0 : x.eid1;
+}
+
+uint getOtherEid(Intersection x, int query_map_id) {
+  return (query_map_id == 0) ? x.eid1 : x.eid0;
+}
+
+bool lessXsect(Intersection a, Intersection b, int query_map_id) {
+  uint aq = getQueryEid(a, query_map_id);
+  uint bq = getQueryEid(b, query_map_id);
+
+  if (aq < bq) return true;
+  if (bq < aq) return false;
+
+  // Optional deterministic tie-breakers
+  uint ao = getOtherEid(a, query_map_id);
+  uint bo = getOtherEid(b, query_map_id);
+
+  if (ao < bo) return true;
+  if (bo < ao) return false;
+
+  if (a.x < b.x) return true;
+  if (b.x < a.x) return false;
+
+  if (a.y < b.y) return true;
+  if (b.y < a.y) return false;
+
+  return false;
 }
 
 [shader("compute")]
 [numthreads(256, 1, 1)]
-void main(uint3 tid: SV_DispatchThreadID) {
-  uint32_t i = tid.x;
+void main(uint3 tid : SV_DispatchThreadID) {
+  uint i = tid.x;
   if (i >= gParams.count) {
     return;
   }
 
-  uint32_t ixj = i ^ gParams.j;
+  uint ixj = i ^ gParams.j;
   if (ixj <= i || ixj >= gParams.count) {
     return;
   }
 
   bool ascending = ((i & gParams.k) == 0);
 
-  XsectSortEntry a = gSortEntries[i];
-  XsectSortEntry b = gSortEntries[ixj];
+  Intersection a = gXsects[i];
+  Intersection b = gXsects[ixj];
 
-  bool a_less_b = lessEntry(a, b);
-  bool b_less_a = lessEntry(b, a);
+  bool a_less_b = lessXsect(a, b, gParams.query_map_id);
+  bool b_less_a = lessXsect(b, a, gParams.query_map_id);
 
   bool should_swap = ascending ? b_less_a : a_less_b;
 
   if (should_swap) {
-    gSortEntries[i] = b;
-    gSortEntries[ixj] = a;
-
-    Intersection xa = gXsects[i];
-    Intersection xb = gXsects[ixj];
-    gXsects[i] = xb;
-    gXsects[ixj] = xa;
+    gXsects[i] = b;
+    gXsects[ixj] = a;
   }
 }
