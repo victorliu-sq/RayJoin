@@ -199,6 +199,7 @@ struct PlanarGraph {
             << ", max seg len: " << *std::max_element(seg_lens.begin(), seg_lens.end()) << ", avg seg len: " << mean << ", stdev: " << stdev;
     return pgraph;
   }
+
   template<typename COORD_T>
   static void serialize_pgraph(std::shared_ptr<PlanarGraph<COORD_T>> pgraph, const char* path) {
     std::ofstream ofs;
