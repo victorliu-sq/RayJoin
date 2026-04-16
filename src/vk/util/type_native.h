@@ -27,7 +27,6 @@ struct EidRange {
   uint32_t second = 0;
 };
 
-
 // ===============================================================
 // xsect
 template<typename POINT_COORD_T>

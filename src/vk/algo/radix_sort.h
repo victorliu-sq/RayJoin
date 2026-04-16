@@ -14,116 +14,175 @@
 namespace rayjoin::vk {
 namespace algo {
 
-inline uint32_t RadixSortDivUpU32(uint32_t a, uint32_t b) { return (a + b - 1u) / b; }
-
 template<IntersectionNSType XsectT>
 inline void RadixSortXsectsByQueryEid(const VkDeviceBuf& src_xsects_buf, int32_t query_map_id, uint32_t count, VkDeviceBuf& dst_sorted_xsects_buf) {
+  static_assert(std::is_standard_layout_v<XsectT>, "XsectT must be standard-layout");
+  static_assert(sizeof(decltype(std::declval<XsectT>().eid0)) == sizeof(uint32_t), "eid0 must be uint32_t-sized");
+  static_assert(sizeof(decltype(std::declval<XsectT>().eid1)) == sizeof(uint32_t), "eid1 must be uint32_t-sized");
+  static_assert((offsetof(XsectT, eid0) % 4u) == 0u, "eid0 must be 4-byte aligned");
+  static_assert((offsetof(XsectT, eid1) % 4u) == 0u, "eid1 must be 4-byte aligned");
+  static_assert((sizeof(XsectT) % 4u) == 0u, "XsectT size must be a multiple of 4 bytes");
+
   if (count == 0u) {
     dst_sorted_xsects_buf = VkDeviceBuf{};
     return;
   }
 
-  constexpr uint32_t kThreadsPerBlock = 256u;
-  constexpr uint32_t kItemsPerThread = 4u;
-  constexpr uint32_t kItemsPerBlock = kThreadsPerBlock * kItemsPerThread;  // 1024
-  constexpr uint32_t kRadixBits = 4u;
-  constexpr uint32_t kRadix = 1u << kRadixBits;  // 16
-  constexpr uint32_t kPasses = 32u / kRadixBits;  // 8
-
-  const uint32_t num_blocks = RadixSortDivUpU32(count, kItemsPerBlock);
-
-  const std::string histogram_spv = std::string(SHADER_KERNEL_NS_DIR) + "/algo_radix_sort_histogram_ns.spv";
-  const std::string scan_offsets_spv = std::string(SHADER_KERNEL_NS_DIR) + "/algo_radix_sort_scan_offsets_ns.spv";
-  const std::string scatter_spv = std::string(SHADER_KERNEL_NS_DIR) + "/algo_radix_sort_scatter_ns.spv";
-
-  VkDeviceBuf ping_buf;
-  VkDeviceBuf pong_buf;
-  ping_buf.Init(sizeof(XsectT) * count);
-  pong_buf.Init(sizeof(XsectT) * count);
-
-  copyDeviceBuffer(src_xsects_buf, ping_buf, sizeof(XsectT) * static_cast<VkDeviceSize>(count));
-
-  VkDeviceBuf* src_buf = &ping_buf;
-  VkDeviceBuf* dst_buf = &pong_buf;
-
-  for (uint32_t pass = 0; pass < kPasses; ++pass) {
-    const uint32_t bit_shift = pass * kRadixBits;
-
-    VkDeviceBuf block_hist_buf;
-    VkDeviceBuf block_offsets_buf;
-    VkDeviceBuf bucket_bases_buf;
-
-    block_hist_buf.Init(sizeof(uint32_t) * kRadix * num_blocks);
-    block_offsets_buf.Init(sizeof(uint32_t) * kRadix * num_blocks);
-    bucket_bases_buf.Init(sizeof(uint32_t) * kRadix);
-
-    {
-      struct LaunchParamsHistogram {
-        int32_t query_map_id;
-        uint32_t count;
-        uint32_t bit_shift;
-        uint32_t num_blocks;
-      };
-
-      RunComputePass(num_blocks * kThreadsPerBlock,
-                     histogram_spv.c_str(),
-                     LaunchParamsHistogram{
-                         .query_map_id = query_map_id,
-                         .count = count,
-                         .bit_shift = bit_shift,
-                         .num_blocks = num_blocks,
-                     },
-                     *src_buf,  // binding 0 -> gXsectsIn
-                     block_hist_buf);  // binding 1 -> gBlockHist
-    }
-
-    {
-      struct LaunchParamsScanOffsets {
-        uint32_t num_blocks;
-        uint32_t _pad0;
-        uint32_t _pad1;
-        uint32_t _pad2;
-      };
-
-      RunComputePass(256u,
-                     scan_offsets_spv.c_str(),
-                     LaunchParamsScanOffsets{
-                         .num_blocks = num_blocks,
-                         ._pad0 = 0u,
-                         ._pad1 = 0u,
-                         ._pad2 = 0u,
-                     },
-                     block_hist_buf,  // binding 0 -> gBlockHist
-                     block_offsets_buf,  // binding 1 -> gBlockOffsets
-                     bucket_bases_buf);  // binding 2 -> gBucketBases
-    }
-
-    {
-      struct LaunchParamsScatter {
-        int32_t query_map_id;
-        uint32_t count;
-        uint32_t bit_shift;
-        uint32_t num_blocks;
-      };
-
-      RunComputePass(num_blocks * kThreadsPerBlock,
-                     scatter_spv.c_str(),
-                     LaunchParamsScatter{
-                         .query_map_id = query_map_id,
-                         .count = count,
-                         .bit_shift = bit_shift,
-                         .num_blocks = num_blocks,
-                     },
-                     *src_buf,  // binding 0 -> gXsectsIn
-                     *dst_buf,  // binding 1 -> gXsectsOut
-                     block_offsets_buf,  // binding 2 -> gBlockOffsets
-                     bucket_bases_buf);  // binding 3 -> gBucketBases
-    }
-
-    std::swap(src_buf, dst_buf);
+  if (query_map_id != 0 && query_map_id != 1) {
+    throw std::runtime_error("RadixSortXsectsByQueryEid: query_map_id must be 0 or 1");
   }
 
-  dst_sorted_xsects_buf = std::move(*src_buf);
+  constexpr uint32_t kRadix = 256u;
+  constexpr uint32_t kPassCount = 4u;
+  constexpr uint32_t kWorkgroupSize = 512u;
+  constexpr uint32_t kPartitionDivision = 8u;
+  constexpr uint32_t kPartitionSize = kWorkgroupSize * kPartitionDivision;  // 4096
+
+  const uint32_t partition_count = (count + kPartitionSize - 1u) / kPartitionSize;
+
+  const uint32_t record_stride_words = static_cast<uint32_t>(sizeof(XsectT) / 4u);
+  const uint32_t eid_word_offset = static_cast<uint32_t>((query_map_id == 0 ? offsetof(XsectT, eid0) : offsetof(XsectT, eid1)) / 4u);
+
+  const std::string extract_spv = std::string(SHADER_KERNEL_NS_DIR) + "/algo_radix_sort_xsects_extract_keys_ns.spv";
+  const std::string upsweep_spv = std::string(SHADER_KERNEL_NS_DIR) + "/algo_radix_sort_xsects_upsweep_ns.spv";
+  const std::string spine_spv = std::string(SHADER_KERNEL_NS_DIR) + "/algo_radix_sort_xsects_spine_ns.spv";
+  const std::string downsweep_kv_spv = std::string(SHADER_KERNEL_NS_DIR) + "/algo_radix_sort_xsects_downsweep_kv_ns.spv";
+  const std::string gather_spv = std::string(SHADER_KERNEL_NS_DIR) + "/algo_radix_sort_xsects_gather_ns.spv";
+
+  // --------------------------------------------------------------------------
+  // Buffers for radix keys and payload indices
+  // --------------------------------------------------------------------------
+  VkDeviceBuf keys_ping;
+  VkDeviceBuf keys_pong;
+  VkDeviceBuf indices_ping;
+  VkDeviceBuf indices_pong;
+
+  keys_ping.Init(sizeof(uint32_t) * count);
+  keys_pong.Init(sizeof(uint32_t) * count);
+  indices_ping.Init(sizeof(uint32_t) * count);
+  indices_pong.Init(sizeof(uint32_t) * count);
+
+  // --------------------------------------------------------------------------
+  // Histogram/state buffers used by the radix kernels
+  // --------------------------------------------------------------------------
+  VkDeviceBuf element_count_buf;
+  VkDeviceBuf global_histogram_buf;
+  VkDeviceBuf partition_histogram_buf;
+
+  element_count_buf.Init(sizeof(uint32_t));
+  global_histogram_buf.Init(sizeof(uint32_t) * kRadix * kPassCount);
+  partition_histogram_buf.Init(sizeof(uint32_t) * kRadix * partition_count);
+
+  writeToStorageBuffer(element_count_buf, count);
+  zeroDeviceBuffer(global_histogram_buf, sizeof(uint32_t) * kRadix * kPassCount);
+  zeroDeviceBuffer(partition_histogram_buf, sizeof(uint32_t) * kRadix * partition_count);
+
+  // --------------------------------------------------------------------------
+  // Extract selected eid into keys_ping and initialize indices_ping = [0..count)
+  // --------------------------------------------------------------------------
+  {
+    struct ExtractParams {
+      uint32_t count;
+      uint32_t record_stride_words;
+      uint32_t eid_word_offset;
+      uint32_t _pad0;
+    };
+
+    RunComputePass(count,
+                   extract_spv.c_str(),
+                   ExtractParams{
+                       .count = count,
+                       .record_stride_words = record_stride_words,
+                       .eid_word_offset = eid_word_offset,
+                       ._pad0 = 0u,
+                   },
+                   src_xsects_buf,  // binding 0
+                   keys_ping,  // binding 1
+                   indices_ping);  // binding 2
+  }
+
+  VkDeviceBuf* keys_src = &keys_ping;
+  VkDeviceBuf* keys_dst = &keys_pong;
+  VkDeviceBuf* vals_src = &indices_ping;
+  VkDeviceBuf* vals_dst = &indices_pong;
+
+  // --------------------------------------------------------------------------
+  // 4 radix passes, 8 bits each
+  // --------------------------------------------------------------------------
+  for (uint32_t pass = 0; pass < kPassCount; ++pass) {
+    zeroDeviceBuffer(global_histogram_buf, sizeof(uint32_t) * kRadix * kPassCount);
+    zeroDeviceBuffer(partition_histogram_buf, sizeof(uint32_t) * kRadix * partition_count);
+
+    struct PassParams {
+      int32_t pass;
+      uint32_t _pad0;
+      uint32_t _pad1;
+      uint32_t _pad2;
+    } params{
+        .pass = static_cast<int32_t>(pass),
+        ._pad0 = 0u,
+        ._pad1 = 0u,
+        ._pad2 = 0u,
+    };
+
+    // VkComputeEngine dispatches groups = ceil(n / 64). To get exact workgroup counts
+    // for shaders declared as [numthreads(512,1,1)], pass workgroupCount * 64.
+    RunComputePass(partition_count * 64u,
+                   upsweep_spv.c_str(),
+                   params,
+                   element_count_buf,  // t0
+                   global_histogram_buf,  // u1
+                   partition_histogram_buf,  // u2
+                   *keys_src);  // t3
+
+    RunComputePass(kRadix * 64u,
+                   spine_spv.c_str(),
+                   params,
+                   element_count_buf,  // t0
+                   global_histogram_buf,  // u1
+                   partition_histogram_buf);  // u2
+
+    RunComputePass(partition_count * 64u,
+                   downsweep_kv_spv.c_str(),
+                   params,
+                   element_count_buf,  // t0
+                   global_histogram_buf,  // u1
+                   partition_histogram_buf,  // u2
+                   *keys_src,  // t3
+                   *keys_dst,  // u4
+                   *vals_src,  // t5
+                   *vals_dst);  // u6
+
+    std::swap(keys_src, keys_dst);
+    std::swap(vals_src, vals_dst);
+  }
+
+  // --------------------------------------------------------------------------
+  // Gather full records by sorted original indices
+  // --------------------------------------------------------------------------
+  dst_sorted_xsects_buf = VkDeviceBuf{};
+  dst_sorted_xsects_buf.Init(sizeof(XsectT) * count);
+
+  {
+    struct GatherParams {
+      uint32_t count;
+      uint32_t record_stride_words;
+      uint32_t _pad0;
+      uint32_t _pad1;
+    };
+
+    RunComputePass(count,
+                   gather_spv.c_str(),
+                   GatherParams{
+                       .count = count,
+                       .record_stride_words = record_stride_words,
+                       ._pad0 = 0u,
+                       ._pad1 = 0u,
+                   },
+                   src_xsects_buf,  // binding 0
+                   *vals_src,  // binding 1: sorted source indices
+                   dst_sorted_xsects_buf);  // binding 2
+  }
 }
 
 }  // namespace algo

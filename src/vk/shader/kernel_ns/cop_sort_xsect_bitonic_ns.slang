@@ -20,11 +20,11 @@ RWStructuredBuffer<Intersection> gXsects;
 [[vk::push_constant]]
 ConstantBuffer<LaunchParams> gParams;
 
-uint getQueryEid(Intersection x, int query_map_id) {
+inline uint getQueryEid(Intersection x, int query_map_id) {
   return (query_map_id == 0) ? x.eid0 : x.eid1;
 }
 
-uint getOtherEid(Intersection x, int query_map_id) {
+inline uint getOtherEid(Intersection x, int query_map_id) {
   return (query_map_id == 0) ? x.eid1 : x.eid0;
 }
 
