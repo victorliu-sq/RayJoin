@@ -210,29 +210,6 @@ reevaluated cuSpatial on PIP queries. Below are the updated results.
 
 # Run on AWS
 
-## Install Nvidia Driver and CUDAToolkit
-
-Select Tab Ubuntu 24.04 => Tab RPM Network Installation
-
-```
-https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/public-nvidia-driver.html#public-nvidia-driver-cuda-install
-```
-
-Install CUDA
-
-```
-https://developer.nvidia.com/cuda/toolkit
-```
-
-Add these to shell
-
-```bash
-export CUDA_HOME=/usr/local/cuda
-export PATH=$CUDA_HOME/bin:$PATH
-export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
-export CUDACXX=$CUDA_HOME/bin/nvcc
-```
-
 ## Install Python
 
 already installed
@@ -253,12 +230,20 @@ After installation, accept terms using these two commnads
  conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main
  
  conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
-
 ```
 
-## Install CMake on Ubuntu
+## Install G++
 
 `g++` is already installed.
+
+if not (like on azure)
+
+```bash
+sudo apt update
+sudo apt install -y build-essential
+```
+
+## Install CMake
 
 ### 1. Download and extract CMake
 
@@ -300,6 +285,37 @@ sudo make install
 
 ```bash
 cmake --version
+```
+
+## Install GPU Driver
+
+### Install Nvidia Driver and CUDAToolkit
+
+Select Tab Ubuntu 24.04 => Tab RPM Network Installation
+
+```
+https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/public-nvidia-driver.html#public-nvidia-driver-cuda-install
+```
+
+Install CUDA
+
+```
+https://developer.nvidia.com/cuda/toolkit
+```
+
+Add these to shell
+
+```bash
+export CUDA_HOME=/usr/local/cuda
+export PATH=$CUDA_HOME/bin:$PATH
+export LD_LIBRARY_PATH=$CUDA_HOME/lib64:$LD_LIBRARY_PATH
+export CUDACXX=$CUDA_HOME/bin/nvcc
+```
+
+### Install AMD Driver
+
+```
+https://learn.microsoft.com/en-us/azure/virtual-machines/linux/azure-n-series-amd-gpu-driver-linux-installation-guide
 ```
 
 ## How to fix the mismatch of sizes of LaunchParams:
