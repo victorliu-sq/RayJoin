@@ -4,13 +4,14 @@ set -euo pipefail
 base_dir="tmp"
 cache_dir="${base_dir}/serialized_maps"
 
-poly1="data/realworld_small/br_county_clean_25_odyssey_final.txt"
-poly2="data/realworld_small/br_soil_ascii_odyssey_final.txt"
+poly1="data/realworld/Aquifers.cdb"
+poly2="data/realworld/dtl_cnty.cdb"
 
-vk_output="${base_dir}/results/br_countyXbr_soil_result_vk_native.txt"
-native_output="${base_dir}/results/br_countyXbr_soil_result_native.txt"
+vk_output="${base_dir}/results/Aquifers_Cnty_result_vk_native.txt"
+native_output="${base_dir}/results/Aquifers_Cnty_result_native.txt"
 
 mkdir -p "${base_dir}/results"
+mkdir -p "${cache_dir}"
 
 AG_FLAG=2
 
@@ -30,7 +31,7 @@ AG_FLAG=2
   -dump_dir="$base_dir"
 
 # =========================================================
-# Run OptiX native/no-scaling with dumps enabled
+# Run OptiX native with dumps enabled
 ./build/bin/polyover_exec_native \
   -poly1 "$poly1" \
   -poly2 "$poly2" \
@@ -42,7 +43,7 @@ AG_FLAG=2
   -warmup=5 -repeat=5 \
   -query=lsi/pip \
   -dump_results=index,lsi,pip,pipmid \
-  -dump_dir="$base_dir"
+  -dump_dir="$base_dir" \
 
 status=0
 
