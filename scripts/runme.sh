@@ -45,7 +45,8 @@ bash "${SCRIPTS_DIR}/build_targets/build_all.sh"
 #bash "${SCRIPTS_DIR}/test/run_test_vk_optix_native_basic_1.sh"
 #bash "${SCRIPTS_DIR}/test/run_test_vk_optix_native_basic_2.sh"
 
-bash "${SCRIPTS_DIR}/test/run_vk_optix_native_1.sh"
+#bash "${SCRIPTS_DIR}/test/run_vk_optix_native_1.sh"
+bash "${SCRIPTS_DIR}/test/run_vk_optix_native_2.sh"
 
 # ==========================================================
 # Start to produce results
