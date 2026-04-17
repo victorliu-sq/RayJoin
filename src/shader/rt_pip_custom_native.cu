@@ -64,17 +64,20 @@ extern "C" __global__ void __intersection__pip_custom_native() {
       continue;
     }
 
-    if (xsect_y == best_y) {
-      auto& best_e = params.base_map_edges[best_e_eid];
-      auto current_e_slope = e.a / e.b;
-      auto best_e_slope = best_e.a / best_e.b;
+    // if (xsect_y == best_y) {
+    //   auto& best_e = params.base_map_edges[best_e_eid];
+    //   auto current_e_slope = e.a / e.b;
+    //   auto best_e_slope = best_e.a / best_e.b;
 
-      if (current_e_slope != best_e_slope) {
-        bool flag = current_e_slope > best_e_slope;
-        if ((query_map_id && !flag) || (flag && !query_map_id)) continue;
-      } else {
-        if (eid >= best_e_eid) continue;
-      }
+    //   if (current_e_slope != best_e_slope) {
+    //     bool flag = current_e_slope > best_e_slope;
+    //     if ((query_map_id && !flag) || (flag && !query_map_id)) continue;
+    //   } else {
+    //     if (eid >= best_e_eid) continue;
+    //   }
+    // }
+    if (xsect_y == best_y) {
+      if (eid >= best_e_eid) continue;
     }
 
     t = std::min(t, static_cast<float>(xsect_y - y_src_p));
