@@ -8,3 +8,4 @@ deps
 tmp/
 data/realworld
 .vscode/
+/scripts/gpuA_key.pem
