@@ -24,3 +24,37 @@ download() {
   fi
 }
 export -f download
+
+# Shared build mode parser
+# Usage:
+#   BUILD_MODE="all"
+#   parse_build_mode_args "[RUNME]" "$@"
+# or
+#   BUILD_MODE="all"
+#   parse_build_mode_args "[BUILD]" "$@"
+parse_build_mode_args() {
+  local prefix="$1"
+  shift
+
+  BUILD_MODE="all"
+
+  for arg in "$@"; do
+    case "$arg" in
+      --optix)
+        BUILD_MODE="optix"
+        ;;
+      --vk)
+        BUILD_MODE="vk"
+        ;;
+      --all)
+        BUILD_MODE="all"
+        ;;
+      *)
+        echo "${prefix} Unknown argument: $arg" >&2
+        echo "Usage: $0 [--optix | --vk | --all]" >&2
+        exit 1
+        ;;
+    esac
+  done
+}
+export -f parse_build_mode_args

@@ -7,26 +7,28 @@ source "${COMMON_FILE}"
 echo "[RUNME] PROJECT_DIR is ${PROJECT_DIR}"
 echo "[RUNME] SCRIPTS_DIR is ${SCRIPTS_DIR}"
 
-BUILD_MODE="all"
+#BUILD_MODE="all"
+#
+#for arg in "$@"; do
+#  case "$arg" in
+#    --optix)
+#      BUILD_MODE="optix"
+#      ;;
+#    --vk)
+#      BUILD_MODE="vk"
+#      ;;
+#    --all)
+#      BUILD_MODE="all"
+#      ;;
+#    *)
+#      echo "[RUNME] Unknown argument: $arg" >&2
+#      echo "Usage: $0 [--optix | --vk | --all]" >&2
+#      exit 1
+#      ;;
+#  esac
+#done
 
-for arg in "$@"; do
-  case "$arg" in
-    --optix)
-      BUILD_MODE="optix"
-      ;;
-    --vk)
-      BUILD_MODE="vk"
-      ;;
-    --all)
-      BUILD_MODE="all"
-      ;;
-    *)
-      echo "[RUNME] Unknown argument: $arg" >&2
-      echo "Usage: $0 [--optix | --vk | --all]" >&2
-      exit 1
-      ;;
-  esac
-done
+parse_build_mode_args "[RUNME]" "$@"
 
 echo "[RUNME] BUILD_MODE=${BUILD_MODE}"
 
@@ -69,7 +71,9 @@ bash "${SCRIPTS_DIR}/build_targets/build_all.sh" "--${BUILD_MODE}"
 #bash "${SCRIPTS_DIR}/test/run_test_vk_optix_native_basic_2.sh"
 
 #bash "${SCRIPTS_DIR}/test/run_vk_optix_native_1.sh"
-bash "${SCRIPTS_DIR}/test/run_vk_optix_native_2.sh"
+#bash "${SCRIPTS_DIR}/test/run_vk_optix_native_2.sh"
+
+bash "${SCRIPTS_DIR}/test/run_vk_native_1.sh"
 
 # ==========================================================
 # Start to produce results

@@ -3,26 +3,28 @@ set -euo pipefail
 
 echo "[BUILD] Configure & Build (Release)"
 
-BUILD_MODE="all"
+#BUILD_MODE="all"
+#
+#for arg in "$@"; do
+#  case "$arg" in
+#    --optix)
+#      BUILD_MODE="optix"
+#      ;;
+#    --vk)
+#      BUILD_MODE="vk"
+#      ;;
+#    --all)
+#      BUILD_MODE="all"
+#      ;;
+#    *)
+#      echo "[BUILD] Unknown argument: $arg" >&2
+#      echo "Usage: $0 [--optix | --vk | --all]" >&2
+#      exit 1
+#      ;;
+#  esac
+#done
 
-for arg in "$@"; do
-  case "$arg" in
-    --optix)
-      BUILD_MODE="optix"
-      ;;
-    --vk)
-      BUILD_MODE="vk"
-      ;;
-    --all)
-      BUILD_MODE="all"
-      ;;
-    *)
-      echo "[BUILD] Unknown argument: $arg" >&2
-      echo "Usage: $0 [--optix | --vk | --all]" >&2
-      exit 1
-      ;;
-  esac
-done
+parse_build_mode_args "[BUILD]" "$@"
 
 BUILD_DIR="$PROJECT_DIR/build"
 OUTPUT_BIN_DIR="$BUILD_DIR/bin"
