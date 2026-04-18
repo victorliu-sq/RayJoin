@@ -1,4 +1,8 @@
 # =========================== LSI Executable =======================================
+if (NOT RAYJOIN_BUILD_OPTIX)
+  return()
+endif ()
+
 add_executable(polyover_exec_native main.cc
 )
 

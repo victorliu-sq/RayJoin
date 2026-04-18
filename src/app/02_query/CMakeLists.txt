@@ -1,4 +1,8 @@
 # =========================== PIP Executable =========================================
+if (NOT RAYJOIN_BUILD_OPTIX)
+  return()
+endif ()
+
 add_executable(query_exec main.cc
 )
 
