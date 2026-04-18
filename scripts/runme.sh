@@ -7,27 +7,6 @@ source "${COMMON_FILE}"
 echo "[RUNME] PROJECT_DIR is ${PROJECT_DIR}"
 echo "[RUNME] SCRIPTS_DIR is ${SCRIPTS_DIR}"
 
-#BUILD_MODE="all"
-#
-#for arg in "$@"; do
-#  case "$arg" in
-#    --optix)
-#      BUILD_MODE="optix"
-#      ;;
-#    --vk)
-#      BUILD_MODE="vk"
-#      ;;
-#    --all)
-#      BUILD_MODE="all"
-#      ;;
-#    *)
-#      echo "[RUNME] Unknown argument: $arg" >&2
-#      echo "Usage: $0 [--optix | --vk | --all]" >&2
-#      exit 1
-#      ;;
-#  esac
-#done
-
 parse_build_mode_args "[RUNME]" "$@"
 
 echo "[RUNME] BUILD_MODE=${BUILD_MODE}"
