@@ -7,6 +7,29 @@ source "${COMMON_FILE}"
 echo "[RUNME] PROJECT_DIR is ${PROJECT_DIR}"
 echo "[RUNME] SCRIPTS_DIR is ${SCRIPTS_DIR}"
 
+BUILD_MODE="all"
+
+for arg in "$@"; do
+  case "$arg" in
+    --optix)
+      BUILD_MODE="optix"
+      ;;
+    --vk)
+      BUILD_MODE="vk"
+      ;;
+    --all)
+      BUILD_MODE="all"
+      ;;
+    *)
+      echo "[RUNME] Unknown argument: $arg" >&2
+      echo "Usage: $0 [--optix | --vk | --all]" >&2
+      exit 1
+      ;;
+  esac
+done
+
+echo "[RUNME] BUILD_MODE=${BUILD_MODE}"
+
 # 1. Install Third-Party Dependencies
 bash "${SCRIPTS_DIR}/install/install_all.sh"
 
@@ -14,7 +37,7 @@ bash "${SCRIPTS_DIR}/install/install_all.sh"
 bash "${SCRIPTS_DIR}/datasets/download_realworld_datasets.sh" # Download Datasets for X-Blossom
 
 # 3. Build all Benchmarks and Profiling programs
-bash "${SCRIPTS_DIR}/build_targets/build_all.sh"
+bash "${SCRIPTS_DIR}/build_targets/build_all.sh" "--${BUILD_MODE}"
 
 # 4. Test RayJoin-Vk-Ns
 #bash "${SCRIPTS_DIR}/test/run_test_ns_1.sh"
