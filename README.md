@@ -314,8 +314,39 @@ export CUDACXX=$CUDA_HOME/bin/nvcc
 
 ### Install AMD Driver
 
+Install latest kernel driver and ROCm
+
 ```
-https://learn.microsoft.com/en-us/azure/virtual-machines/linux/azure-n-series-amd-gpu-driver-linux-installation-guide
+https://rocm.docs.amd.com/projects/install-on-linux/en/latest/install/quick-start.html
+```
+
+Load and verify the driver
+
+```bash
+sudo modprobe amdgpu
+
+amd-smi 
+```
+
+Enable automatic loading on reboot
+
+```bash
+# Search for blocklist entries:
+grep amdgpu /etc/modprobe.d/* -rn
+
+# Remove the blocklist (edit file printed by last command):
+sudo vim /etc/modprobe.d/blacklist-radeon-instinct.conf
+
+# Delete the line containing blacklist amdgpu
+ 
+# Update initramfs:
+sudo update-initramfs -uk all
+
+# Reboot to apply changes
+sudo reboot
+
+# Verify the loaded driver
+amd-smi
 ```
 
 ## How to fix the mismatch of sizes of LaunchParams:
