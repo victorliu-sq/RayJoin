@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PY_REQ="$SCRIPTS_DIR/install/requirements.txt"
-ENV_NAME="rayjoin-env"
+#ENV_NAME="rayjoin-env"
 
 echo "[INSTALL] Install Python Environment ..."
 #if [[ ! $(conda info --env | grep xb-env) ]]; then
@@ -22,11 +22,11 @@ echo "[INSTALL] Install Python Environment ..."
 # ------------------------------------------------------------
 # Create env if it does not exist
 # ------------------------------------------------------------
-if ! conda info --env | awk '{print $1}' | grep -qx "$ENV_NAME"; then
-  echo "[INSTALL] Creating conda env $ENV_NAME"
-  conda create -n "$ENV_NAME" python=3.11 -y
+if ! conda info --env | awk '{print $1}' | grep -qx "$CONDA_ENV_NAME"; then
+  echo "[INSTALL] Creating conda env $CONDA_ENV_NAME"
+  conda create -n "$CONDA_ENV_NAME" python=3.11 -y
 else
-  echo "[INSTALL] Conda env $ENV_NAME already exists"
+  echo "[INSTALL] Conda env $CONDA_ENV_NAME already exists"
 fi
 
 # ------------------------------------------------------------
@@ -34,7 +34,7 @@ fi
 # (installs only missing ones)
 # ------------------------------------------------------------
 echo "[INSTALL] Syncing Python packages from requirements.txt"
-#conda install -n "$ENV_NAME" -c conda-forge --file "$PY_REQ" -y
-conda run -n "$ENV_NAME" python -m pip install -r "$PY_REQ"
+#conda install -n "$CONDA_ENV_NAME" -c conda-forge --file "$PY_REQ" -y
+conda run -n "$CONDA_ENV_NAME" python -m pip install -r "$PY_REQ"
 
 echo "[INSTALL] Python Environment Ready!"

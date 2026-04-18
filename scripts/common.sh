@@ -8,7 +8,8 @@ export PROJECT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 export SCRIPTS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 export DEPS_DIR="${PROJECT_DIR}/deps"
 
-#export LD_LIBRARY_PATH="${SCRIPTS_DIR}/third_party/lib":$LD_LIBRARY_PATH
+# Shared Conda environment name
+export CONDA_ENV_NAME="${CONDA_ENV_NAME:-rayjoin-env}"
 
 # downloader
 download() {
