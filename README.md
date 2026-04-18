@@ -224,7 +224,13 @@ https://docs.aws.amazon.com/cloud9/latest/user-guide/sample-python.html
 https://www.anaconda.com/docs/getting-started/miniconda/install/linux-install#wget
 ```
 
-After installation, accept terms using these two commnads
+After installation, add this to rc file
+
+```bash
+conda deactivate
+```
+
+Accept terms using these two commnads
 
 ```
  conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main

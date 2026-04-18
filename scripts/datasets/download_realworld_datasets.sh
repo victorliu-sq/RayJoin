@@ -41,3 +41,10 @@ download_and_extract_dataset "USADetailedWaterBodies" "https://buckeyemailosu-my
 download_and_extract_dataset "USAZIPCodeArea" "https://buckeyemailosu-my.sharepoint.com/:u:/g/personal/liu_11080_buckeyemail_osu_edu/IQBR8-P93KjPR7e14GtFkR5OAbSW_X9w-KrGlNnduR0axLI?e=vZceQ3"
 
 popd >/dev/null
+
+# Download small datasets
+DATASETS_DIR="${PROJECT_DIR}/data/"
+mkdir -p ${DATASETS_DIR}
+pushd ${DATASETS_DIR} >/dev/null
+download_and_extract_dataset "realworld_small" "https://buckeyemailosu-my.sharepoint.com/:u:/g/personal/liu_11080_buckeyemail_osu_edu/IQAf4DZ3hoDaTov1b3qzrXuvAap7ypPftzyZwj3P0uG0EJo?e=SZGRik"
+popd >/dev/null
